@@ -1,0 +1,11 @@
+{
+  "name": "mini-vdom",
+  "private": true,
+  "scripts": {
+    "build": "tsc",
+    "dev": "node server.js"
+  },
+  "devDependencies": {
+    "typescript": "^6.0.2"
+  }
+}

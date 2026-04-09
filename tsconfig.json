@@ -1,0 +1,19 @@
+{
+  "compilerOptions": {
+    "jsx": "react",
+    "jsxFactory": "engine.createElement",
+    "target": "ES2017",
+    "module": "none",
+    "ignoreDeprecations": "6.0",
+    "strict": false
+  },
+  "include": ["main.tsx"]
+}
+/**
+  tsc reads tsconfig.json to know what to do:
+  include: which files to compile
+  outDir: where to put the compiled files
+  target: which version of JavaScript to compile to
+  jsx: how to handle JSX syntax (converts <h1> to jsxFactory("h1", ...))
+  jsxFactory: which function to use for creating JSX elements (scratch engine's createElement function)
+*/
