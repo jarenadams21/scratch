@@ -22,7 +22,7 @@ let hookIndex = null  // which hook call we're on within the current render
 
 // TOOLING `~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-// Simple function to encourage smart usage of text throughout app
+// Simple function to encourage smart usage of text_element throughout app
 function processText(text) {
   if(typeof text !== "string" && typeof text !== "number") {
     console.warn("Text should be a string or number:", text)
