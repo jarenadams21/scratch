@@ -20,12 +20,27 @@ let deletions      = null  // fibers scheduled for removal on the next commit
 let wipFiber  = null  // the function component fiber currently being rendered
 let hookIndex = null  // which hook call we're on within the current render
 
+// TOOLING `~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+// Simple function to encourage smart usage of text throughout app
+function processText(text) {
+  if(typeof text !== "string" && typeof text !== "number") {
+    console.warn("Text should be a string or number:", text)
+  }
+
+  // TODO: avoid functions, malicous objects
+
+  if (text.length > 10) {
+    console.warn("Text is too long:", text)
+  }
+}
 // ─── Virtual DOM ────────────────────────────────────────────────────────────
 
 // Wraps a raw string or number into a proper virtual node so the rest of
 // the pipeline (reconciler, createDom) can treat every child the same way.
 // TEXT_ELEMENT is a sentinel type; createDom handles it via document.createTextNode.
 function createTextElement(text) {
+  processText(text)
   return {
     type: "TEXT_ELEMENT",
     props: {
