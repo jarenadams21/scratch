@@ -2,10 +2,14 @@
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
-    <title>mini-vdom</title>
+    <!-- Critical for mobile: without this browsers render at ~980px desktop width -->
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <!-- Preload hint — tells the browser the script is coming -->
+    <title>Scratch UI Builder</title>
   </head>
   <body>
     <div id="root"></div>
-    <script src="./main.js"></script>
+    <!-- defer keeps the parser from blocking on the script -->
+    <script src="./main.js" defer></script>
   </body>
 </html>

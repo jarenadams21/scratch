@@ -3,6 +3,7 @@
     "jsx": "react",
     "jsxFactory": "engine.createElement",
     "target": "ES2017",
+    "lib": ["ES2019", "DOM"],
     "module": "none",
     "ignoreDeprecations": "6.0",
     "strict": false
