@@ -7,7 +7,7 @@
     "ignoreDeprecations": "6.0",
     "strict": false
   },
-  "include": ["main.tsx"]
+  "include": ["src/**/*"]
 }
 /**
   tsc reads tsconfig.json to know what to do:

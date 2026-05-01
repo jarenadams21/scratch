@@ -1,3 +1,7 @@
+/**
+ * Imports
+ */
+
 // Tells TypeScript that any lowercase tag name is a valid JSX element.
 // Without this, it errors on <h1>, <div>, etc. because it has no built-in
 // HTML element list when not using @types/react.
@@ -363,6 +367,8 @@ const engine = { createElement, render, useState }
 
 // ─── App ─────────────────────────────────────────────────────────────────────
 
+/** Usage Example
+
 function Counter() {
   const [state, setState] = engine.useState(1)
   return (
@@ -372,6 +378,17 @@ function Counter() {
   )
 }
 
-const element = <Counter />
+*/
+
+// Main Component
+function Paper() {
+return (
+  <div>
+    <h1>Harbinger</h1>
+  </div>
+)
+}
+
+const element = <Paper />
 const container = document.getElementById("root")
 engine.render(element, container)
