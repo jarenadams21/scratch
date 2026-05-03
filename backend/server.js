@@ -6,12 +6,11 @@ import { createEntry, getUserEntries, deleteEntry } from './db/db.js';
 // ─── CORS Helper ────────────────────────────────────────────────────────────
 
 function setCors(res, origin) {
-  const allowed = config.ALLOWED_ORIGINS.includes(origin);
-  if (allowed) {
-    res.setHeader('Access-Control-Allow-Origin', origin);
-  }
+  // Allow all origins for public journal access
+  res.setHeader('Access-Control-Allow-Origin', origin || '*');
   res.setHeader('Access-Control-Allow-Methods', 'GET, POST, DELETE, OPTIONS');
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
+  res.setHeader('Access-Control-Allow-Credentials', 'true');
   res.setHeader('Access-Control-Max-Age', '86400');
 }
 
