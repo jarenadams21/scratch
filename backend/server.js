@@ -6,8 +6,14 @@ import { createEntry, getUserEntries, deleteEntry } from './db/db.js';
 // ─── CORS Helper ────────────────────────────────────────────────────────────
 
 function setCors(res, origin) {
-  // Allow all origins for public journal access
-  res.setHeader('Access-Control-Allow-Origin', origin || '*');
+  // Only allow specific origins from environment variable or config
+  const allowedOrigins = process.env.ALLOWED_ORIGINS 
+    ? process.env.ALLOWED_ORIGINS.split(',')
+    : config.ALLOWED_ORIGINS || ['http://localhost:8080'];
+  
+  if (origin && allowedOrigins.includes(origin)) {
+    res.setHeader('Access-Control-Allow-Origin', origin);
+  }
   res.setHeader('Access-Control-Allow-Methods', 'GET, POST, DELETE, OPTIONS');
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
   res.setHeader('Access-Control-Allow-Credentials', 'true');
