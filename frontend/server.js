@@ -1,12 +1,16 @@
-const http   = require('http')
-const fs     = require('fs')
-const path   = require('path')
-const { spawn } = require('child_process')
+import http from 'http';
+import fs from 'fs';
+import path from 'path';
+import { spawn } from 'child_process';
+import { fileURLToPath } from 'url';
 
-// Spawn the TypeScript compiler in watch mode alongside the server.
-// stdio: 'inherit' pipes tsc output directly to this terminal.
-const tsc = spawn('npx', ['tsc', '--watch', '--preserveWatchOutput'], { stdio: 'inherit' })
-process.on('exit', () => tsc.kill())
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+
+// Spawn esbuild in watch mode for custom JSX transformation
+// No React semantics - pure custom engine.createElement
+const builder = spawn('node', ['esbuild.watch.js'], { stdio: 'inherit' })
+process.on('exit', () => builder.kill())
 
 const MIME = {
   '.html': 'text/html',

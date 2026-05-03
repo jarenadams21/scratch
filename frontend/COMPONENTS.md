@@ -1,0 +1,187 @@
+# Harbinger Component Architecture
+
+## Overview
+
+Harbinger uses a clean component-based architecture with a custom vdom rendering engine. No React - 100% custom implementation.
+
+## Directory Structure
+
+```
+frontend/src/
+├── main.js              # Custom vdom engine (createElement, render, useState)
+├── app.js               # Application entry point
+├── api.js               # API client (message-based)
+├── flags-runtime.js     # Runtime configuration
+├── mock-data.js         # DEV mode mock data
+├── journal.css          # 1960s typewriter styling
+└── components/
+    ├── state.js         # Application state management
+    ├── App.js           # Main app component (routing, auth)
+    ├── LoginForm.js     # Authentication UI
+    ├── EditorView.js    # Compose new entries
+    └── ArchiveView.js   # Display entry list
+```
+
+## Component Responsibilities
+
+### `state.js` - State Management
+- Centralized application state
+- State subscription system for re-renders
+- Single source of truth for:
+  - User authentication status
+  - Loaded entries
+  - Current view (compose/archive)
+  - Loading/error states
+
+### `App.js` - Main Application
+- Authentication routing
+- View switching (compose ↔ archive)
+- Data loading orchestration
+- Navigation UI (header, tabs)
+
+### `LoginForm.js` - Authentication
+- Login/signup forms
+- DEV mode indicator
+- Form submission handling
+
+### `EditorView.js` - Compose View
+- New entry creation form
+- Title and content inputs
+- Form validation
+- Publish functionality
+
+### `ArchiveView.js` - Archive List
+- Display all entries
+- Entry deletion
+- Empty state handling
+- ArchiveEntry sub-component
+
+## State Flow
+
+```
+User Action
+    ↓
+Update State (updateState)
+    ↓
+State Subscribers Notified
+    ↓
+renderApp() Called
+    ↓
+App Component Re-renders
+    ↓
+New Virtual DOM
+    ↓
+Custom Engine Reconciliation
+    ↓
+Real DOM Updated
+```
+
+## View Switching Logic
+
+When user clicks COMPOSE or ARCHIVE:
+
+1. `switchView('compose')` or `switchView('archive')` called
+2. `updateState({ currentView: 'compose' })` updates state
+3. State subscribers trigger re-render
+4. App component checks `AppState.currentView`
+5. Renders appropriate component (EditorView or ArchiveView)
+6. Form refs are freshly assigned on mount
+7. Previous view's DOM is cleaned up by reconciler
+
+## Key Design Decisions
+
+### Why Separate State File?
+- Clear separation of concerns
+- Easy to test state logic independently
+- Prevents circular dependencies
+- Centralized state updates
+
+### Why Component Files?
+- Single responsibility principle
+- Easier to maintain and debug
+- Reusable components
+- Clear import/export boundaries
+
+### Why Ref Callbacks?
+- Direct DOM access when needed (forms)
+- No useState overhead for simple inputs
+- Refs set/updated by custom engine after mount
+- Cleaned up automatically on unmount
+
+### Why updateState Pattern?
+- Predictable state updates
+- Easy to track what changed
+- Triggers re-render automatically
+- Better than direct mutation
+
+## Debugging
+
+### View Not Updating?
+Check browser console for:
+- State update logs
+- Component render logs
+- Ref assignment confirmations
+
+### Form Inputs Blank?
+- Ensure refs are being called: Add `console.log` in ref callback
+- Check if component is being unmounted/remounted unexpectedly
+- Verify state updates are triggering re-renders
+
+### State Not Persisting?
+- Check if `updateState()` is being called (not direct mutation)
+- Verify state subscribers are registered
+- Look for accidental state resets
+
+## Performance
+
+### Re-render Optimization
+- State updates batch automatically (render loop)
+- Only changed components re-render (fiber reconciliation)
+- Virtual DOM diff minimizes real DOM changes
+
+### Memory Management
+- State is singleton (no duplication)
+- Components are functions (no class overhead)
+- Refs cleaned up on unmount automatically
+
+## Adding New Components
+
+1. Create new file in `components/`
+2. Import engine functions: `import { createElement } from '../main.js'`
+3. Export component function: `export function MyComponent({ props }) { ... }`
+4. Use in parent: `import { MyComponent } from './components/MyComponent.js'`
+
+Example:
+```javascript
+import { createElement } from '../main.js';
+
+export function MyComponent({ title, onClick }) {
+  return createElement('div', { className: 'my-component' },
+    createElement('h2', null, title),
+    createElement('button', { onClick }, 'Click Me')
+  );
+}
+```
+
+## Testing
+
+Test components in isolation:
+```javascript
+import { render } from './main.js';
+import { MyComponent } from './components/MyComponent.js';
+
+// Render to test container
+const container = document.createElement('div');
+render(MyComponent({ title: 'Test' }), container);
+
+// Assert DOM structure
+assert(container.querySelector('h2').textContent === 'Test');
+```
+
+## Future Enhancements
+
+- [ ] Component lifecycle hooks
+- [ ] Context API for deep prop passing
+- [ ] Memoization for expensive renders
+- [ ] DevTools for state inspection
+- [ ] Hot module replacement

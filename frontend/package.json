@@ -1,11 +1,16 @@
 {
-  "name": "mini-vdom",
+  "name": "harbinger-frontend",
+  "description": "Custom vdom engine with esbuild JSX transformation - zero React",
   "private": true,
+  "type": "module",
   "scripts": {
-    "build": "tsc",
-    "dev": "node server.js"
+    "dev": "node server.js",
+    "build": "node esbuild.build.js",
+    "build:prod": "node esbuild.build.js && node build.js",
+    "preview": "npx serve dist -p 8080"
   },
   "devDependencies": {
+    "esbuild": "^0.28.0",
     "typescript": "^6.0.2",
     "undici-types": "^8.2.0"
   }

@@ -1,20 +1,30 @@
 {
   "compilerOptions": {
-    "jsx": "react",
-    "jsxFactory": "engine.createElement",
+    "jsx": "preserve",
     "target": "ES2017",
     "module": "ES6",
     "ignoreDeprecations": "6.0",
     "strict": false,
     "types": ["node"],
+    "noEmit": true
   },
   "include": ["src/**/*"]
 }
 /**
-  tsc reads tsconfig.json to know what to do:
-  include: which files to compile
-  outDir: where to put the compiled files
-  target: which version of JavaScript to compile to
-  jsx: how to handle JSX syntax (converts <h1> to jsxFactory("h1", ...))
-  jsxFactory: which function to use for creating JSX elements (scratch engine's createElement function)
-*/
+ * CUSTOM VDOM ENGINE - NO REACT
+ * ==============================
+ * TypeScript is used ONLY for type checking (noEmit: true).
+ * JSX transformation is handled by esbuild with custom jsxFactory.
+ * 
+ * Build pipeline:
+ *   1. TypeScript: Type checking only (jsx: "preserve" keeps JSX as-is)
+ *   2. esbuild: Transforms JSX → engine.createElement calls
+ *   
+ * Your custom rendering engine: src/main.tsx
+ * Zero React - 100% custom fiber-based vdom implementation.
+ * 
+ * How it works:
+ *   <div>Hello</div>  →  engine.createElement("div", null, "Hello")
+ *   
+ * esbuild config: esbuild.watch.js (dev) and esbuild.build.js (prod)
+ */
