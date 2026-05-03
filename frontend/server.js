@@ -25,19 +25,14 @@ const MIME = {
 http.createServer((req, res) => {
   let file = req.url === '/' ? '/index.html' : req.url
   
-  // Resolve config path to root config directory
-  if (file.includes('/config/')) {
-    file = path.join(__dirname, '..', file)
-  } else if (file.includes('/types/')) {
-    file = path.join(__dirname, '..', file)
-  } else {
-    file = path.join(__dirname, file)
-  }
+  // All files are served from frontend directory
+  file = path.join(__dirname, file)
   
   fs.readFile(file, (err, data) => {
     if (err) { 
       res.writeHead(404)
       res.end('not found: ' + req.url)
+      console.error('[Server] 404:', req.url, '-> tried:', file)
       return 
     }
     const ext = path.extname(file)

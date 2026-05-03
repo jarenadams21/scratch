@@ -5,9 +5,9 @@ console.log('🔨 Building with esbuild (custom JSX, no React)...\n');
 
 // Build main.tsx
 await esbuild.build({
-  entryPoints: ['src/main.tsx'],
+  entryPoints: ['src/engine/main.tsx'],
   bundle: false,
-  outdir: 'src',
+  outdir: 'src/engine',
   format: 'esm',
   target: 'es2017',
   jsxFactory: 'engine.createElement',

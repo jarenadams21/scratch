@@ -4,9 +4,9 @@ import * as esbuild from 'esbuild';
 // No React - pure custom vdom engine
 
 const ctx = await esbuild.context({
-  entryPoints: ['src/main.tsx'],
+  entryPoints: ['src/engine/main.tsx'],
   bundle: false,  // Don't bundle - keep files separate for dev
-  outdir: 'src',
+  outdir: 'src/engine',
   format: 'esm',
   target: 'es2017',
   jsxFactory: 'engine.createElement',

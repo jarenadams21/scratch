@@ -1,11 +1,11 @@
-import { createElement } from '../main.js';
-import { isLoggedIn, logout, getPosts } from '../api.js';
-import { CONFIG, devLog } from '../flags-runtime.js';
-import { MOCK_USER } from '../mock-data.js';
+import { createElement } from '../engine/main.js';
+import { isLoggedIn, logout, getPosts } from '../lib/api.js';
+import { CONFIG, devLog } from '../config/flags-runtime.js';
+import { MOCK_USER } from '../data/mock-data.js';
 import { LoginForm } from './LoginForm.js';
 import { EditorView } from './EditorView.js';
 import { ArchiveView } from './ArchiveView.js';
-import { AppState, updateState } from './state.js';
+import { AppState, updateState } from '../lib/state.js';
 
 /**
  * Main Application Component
@@ -89,6 +89,8 @@ export function App() {
   const devIndicator = CONFIG.DEV && CONFIG.SHOW_DEV_BADGES
     ? createElement('span', { className: 'dev-indicator' }, '[DEV]')
     : null;
+  
+  console.log('[App] Rendering with view:', AppState.currentView, 'logged in:', isLoggedIn());
   
   // Render main app UI
   return createElement('div', { className: 'harbinger' },

@@ -1,7 +1,7 @@
 import bcrypt from 'bcrypt';
 import jwt from 'jsonwebtoken';
-import { createUser, getUserByEmail } from './db.js';
-import { config } from './config.js';
+import { createUser, getUserByEmail } from '../db/db.js';
+import { config } from '../config/config.js';
 
 const SALT_ROUNDS = 10;
 

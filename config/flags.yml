@@ -1,56 +1,46 @@
-# Application Feature Flags
-# Source of truth for all runtime configuration
+# Production Configuration for Harbinger
+# IMPORTANT: This file contains production settings
+# Copy values to flags.yml before deploying
 
-# Development Mode
-# When enabled: Auto-login, mock data, no network calls
 dev:
-  enabled: true
+  enabled: false  # Must be false in production
   description: "Development mode with mock authentication and data"
   mock_user: "admin@harbinger.dev"
   mock_token: "mock-dev-token-12345"
-  simulated_delay_ms: 300
+  simulated_delay_ms: 0
 
-# Debug Mode
-# When enabled: Verbose console logging
 debug:
   enabled: false
   description: "Enable detailed console logging"
 
-# Verbose Mode
-# When enabled: Additional diagnostic information
 verbose:
   enabled: false
   description: "Enable verbose output for all operations"
 
-# Logging Configuration
 logging:
-  log_level: "INFO"  # INFO, WARN, ERROR, DEBUG
-  log_to_console: true
-  log_messages: true
+  log_level: "INFO"
+  log_to_console: false  # Use structured logging in production
+  log_messages: false
   description: "Configure application-wide logging behavior"
 
-# API Configuration
 api:
-  base_url: "http://localhost:3000"
+  base_url: "https://lncwuj7103.execute-api.us-east-2.amazonaws.com"
   timeout_ms: 30000
   retry_attempts: 3
   description: "Backend API connection settings"
 
-# UI Configuration
 ui:
-  show_dev_badges: true
+  show_dev_badges: false
   auto_save_interval_ms: 60000
   max_title_length: 100
   max_content_length: 10000
   description: "User interface behavior settings"
 
-# Database Configuration
 database:
-  table_name: "journal-app"
-  region: "us-east-1"
+  table_name: "harbinger-prod"  # Separate production table
+  region: "us-east-1"  # UPDATE if needed
   description: "DynamoDB connection settings"
 
-# Authentication
 auth:
   jwt_expires_in: "7d"
   require_email_verification: false

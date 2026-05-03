@@ -6,9 +6,9 @@ import {
   signupMessage,
   loginMessage,
   logoutMessage 
-} from './journal-messages.js';
-import { CONFIG, devLog } from './flags-runtime.js';
-import { MOCK_USER, mockDB } from './mock-data.js';
+} from '../types/journal-messages.js';
+import { CONFIG, devLog } from '../config/flags-runtime.js';
+import { MOCK_USER, mockDB } from '../data/mock-data.js';
 
 const API_URL = CONFIG.API_URL;
 

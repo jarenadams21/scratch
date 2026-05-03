@@ -3,11 +3,11 @@
 
 export const flagsConfig = {
   "dev": {
-    "enabled": true,
+    "enabled": false,
     "description": "Development mode with mock authentication and data",
     "mock_user": "admin@harbinger.dev",
     "mock_token": "mock-dev-token-12345",
-    "simulated_delay_ms": 300
+    "simulated_delay_ms": 0
   },
   "debug": {
     "enabled": false,
@@ -19,25 +19,25 @@ export const flagsConfig = {
   },
   "logging": {
     "log_level": "INFO",
-    "log_to_console": true,
-    "log_messages": true,
+    "log_to_console": false,
+    "log_messages": false,
     "description": "Configure application-wide logging behavior"
   },
   "api": {
-    "base_url": "http://localhost:3000",
+    "base_url": "https://lncwuj7103.execute-api.us-east-2.amazonaws.com",
     "timeout_ms": 30000,
     "retry_attempts": 3,
     "description": "Backend API connection settings"
   },
   "ui": {
-    "show_dev_badges": true,
+    "show_dev_badges": false,
     "auto_save_interval_ms": 60000,
     "max_title_length": 100,
     "max_content_length": 10000,
     "description": "User interface behavior settings"
   },
   "database": {
-    "table_name": "journal-app",
+    "table_name": "harbinger-prod",
     "region": "us-east-1",
     "description": "DynamoDB connection settings"
   },

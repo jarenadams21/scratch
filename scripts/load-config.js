@@ -48,7 +48,7 @@ try {
   // Write JSON output
   writeFileSync(jsonPath, JSON.stringify(config, null, 2), 'utf8');
   
-  // Write TypeScript runtime config for frontend
+  // Write TypeScript runtime config for types folder
   const tsPath = join(rootDir, 'types', 'flags-runtime.ts');
   const tsContent = `// Application flags - Frontend runtime config
 // Auto-generated from config/flags.json - DO NOT EDIT MANUALLY
@@ -56,6 +56,37 @@ try {
 export const flagsConfig = ${JSON.stringify(config, null, 2)};
 `;
   writeFileSync(tsPath, tsContent, 'utf8');
+  
+  // Write JavaScript runtime config for frontend
+  const frontendJsPath = join(rootDir, 'frontend', 'src', 'config', 'flags-runtime.js');
+  const jsContent = `// Application flags - Frontend runtime config
+// Auto-generated from config/flags.json
+
+export const flagsConfig = ${JSON.stringify(config, null, 2)};
+
+// Convenience exports
+export const CONFIG = {
+  DEV: flagsConfig.dev.enabled,
+  DEBUG: flagsConfig.debug.enabled,
+  API_URL: flagsConfig.api.base_url,
+  TIMEOUT: flagsConfig.api.timeout_ms,
+  RETRY_ATTEMPTS: flagsConfig.api.retry_attempts,
+  LOG_LEVEL: flagsConfig.logging.log_level,
+  DB_TABLE: flagsConfig.database.table_name,
+  MOCK_USER: flagsConfig.dev.mock_user,
+  MOCK_TOKEN: flagsConfig.dev.mock_token,
+  SIMULATED_DELAY: flagsConfig.dev.simulated_delay_ms,
+  SHOW_DEV_BADGES: flagsConfig.ui.show_dev_badges,
+};
+
+// Development helpers
+export function devLog(...args) {
+  if (CONFIG.DEV && CONFIG.DEBUG) {
+    console.log('[DEV]', ...args);
+  }
+}
+`;
+  writeFileSync(frontendJsPath, jsContent, 'utf8');
   
   console.log('✅ Configuration loaded from flags.yml');
   console.log(`   DEV mode: ${config.dev.enabled}`);

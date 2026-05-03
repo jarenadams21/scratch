@@ -10,10 +10,13 @@
     "load-config": "node scripts/load-config.js",
     "build": "npm run load-config && npm run build:frontend",
     "build:frontend": "cd frontend && npm run build",
+    "build:prod": "cp config/flags.prod.yml config/flags.yml && npm run load-config && cd frontend && npm run build:prod",
     "preview": "cd frontend && npm run preview",
     "start": "concurrently \"npm run start:frontend\" \"npm run start:backend\"",
     "start:frontend": "cd frontend && npm run dev",
-    "start:backend": "cd backend && npm start"
+    "start:backend": "cd backend && npm start",
+    "deploy": "./scripts/deploy/deploy.sh",
+    "setup:prod": "./scripts/deploy/setup-production.sh"
   },
   "devDependencies": {
     "@types/node": "^25.6.0",

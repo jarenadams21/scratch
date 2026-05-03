@@ -8,23 +8,31 @@ Harbinger uses a clean component-based architecture with a custom vdom rendering
 
 ```
 frontend/src/
-├── main.js              # Custom vdom engine (createElement, render, useState)
 ├── app.js               # Application entry point
-├── api.js               # API client (message-based)
-├── flags-runtime.js     # Runtime configuration
-├── mock-data.js         # DEV mode mock data
-├── journal.css          # 1960s typewriter styling
-└── components/
-    ├── state.js         # Application state management
-    ├── App.js           # Main app component (routing, auth)
-    ├── LoginForm.js     # Authentication UI
-    ├── EditorView.js    # Compose new entries
-    └── ArchiveView.js   # Display entry list
+├── engine/              # Custom vdom engine (createElement, render, useState)
+│   ├── main.tsx         # TypeScript source
+│   └── main.js          # Compiled JavaScript output
+├── components/          # UI components
+│   ├── App.js           # Main application container
+│   ├── LoginForm.js     # Authentication UI
+│   ├── EditorView.js    # Compose new entries
+│   └── ArchiveView.js   # Archive list + reading pane
+├── lib/                 # Utilities and libraries
+│   ├── api.js           # Backend API client (message-based)
+│   └── state.js         # Application state management
+├── config/              # Configuration
+│   └── flags-runtime.js # Runtime config (auto-generated)
+├── data/                # Mock data
+│   └── mock-data.js     # DEV mode fixtures
+├── types/               # Type definitions
+│   └── journal-messages.js  # Message creators
+└── styles/              # Styling
+    └── journal.css      # 1960s typewriter aesthetic
 ```
 
 ## Component Responsibilities
 
-### `state.js` - State Management
+### `lib/state.js` - State Management
 - Centralized application state
 - State subscription system for re-renders
 - Single source of truth for:
@@ -32,34 +40,57 @@ frontend/src/
   - Loaded entries
   - Current view (compose/archive)
   - Loading/error states
+  - Selected entry (for reading pane)
 
-### `App.js` - Main Application
+### `components/App.js` - Main Application
 - Authentication routing
 - View switching (compose ↔ archive)
 - Data loading orchestration
 - Navigation UI (header, tabs)
 
-### `LoginForm.js` - Authentication
+### `components/LoginForm.js` - Authentication
 - Login/signup forms
 - DEV mode indicator
 - Form submission handling
 
-### `EditorView.js` - Compose View
+### `components/EditorView.js` - Compose View
 - New entry creation form
 - Title and content inputs
 - Form validation
 - Publish functionality
 
-### `ArchiveView.js` - Archive List & Reading Pane
+### `components/ArchiveView.js` - Archive List & Reading Pane
 - Outlook-style split view layout
 - Left pane: Entry list with preview
 - Right pane: Full reading view of selected entry
 - Click entry to expand in reading pane
 - Entry deletion from reading pane
+- Close button for reading pane
 - Empty state handling
 - Sub-components:
   - `ArchiveListItem` - Compact entry in list
   - `ReadingPane` - Expanded entry view
+
+### `engine/main.tsx` - Custom vdom Engine
+- Virtual DOM implementation
+- Fiber-based reconciliation
+- createElement function
+- render function
+- useState hook
+- Ref callback support
+- Key-based reconciliation
+
+### `lib/api.js` - API Client
+- Message-based communication
+- Backend API calls
+- DEV mode mock data branching
+- Authentication helpers
+- CRUD operations (posts)
+
+### `types/journal-messages.js` - Message Creators
+- Type-safe message builders
+- REGISTERED_NUM_MAP validation
+- Message structure definitions
 
 ## State Flow
 

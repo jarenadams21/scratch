@@ -20,32 +20,29 @@ fs.copyFileSync(
 );
 console.log('✓ Copied index.html');
 
-// Copy src directory (JS files - TypeScript already compiled)
+// Copy src directory (entire reorganized structure)
 const srcDist = path.join(distDir, 'src');
-fs.mkdirSync(srcDist, { recursive: true });
 
-// Copy compiled JS files and CSS
-const srcFiles = [
-  'main.js',
-  'harbinger.js',
-  'api.js',
-  'flags-runtime.js',
-  'journal-messages.js',
-  'mock-data.js',
-  'journal.css'
-];
-
-srcFiles.forEach(file => {
-  const srcPath = path.join(__dirname, 'src', file);
-  const destPath = path.join(srcDist, file);
+// Function to recursively copy directory
+function copyDir(src, dest) {
+  fs.mkdirSync(dest, { recursive: true });
+  const entries = fs.readdirSync(src, { withFileTypes: true });
   
-  if (fs.existsSync(srcPath)) {
-    fs.copyFileSync(srcPath, destPath);
-    console.log(`✓ Copied src/${file}`);
-  } else {
-    console.warn(`⚠ Missing: src/${file}`);
+  for (const entry of entries) {
+    const srcPath = path.join(src, entry.name);
+    const destPath = path.join(dest, entry.name);
+    
+    if (entry.isDirectory()) {
+      copyDir(srcPath, destPath);
+    } else if (entry.isFile() && (entry.name.endsWith('.js') || entry.name.endsWith('.css'))) {
+      fs.copyFileSync(srcPath, destPath);
+      console.log(`✓ Copied src/${path.relative(path.join(__dirname, 'src'), srcPath)}`);
+    }
   }
-});
+}
+
+console.log('Copying source files...');
+copyDir(path.join(__dirname, 'src'), srcDist);
 
 // Copy config files (for runtime access)
 const configDist = path.join(distDir, 'config');

@@ -1,5 +1,5 @@
-import { createElement } from '../main.js';
-import { createPost } from '../api.js';
+import { createElement } from '../engine/main.js';
+import { createPost } from '../lib/api.js';
 
 /**
  * EditorView Component

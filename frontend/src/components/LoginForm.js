@@ -1,6 +1,6 @@
-import { createElement } from '../main.js';
-import { login, signup } from '../api.js';
-import { CONFIG } from '../flags-runtime.js';
+import { createElement } from '../engine/main.js';
+import { login, signup } from '../lib/api.js';
+import { CONFIG } from '../config/flags-runtime.js';
 
 /**
  * LoginForm Component

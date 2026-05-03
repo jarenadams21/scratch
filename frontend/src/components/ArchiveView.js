@@ -1,6 +1,6 @@
-import { createElement } from '../main.js';
-import { deletePost } from '../api.js';
-import { AppState, updateState } from './state.js';
+import { createElement } from '../engine/main.js';
+import { deletePost } from '../lib/api.js';
+import { AppState, updateState } from '../lib/state.js';
 
 /**
  * ArchiveListItem Component

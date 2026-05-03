@@ -1,7 +1,7 @@
 import http from 'http';
-import { config } from './config.js';
-import { signup, login, extractUser } from './auth.js';
-import { createEntry, getUserEntries, deleteEntry } from './db.js';
+import { config } from './config/config.js';
+import { signup, login, extractUser } from './auth/auth.js';
+import { createEntry, getUserEntries, deleteEntry } from './db/db.js';
 
 // ─── CORS Helper ────────────────────────────────────────────────────────────
 
@@ -126,6 +126,9 @@ async function handleRequest(req, res) {
 
 // ─── Server ─────────────────────────────────────────────────────────────────
 
+// Export handleRequest for Lambda
+export { handleRequest };
+
 const server = http.createServer(handleRequest);
 
 server.listen(config.PORT, () => {
@@ -133,4 +136,5 @@ server.listen(config.PORT, () => {
   console.log(`   DEV mode: ${config.DEV_MODE ? 'ON' : 'OFF'}`);
   console.log(`   DB Table: ${config.DYNAMODB_TABLE}`);
   console.log('');
+});
 });

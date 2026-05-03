@@ -31,12 +31,6 @@ function processText(text) {
   if(typeof text !== "string" && typeof text !== "number") {
     console.warn("Text should be a string or number:", text)
   }
-
-  // TODO: avoid functions, malicous objects
-
-  if (text.length > 10) {
-    console.warn("Text is too long:", text)
-  }
 }
 // ─── Virtual DOM ────────────────────────────────────────────────────────────
 
@@ -349,11 +343,13 @@ function reconcileChildren(wipFiber, elements) {
     // Wire the new fiber into the tree as either the first child or a sibling.
     if (index === 0) {
       wipFiber.child = newFiber
-    } else if (element) {
+    } else if (element && prevSibling) {
       prevSibling.sibling = newFiber
     }
 
-    prevSibling = newFiber
+    if (newFiber) {
+      prevSibling = newFiber
+    }
     index++
   }
 }

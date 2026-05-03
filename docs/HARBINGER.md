@@ -1,7 +1,7 @@
 # HARBINGER
 ## A Journal of Thought
 
-### 1960s Typewriter Aesthetic
+### 1960s Typewriter
 
 Minimalist journal editor inspired by mid-century editorial design.
 

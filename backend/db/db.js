@@ -1,6 +1,6 @@
 import { DynamoDBClient } from '@aws-sdk/client-dynamodb';
 import { DynamoDBDocumentClient, PutCommand, GetCommand, QueryCommand, DeleteCommand } from '@aws-sdk/lib-dynamodb';
-import { config } from './config.js';
+import { config } from '../config/config.js';
 
 const client = new DynamoDBClient({ region: config.AWS_REGION });
 const db = DynamoDBDocumentClient.from(client);

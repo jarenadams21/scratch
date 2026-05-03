@@ -1,6 +1,6 @@
 // Mock data for DEV mode
 // All network operations return this data when FLAGS.DEV is enabled
-import { CONFIG } from './flags-runtime.js';
+import { CONFIG } from '../config/flags-runtime.js';
 
 export const MOCK_USER = {
   email: CONFIG.MOCK_USER,

@@ -7,7 +7,7 @@ import { dirname, join } from 'path';
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 const flagsConfig = JSON.parse(
-  readFileSync(join(__dirname, '../config/flags.json'), 'utf8')
+  readFileSync(join(__dirname, '../../config/flags.json'), 'utf8')
 );
 
 export const config = {
