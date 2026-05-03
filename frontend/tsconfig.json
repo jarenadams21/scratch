@@ -3,9 +3,10 @@
     "jsx": "react",
     "jsxFactory": "engine.createElement",
     "target": "ES2017",
-    "module": "none",
+    "module": "ES6",
     "ignoreDeprecations": "6.0",
-    "strict": false
+    "strict": false,
+    "types": ["node"],
   },
   "include": ["src/**/*"]
 }

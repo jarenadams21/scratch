@@ -1,0 +1,10 @@
+# Backend .env
+JWT_SECRET=*
+DYNAMODB_TABLE=*
+AWS_REGION=*
+ALLOWED_ORIGINS=*
+
+# Frontend build
+dist/
+node_modules/
+.DS_Store

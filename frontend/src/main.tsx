@@ -365,6 +365,9 @@ function render(element, container) {
 
 const engine = { createElement, render, useState }
 
+// Export for use in other modules
+export { createElement, render, useState }
+
 // ─── App ─────────────────────────────────────────────────────────────────────
 
 /** Usage Example
@@ -380,15 +383,5 @@ function Counter() {
 
 */
 
-// Main Component
-function Paper() {
-return (
-  <div>
-    <h1>Harbinger</h1>
-  </div>
-)
-}
-
-const element = <Paper />
-const container = document.getElementById("root")
-engine.render(element, container)
+// Harbinger - 1960s style journal editor
+// Import handled by harbinger.js now
