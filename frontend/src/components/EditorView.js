@@ -1,78 +1,52 @@
 import { createElement } from '../engine/main.js';
 import { createPost } from '../lib/api.js';
 
-/**
- * EditorView Component
- * Compose new journal entries
- */
 export function EditorView({ onPostCreated }) {
-  // Store refs for form inputs - these will be set when DOM mounts
-  let titleInput = null;
-  let contentInput = null;
-  
   const handleSubmit = async (e) => {
     e.preventDefault();
-    
-    // Guard: ensure refs are set
-    if (!titleInput || !contentInput) {
-      console.warn('Form inputs not yet mounted');
-      return;
-    }
-    
-    const title = titleInput.value.trim();
-    const content = contentInput.value.trim();
-    
+    const title   = e.target.elements['title'].value.trim();
+    const content = e.target.elements['content'].value.trim();
     if (!title || !content) {
-      alert('Please provide both headline and content');
+      alert('Headline and body required');
       return;
     }
-    
     try {
       await createPost(title, content, null);
-      
-      // Clear form after successful post
-      titleInput.value = '';
-      contentInput.value = '';
-      
-      // Notify parent (triggers reload)
-      if (onPostCreated) {
-        onPostCreated();
-      }
+      e.target.reset();
+      if (onPostCreated) onPostCreated();
     } catch (err) {
       alert('Transmission failed: ' + err.message);
     }
   };
-  
-  const date = new Date().toLocaleDateString('en-US', { 
-    year: 'numeric', 
-    month: 'long', 
-    day: 'numeric' 
+
+  const date = new Date().toLocaleDateString('en-US', {
+    year: 'numeric', month: 'long', day: 'numeric'
   });
-  
+
   return createElement('div', { className: 'editor-sheet' },
     createElement('div', { className: 'sheet-header' },
-      createElement('div', { className: 'date-stamp' }, date.toUpperCase())
+      createElement('span', { className: 'date-stamp' }, date.toUpperCase()),
+      createElement('span', { className: 'date-stamp' }, 'COMPOSE')
     ),
-    createElement('form', { 
-      onSubmit: handleSubmit, 
-      className: 'typewriter-form'
-    },
+    createElement('form', { className: 'typewriter-form', onSubmit: handleSubmit },
       createElement('input', {
         type: 'text',
+        name: 'title',
         placeholder: 'HEADLINE',
-        ref: (el) => { titleInput = el; },
-        className: 'headline-input'
+        className: 'headline-input',
+        autocomplete: 'off'
       }),
       createElement('textarea', {
-        placeholder: 'Begin typing...',
-        rows: '20',
-        ref: (el) => { contentInput = el; },
+        name: 'content',
+        placeholder: 'Begin transmission...',
         className: 'body-text'
       }),
-      createElement('button', { 
-        type: 'submit',
-        className: 'publish-btn'
-      }, '▶ PUBLISH')
+      createElement('div', { className: 'editor-footer' },
+        createElement('button', {
+          type: 'submit',
+          className: 'publish-btn'
+        }, '▶  TRANSMIT')
+      )
     )
   );
 }

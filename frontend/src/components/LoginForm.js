@@ -1,76 +1,44 @@
 import { createElement } from '../engine/main.js';
-import { login, signup } from '../lib/api.js';
-import { CONFIG } from '../config/flags-runtime.js';
+import { login } from '../lib/api.js';
 
-/**
- * LoginForm Component
- * Handles user authentication (login only for admin, signup disabled)
- */
-export function LoginForm({ onAuthSuccess, hideSignup = false }) {
-  // Store refs for form inputs
-  let emailInput;
-  let passwordInput;
-  
-  const handleLogin = async (e) => {
+export function LoginForm({ onAuthSuccess }) {
+  const handleSubmit = async (e) => {
     e.preventDefault();
-    if (!emailInput || !passwordInput) return;
-    
+    const email    = e.target.elements['email'].value.trim();
+    const password = e.target.elements['password'].value;
+    if (!email || !password) return;
     try {
-      await login(emailInput.value, passwordInput.value);
+      await login(email, password);
       onAuthSuccess();
     } catch (err) {
-      alert('Invalid credentials');
+      alert('Access denied');
     }
   };
-  
-  const handleSignup = async (e) => {
-    e.preventDefault();
-    if (!emailInput || !passwordInput) return;
-    
-    try {
-      await signup(emailInput.value, passwordInput.value);
-      onAuthSuccess();
-    } catch (err) {
-      alert('Account creation failed');
-    }
-  };
-  
-  const devBadge = CONFIG.DEV && CONFIG.SHOW_DEV_BADGES
-    ? createElement('div', { className: 'dev-badge' }, '[DEV MODE - MOCK DATA]')
-    : null;
-  
+
   return createElement('div', { className: 'typewriter-login' },
-    createElement('div', { className: 'paper-sheet' },
-      createElement('h1', { className: 'masthead' }, 'HARBINGER'),
-      createElement('div', { className: 'subhead' }, 'A Journal of Thought'),
-      devBadge,
-      createElement('div', { className: 'login-line' }, '─────────────────────'),
-      createElement('form', { className: 'credentials' },
-        createElement('input', {
-          type: 'email',
-          placeholder: 'OPERATOR',
-          ref: (el) => { emailInput = el; },
-          className: 'typewriter-input'
-        }),
-        createElement('input', {
-          type: 'password',
-          placeholder: 'PASSWORD',
-          ref: (el) => { passwordInput = el; },
-          className: 'typewriter-input'
-        }),
-        createElement('div', { className: 'button-row' },
-          createElement('button', { 
-            type: 'submit', 
-            onClick: handleLogin,
-            className: 'typewriter-btn'
-          }, 'ENTER'),
-          // Only show REGISTER button if hideSignup is false
-          !hideSignup ? createElement('button', { 
-            type: 'button', 
-            onClick: handleSignup,
-            className: 'typewriter-btn secondary'
-          }, 'REGISTER') : null
-        )
+    createElement('p', { className: 'login-heading' }, 'OPERATOR ACCESS'),
+    createElement('p', { className: 'login-subhead' }, 'Restricted Terminal'),
+    createElement('hr', { className: 'login-rule' }),
+    createElement('form', { className: 'credentials', onSubmit: handleSubmit },
+      createElement('input', {
+        type: 'email',
+        name: 'email',
+        placeholder: 'EMAIL',
+        className: 'typewriter-input',
+        autocomplete: 'email'
+      }),
+      createElement('input', {
+        type: 'password',
+        name: 'password',
+        placeholder: 'PASSWORD',
+        className: 'typewriter-input',
+        autocomplete: 'current-password'
+      }),
+      createElement('div', { className: 'button-row' },
+        createElement('button', {
+          type: 'submit',
+          className: 'typewriter-btn'
+        }, 'ENTER')
       )
     )
   );

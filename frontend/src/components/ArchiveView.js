@@ -103,8 +103,16 @@ export function ReadingPane({ entry, onDeleted }) {
  */
 export function ArchiveView({ entries, onDeleted }) {
   if (!entries || entries.length === 0) {
-    return createElement('div', { className: 'archive-sheet' },
-      createElement('div', { className: 'empty-archive' }, 'NO RECORDS FOUND')
+    return createElement('div', { className: 'archive-full-view' },
+      createElement('div', { className: 'archive-list-pane' },
+        createElement('div', { className: 'archive-list-header' },
+          createElement('h2', null, 'ARCHIVES'),
+          createElement('div', { className: 'record-count' }, '0 RECORDS')
+        ),
+        createElement('div', { className: 'empty-archive' },
+          createElement('div', { className: 'empty-archive-label' }, 'NO RECORDS FOUND')
+        )
+      )
     );
   }
   
