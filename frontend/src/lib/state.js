@@ -5,10 +5,11 @@ export const AppState = {
   user: null,
   entries: [],
   loading: false,
+  postsLoaded: false,
   error: null,
-  currentView: 'archive', // Default: public archive view
-  selectedEntry: null, // For archive reading pane
-  showAdminPanel: false, // Admin login overlay
+  currentView: 'archive',
+  selectedEntry: null,
+  showAdminPanel: false,
 };
 
 // State update callbacks (to trigger re-render)

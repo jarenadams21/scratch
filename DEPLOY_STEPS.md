@@ -11,110 +11,82 @@
 7. Click "Create table"
 8. Note your Access Key ID and Secret Access Key
 
-## 2. Deploy Backend to Fly.io
+## 2. Deploy Backend to AWS Lambda
 
 ```bash
-# Login to Fly.io (opens browser)
-flyctl auth login
-
-# Launch the app (creates it on Fly.io)
-cd /Users/jarenadams/scratch/backend
-flyctl launch --name harbinger-api --region iad --no-deploy
-
-# Set environment secrets
-flyctl secrets set \
-  JWT_SECRET=$(openssl rand -hex 32) \
-  AWS_ACCESS_KEY_ID=YOUR_AWS_KEY \
-  AWS_SECRET_ACCESS_KEY=YOUR_AWS_SECRET \
-  AWS_REGION=us-east-1 \
-  DYNAMODB_TABLE=harbinger-prod
-
-# Deploy!
-flyctl deploy
-
-# Get your backend URL
-flyctl info
+# Build the Lambda zip from project root
+npm run build:lambda
 ```
 
-Your backend will be at: `https://harbinger-api.fly.dev`
+Upload `harbinger-backend.zip` to your Lambda function:
+1. AWS Lambda Console → `harbinger-prod-lambda` → Code → Upload from .zip file
+2. Set the handler to `backend/lambda.handler`
+3. Set environment variables under Configuration → Environment variables:
+   - `JWT_SECRET` — generate with `openssl rand -hex 32`
+   - `AWS_REGION` — e.g. `us-east-2`
+   - `DYNAMODB_TABLE` — `harbinger-prod`
+   - `ALLOWED_ORIGINS` — your Amplify URL, e.g. `https://proto.d9avjouq8id14.amplifyapp.com`
 
-## 3. Update Frontend Config
+Your backend endpoint: `https://<api-id>.execute-api.<region>.amazonaws.com/msg`
+
+## 3. Configure API Gateway CORS
+
+In API Gateway → your HTTP API → CORS:
+- **Allow origins**: your Amplify URL
+- **Allow methods**: `GET, POST, DELETE, OPTIONS`
+- **Allow headers**: `Content-Type, Authorization`
+- **Allow credentials**: Yes
+
+## 4. Update Frontend Config
 
 Edit `config/flags.prod.yml`:
 
 ```yaml
 api:
-  base_url: "https://harbinger-api.fly.dev"  # Your backend URL
+  base_url: "https://<api-id>.execute-api.<region>.amazonaws.com"
 ```
 
-## 4. Deploy Frontend to Cloudflare Pages
+## 5. Deploy Frontend to Amplify
 
-```bash
-# Login to Cloudflare
-wrangler login
+Push to the `proto` (or `main`) branch — Amplify auto-deploys on push.
 
-# Build production frontend
-cd /Users/jarenadams/scratch
-npm run build:prod
+## 6. Test It!
 
-# Deploy to Cloudflare Pages
-cd frontend
-wrangler pages deploy dist --project-name=harbinger
-
-# Or create project first
-wrangler pages project create harbinger
-wrangler pages deploy dist --project-name=harbinger
-```
-
-Your frontend will be at: `https://harbinger.pages.dev`
-
-## 5. Test It!
-
-1. Open `https://harbinger.pages.dev` in browser
-2. Create an account
+1. Open your Amplify URL in browser
+2. Log in with your admin account
 3. Write and publish an entry
 4. Check the archive
 5. Test delete functionality
 
-## 6. Custom Domain (Optional)
+## 7. Custom Domain (Optional)
 
-### Backend (Fly.io)
-```bash
-flyctl certs create harbinger.yourdomain.com
-```
+### Backend (API Gateway)
+In API Gateway → Custom domain names → create a domain and map it to your API stage.
 
-### Frontend (Cloudflare Pages)
-1. Go to Cloudflare Pages dashboard
-2. Select your project
-3. Go to "Custom domains"
-4. Add your domain
+### Frontend (Amplify)
+In Amplify Console → your app → Domain management → Add domain.
 
 ## Troubleshooting
 
 ### Backend logs
-```bash
-flyctl logs
-```
-
-### Backend status
-```bash
-flyctl status
-```
+AWS Lambda Console → Monitor → View CloudWatch logs
 
 ### Test backend directly
 ```bash
-curl https://harbinger-api.fly.dev
+curl -X OPTIONS https://<api-id>.execute-api.<region>.amazonaws.com/msg \
+  -H "Origin: https://your-amplify-url.amplifyapp.com" -v
 ```
 
 ### Frontend issues
 - Check browser console (F12)
-- Verify API URL in flags.prod.yml
-- Check CORS settings in backend/server.js
+- Verify API URL in `config/flags.prod.yml`
+- Check CORS settings in API Gateway and `backend/server.js`
 
 ## Cost
 
-- **Fly.io**: FREE (3 shared VMs, 256MB RAM)
-- **Cloudflare Pages**: FREE (unlimited builds, 500 builds/month)
+- **AWS Lambda**: FREE (1M requests/month free tier)
+- **API Gateway**: FREE (1M requests/month free tier)
+- **Amplify**: FREE (build minutes + hosting)
 - **DynamoDB**: FREE (25GB storage, 25 RCU/WCU)
 
 **Total: $0/month** for small usage!
@@ -123,5 +95,5 @@ curl https://harbinger-api.fly.dev
 
 1. Set up custom domain
 2. Enable GitHub Actions CI/CD
-3. Add monitoring/alerts
+3. Add CloudWatch alarms for errors
 4. Configure email notifications (optional)

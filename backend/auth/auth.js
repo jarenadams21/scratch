@@ -1,4 +1,4 @@
-import bcrypt from 'bcrypt';
+import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
 import { createUser, getUserByEmail } from '../db/db.js';
 import { config } from '../config/config.js';

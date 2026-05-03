@@ -34,11 +34,10 @@ npm run build:prod
 cd ..
 
 echo ""
-echo "🛫 Step 3: Deploy backend to Fly.io"
-cd backend
-flyctl deploy
-BACKEND_URL=$(flyctl info --json | jq -r '.Hostname')
-cd ..
+echo "📦 Step 3: Build Lambda zip"
+npm run build:lambda
+echo "Upload harbinger-backend.zip to AWS Lambda manually or via AWS CLI:"
+echo "  aws lambda update-function-code --function-name harbinger-prod-lambda --zip-file fileb://harbinger-backend.zip"
 
 echo ""
 echo "☁️  Step 4: Deploy frontend to Cloudflare Pages"
@@ -49,10 +48,7 @@ cd ..
 echo ""
 echo "✅ Deployment Complete!"
 echo ""
-echo "Backend:  https://$BACKEND_URL"
-echo "Frontend: https://harbinger.pages.dev"
-echo ""
 echo "Don't forget to:"
 echo "1. Update config/flags.prod.yml with backend URL"
-echo "2. Set environment secrets on Fly.io and Cloudflare"
+echo "2. Set environment variables in Lambda (ALLOWED_ORIGINS, JWT_SECRET, etc.)"
 echo "3. Create DynamoDB table if not exists"

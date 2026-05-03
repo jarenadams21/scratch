@@ -145,4 +145,3 @@ server.listen(config.PORT, () => {
   console.log(`   DB Table: ${config.DYNAMODB_TABLE}`);
   console.log('');
 });
-});

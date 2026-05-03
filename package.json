@@ -9,6 +9,7 @@
     "dev:backend": "cd backend && npm run dev",
     "load-config": "node scripts/load-config.js",
     "build": "npm run load-config && npm run build:frontend",
+    "build:lambda": "rm -f harbinger-backend.zip && zip -r harbinger-backend.zip backend/ config/flags.json -x '*.DS_Store' -x 'backend/.env*' -x 'backend/README.md' && echo 'Built: harbinger-backend.zip'",
     "build:frontend": "cd frontend && npm run build",
     "build:prod": "cp config/flags.prod.yml config/flags.yml && npm run load-config && cd frontend && npm run build:prod",
     "preview": "cd frontend && npm run preview",

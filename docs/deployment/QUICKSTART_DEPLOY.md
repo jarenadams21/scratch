@@ -1,6 +1,6 @@
 # Harbinger MVP Quick Deploy Guide
 
-**Goal**: Get Harbinger running in production with minimal cost (~$0-5/month)
+**Goal**: Get Harbinger running in production with minimal cost (~$0/month)
 
 ---
 
@@ -13,8 +13,8 @@
 cp config/flags.production.yml config/flags.yml
 
 # 2. Update YOUR settings in flags.yml:
-#    - api.base_url: Your backend URL (get after Step 3)
-#    - database.table_name: journal-app-prod
+#    - api.base_url: Your API Gateway URL (get after Step 3)
+#    - database.table_name: harbinger-prod
 #    - database.region: your-aws-region
 
 # 3. Regenerate config
@@ -36,88 +36,45 @@ node server.js
 
 ## Deploy Backend First (Get API URL)
 
-### Option 1: Fly.io (FREE - Recommended)
+### AWS Lambda + API Gateway (FREE - Recommended)
 
 ```bash
-# Install flyctl
-curl -L https://fly.io/install.sh | sh
-
-# Login
-flyctl auth login
-
-# Launch (from backend/ directory)
-cd backend
-flyctl launch --name harbinger-api
-
-# It will ask questions:
-# - Choose region: Choose closest to your users
-# - PostgreSQL? NO (we use DynamoDB)
-# - Deploy now? YES
-
-# Set secrets
-flyctl secrets set \
-  NODE_ENV=production \
-  JWT_SECRET=$(openssl rand -hex 32) \
-  DYNAMODB_TABLE=journal-app-prod \
-  AWS_REGION=us-east-1 \
-  AWS_ACCESS_KEY_ID=your_key_here \
-  AWS_SECRET_ACCESS_KEY=your_secret_here
-
-# Get your API URL
-flyctl info
-# Copy the URL: https://harbinger-api.fly.dev
+# Build the Lambda zip from project root
+npm run build:lambda
 ```
 
-### Option 2: Railway.app ($5/month - Easier)
+1. AWS Lambda Console → `harbinger-prod-lambda` → Code → Upload from .zip file
+2. Set environment variables (Configuration → Environment variables):
+   ```
+   ALLOWED_ORIGINS = https://your-frontend.amplifyapp.com
+   JWT_SECRET      = <openssl rand -hex 32>
+   DYNAMODB_TABLE  = harbinger-prod
+   AWS_REGION      = us-east-2
+   ```
+3. In API Gateway → your HTTP API → CORS: set your frontend origin
+4. Your API endpoint: `https://<api-id>.execute-api.<region>.amazonaws.com`
+
+### Railway.app ($5/month - Easier alternative)
 
 ```bash
-# Install Railway CLI
-npm i -g @railway/cli
-
-# Login
+npm install -g @railway/cli
 railway login
-
-# Initialize project
 cd backend
 railway init
-
-# Deploy
 railway up
-
-# Add environment variables in dashboard:
-# https://railway.app/project/YOUR_PROJECT/variables
-# - NODE_ENV=production
-# - JWT_SECRET=<generate-with-openssl>
-# - DYNAMODB_TABLE=journal-app-prod
-# - AWS credentials
-
-# Get your API URL from Railway dashboard
+# Add env vars in Railway dashboard
 ```
-
-### Option 3: AWS Lambda (Almost Free)
-
-See DEPLOYMENT.md for detailed Lambda setup.
 
 ---
 
 ## Setup Database (DynamoDB)
 
 ```bash
-# Install AWS CLI if needed
-# brew install awscli (macOS)
-# Or download from: https://aws.amazon.com/cli/
-
-# Configure AWS credentials
 aws configure
-# Enter:
-# - AWS Access Key ID
-# - AWS Secret Access Key
-# - Default region: us-east-1
-# - Output format: json
+# Enter: Access Key ID, Secret Key, region, json
 
-# Create production table
 aws dynamodb create-table \
-  --table-name journal-app-prod \
+  --table-name harbinger-prod \
   --attribute-definitions \
     AttributeName=pk,AttributeType=S \
     AttributeName=sk,AttributeType=S \
@@ -125,16 +82,10 @@ aws dynamodb create-table \
     AttributeName=pk,KeyType=HASH \
     AttributeName=sk,KeyType=RANGE \
   --billing-mode PAY_PER_REQUEST \
-  --region us-east-1
+  --region us-east-2
 
-# Verify table created
-aws dynamodb describe-table --table-name journal-app-prod
+aws dynamodb describe-table --table-name harbinger-prod
 ```
-
-**No AWS Account?** Use MongoDB Atlas FREE tier instead:
-- Visit mongodb.com/cloud/atlas
-- Create free cluster (no credit card needed)
-- Update backend/db.js to use MongoDB instead of DynamoDB
 
 ---
 
@@ -143,49 +94,37 @@ aws dynamodb describe-table --table-name journal-app-prod
 ### Update Config with Backend URL
 
 ```bash
-# 1. Edit config/flags.yml
-# Change api.base_url to your backend URL:
+# Edit config/flags.yml, set:
 api:
-  base_url: "https://harbinger-api.fly.dev"  # Your actual backend URL
+  base_url: "https://<api-id>.execute-api.<region>.amazonaws.com"
 
-# 2. Regenerate config
 npm run load-config
 
-# 3. Build production frontend
 cd frontend
 npm run build:prod
 ```
 
-### Deploy to Cloudflare Pages (FREE)
+### Deploy to Amplify
 
+Push to your branch — Amplify auto-deploys:
 ```bash
-# Install Wrangler
-npm install -g wrangler
-
-# Login
-wrangler login
-
-# Deploy
-wrangler pages publish dist --project-name=harbinger
-
-# Get your URL:
-# https://harbinger.pages.dev
+git push origin proto
 ```
 
-### Or Deploy to Netlify (FREE)
+### Or Deploy to Cloudflare Pages
 
 ```bash
-# Install Netlify CLI
+npm install -g wrangler
+wrangler login
+wrangler pages publish dist --project-name=harbinger
+```
+
+### Or Deploy to Netlify
+
+```bash
 npm install -g netlify-cli
-
-# Login
 netlify login
-
-# Deploy
 netlify deploy --prod --dir=dist
-
-# Follow prompts to create site
-# Get your URL: https://YOUR-SITE.netlify.app
 ```
 
 ---
@@ -193,78 +132,39 @@ netlify deploy --prod --dir=dist
 ## Add Custom Domain (Optional - $9/year)
 
 ### Buy Domain
-- Cheapest: Porkbun.com (~$9/year for .com)
-- Or: Namecheap, Google Domains, Cloudflare Registrar
+- Porkbun.com (~$9/year for .com)
+- Namecheap, Cloudflare Registrar
 
 ### Configure DNS
 
+**For Amplify:**
+Amplify Console → your app → Domain management → Add domain.
+
 **For Cloudflare Pages:**
-1. Go to your Cloudflare Pages dashboard
-2. Click "Custom domains"
-3. Add: `harbinger.yourdomain.com`
-4. Follow DNS instructions (add CNAME)
+Cloudflare Pages dashboard → Custom domains → Add your domain.
 
-**For Netlify:**
-1. Go to Site settings → Domain management
-2. Add custom domain: `harbinger.yourdomain.com`
-3. Add CNAME record at your registrar:
-   ```
-   CNAME  harbinger  YOUR-SITE.netlify.app
-   ```
-
-**Backend subdomain (optional):**
-```
-# Add to DNS:
-CNAME  api  harbinger-api.fly.dev
-```
-
-Then update `config/flags.yml`:
-```yaml
-api:
-  base_url: "https://api.yourdomain.com"
-```
+**Backend subdomain (optional — API Gateway custom domain):**
+API Gateway Console → Custom domain names → Create domain → map to your stage.
 
 ---
 
 ## Post-Deployment Testing
 
-### 1. Test Backend
+### 1. Test Backend Preflight
 
 ```bash
-# Health check
-curl https://harbinger-api.fly.dev
-
-# Test signup
-curl -X POST https://harbinger-api.fly.dev/msg \
-  -H "Content-Type: application/json" \
-  -d '{
-    "command": "auth_signup",
-    "payload": {
-      "content": {
-        "email": "test@example.com",
-        "password": "testpass123"
-      },
-      "num": 7
-    }
-  }'
+curl -X OPTIONS https://<api-id>.execute-api.<region>.amazonaws.com/msg \
+  -H "Origin: https://your-frontend.amplifyapp.com" -v
+# Expect: 200 with Access-Control-Allow-Origin header
 ```
 
 ### 2. Test Frontend
 
-Visit your deployed URL:
-- `https://harbinger.pages.dev` (or your custom domain)
-- Should see login screen (NOT auto-login since DEV=false)
-- Create account and test posting
+Visit your deployed URL — should show login screen (no auto-login since DEV=false).
 
 ### 3. Check Logs
 
-**Fly.io:**
-```bash
-flyctl logs
-```
-
-**Railway:**
-View logs in dashboard
+CloudWatch → Log groups → `/aws/lambda/harbinger-prod-lambda`
 
 ---
 
@@ -273,23 +173,22 @@ View logs in dashboard
 ### Frontend shows blank screen
 - Check browser console for errors
 - Verify `flags-runtime.js` has correct API URL
-- Make sure CORS is enabled in backend
+- Make sure CORS is configured in API Gateway and Lambda `ALLOWED_ORIGINS`
 
 ### Backend 500 errors
-- Check backend logs
+- Check CloudWatch logs
 - Verify AWS credentials are set correctly
 - Check DynamoDB table exists and region matches
 
 ### CORS errors
-Ensure backend has:
-```javascript
-app.use(cors({ origin: 'https://harbinger.yourdomain.com' }));
-```
+Ensure:
+1. API Gateway CORS config includes your frontend origin
+2. Lambda `ALLOWED_ORIGINS` env var matches
 
 ### Can't create posts
 - Verify authToken in localStorage
 - Check network tab for API request/response
-- Ensure DynamoDB table has correct permissions
+- Ensure DynamoDB table has correct IAM permissions
 
 ---
 
@@ -297,8 +196,8 @@ app.use(cors({ origin: 'https://harbinger.yourdomain.com' }));
 
 | Service | Free Tier | Typical Cost |
 |---------|-----------|--------------|
-| Fly.io Backend | 3 VMs free | $0-5/month |
-| Cloudflare Pages | Unlimited | FREE |
+| Lambda + API Gateway | 1M req/month | FREE |
+| Amplify / Cloudflare Pages | Unlimited | FREE |
 | DynamoDB | 25 RCU/WCU | FREE for small apps |
 | Domain | - | $9/year |
 | **Total** | | **~$0.75/month** |
@@ -307,7 +206,7 @@ app.use(cors({ origin: 'https://harbinger.yourdomain.com' }));
 
 ## Next Steps After Deployment
 
-1. ✅ **Monitor usage**: Check Fly.io/Railway metrics
+1. ✅ **Monitor usage**: Check CloudWatch metrics
 2. ✅ **Set up backups**: Export DynamoDB data weekly
 3. ✅ **Add analytics**: Plausible.io (privacy-friendly, free tier)
 4. ✅ **SSL check**: Verify HTTPS works on custom domain
@@ -319,33 +218,30 @@ app.use(cors({ origin: 'https://harbinger.yourdomain.com' }));
 
 ## Rollback Plan
 
-If something breaks:
-
 ```bash
-# Backend rollback (Fly.io)
-flyctl releases
-flyctl rollback <version>
+# Backend rollback — re-upload a previous zip to Lambda
+aws lambda update-function-code \
+  --function-name harbinger-prod-lambda \
+  --zip-file fileb://harbinger-backend-previous.zip
 
-# Frontend rollback (Cloudflare)
-# Go to Pages dashboard → Deployments → Rollback
+# Frontend rollback (Amplify)
+# Amplify Console → your branch → redeploy a previous build
 
-# Or redeploy previous commit:
-git checkout <previous-commit>
-npm run build
-wrangler pages publish dist
+# Frontend rollback (Cloudflare Pages)
+# Pages dashboard → Deployments → Rollback
 ```
 
 ---
 
 ## Support
 
-- **Fly.io**: https://community.fly.io
+- **AWS Lambda**: https://docs.aws.amazon.com/lambda
 - **Cloudflare**: https://community.cloudflare.com
 - **DynamoDB**: AWS Support Console
-- **This project**: Open GitHub issue (if you pushed to GitHub)
+- **This project**: Open GitHub issue
 
 ---
 
 **🎉 You're ready to deploy!**
 
-Start with: `npm run build` then follow Backend deployment steps above.
+Start with `npm run build:lambda` then follow the backend deployment steps above.

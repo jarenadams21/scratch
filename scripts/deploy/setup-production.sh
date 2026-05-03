@@ -11,9 +11,8 @@ echo ""
 # Check if tools are installed
 echo "📋 Checking prerequisites..."
 
-if ! command -v flyctl &> /dev/null; then
-    echo "❌ Fly.io CLI not found. Install: curl -L https://fly.io/install.sh | sh"
-    exit 1
+if ! command -v aws &> /dev/null; then
+    echo "⚠️  AWS CLI not found (optional for DynamoDB)"
 fi
 
 if ! command -v wrangler &> /dev/null; then
@@ -21,20 +20,16 @@ if ! command -v wrangler &> /dev/null; then
     exit 1
 fi
 
-if ! command -v aws &> /dev/null; then
-    echo "⚠️  AWS CLI not found (optional for DynamoDB)"
-fi
-
-echo "✅ All tools installed"
+echo "✅ Tools checked"
 echo ""
 
 # Configure production settings
 echo "⚙️  Step 1: Configure production settings"
 echo ""
 
-read -p "Enter your backend domain (e.g., harbinger-api.fly.dev): " BACKEND_DOMAIN
-read -p "Enter your DynamoDB region (default: us-east-1): " AWS_REGION
-AWS_REGION=${AWS_REGION:-us-east-1}
+read -p "Enter your API Gateway endpoint (e.g., https://<id>.execute-api.us-east-2.amazonaws.com): " BACKEND_DOMAIN
+read -p "Enter your DynamoDB region (default: us-east-2): " AWS_REGION
+AWS_REGION=${AWS_REGION:-us-east-2}
 read -p "Enter your DynamoDB table name (default: harbinger-prod): " TABLE_NAME
 TABLE_NAME=${TABLE_NAME:-harbinger-prod}
 
@@ -62,7 +57,7 @@ logging:
   description: "Configure application-wide logging behavior"
 
 api:
-  base_url: "https://${BACKEND_DOMAIN}"
+  base_url: "${BACKEND_DOMAIN}"
   timeout_ms: 30000
   retry_attempts: 3
   description: "Backend API connection settings"
@@ -115,49 +110,17 @@ fi
 
 echo ""
 
-# Fly.io setup
-echo "🛫 Step 3: Fly.io Backend Setup"
+# Lambda build
+echo "📦 Step 3: Build Lambda Package"
 echo ""
-
-read -p "Setup Fly.io backend now? (yes/no): " SETUP_FLY
-if [ "$SETUP_FLY" == "yes" ]; then
-    cd backend
-    
-    echo "Logging into Fly.io..."
-    flyctl auth login
-    
-    echo "Creating Fly.io app..."
-    flyctl launch --name harbinger-api --region sjc --no-deploy || echo "App may already exist"
-    
-    echo ""
-    echo "Set environment secrets? You'll need:"
-    echo "  - JWT_SECRET (generate with: openssl rand -hex 32)"
-    echo "  - AWS_ACCESS_KEY_ID"
-    echo "  - AWS_SECRET_ACCESS_KEY"
-    echo ""
-    read -p "Set secrets now? (yes/no): " SET_SECRETS
-    
-    if [ "$SET_SECRETS" == "yes" ]; then
-        JWT_SECRET=$(openssl rand -hex 32)
-        echo "Generated JWT_SECRET: ${JWT_SECRET}"
-        
-        read -p "Enter AWS_ACCESS_KEY_ID: " AWS_KEY
-        read -sp "Enter AWS_SECRET_ACCESS_KEY: " AWS_SECRET
-        echo ""
-        
-        flyctl secrets set \
-          NODE_ENV=production \
-          JWT_SECRET=${JWT_SECRET} \
-          DYNAMODB_TABLE=${TABLE_NAME} \
-          AWS_REGION=${AWS_REGION} \
-          AWS_ACCESS_KEY_ID=${AWS_KEY} \
-          AWS_SECRET_ACCESS_KEY=${AWS_SECRET}
-        
-        echo "✅ Secrets configured"
-    fi
-    
-    cd ..
-fi
+npm run build:lambda
+echo "✅ Built: harbinger-backend.zip"
+echo "   Upload this to AWS Lambda → harbinger-prod-lambda → Code → Upload from .zip"
+echo "   Set Lambda environment variables:"
+echo "     ALLOWED_ORIGINS = <your Amplify URL>"
+echo "     JWT_SECRET      = \$(openssl rand -hex 32)"
+echo "     DYNAMODB_TABLE  = ${TABLE_NAME}"
+echo "     AWS_REGION      = ${AWS_REGION}"
 
 echo ""
 
@@ -175,14 +138,13 @@ echo ""
 echo "✅ Setup Complete!"
 echo ""
 echo "Next steps:"
-echo "1. Deploy backend:  cd backend && flyctl deploy"
-echo "2. Get backend URL: flyctl info"
+echo "1. Upload harbinger-backend.zip to AWS Lambda"
+echo "2. Set Lambda environment variables (ALLOWED_ORIGINS, JWT_SECRET, etc.)"
 echo "3. Update config/flags.prod.yml with backend URL"
 echo "4. Deploy frontend: ./scripts/deploy/deploy.sh"
 echo ""
 echo "For GitHub Actions CI/CD, add these secrets:"
-echo "  - FLY_API_TOKEN (get with: flyctl auth token)"
 echo "  - CLOUDFLARE_API_TOKEN"
 echo "  - CLOUDFLARE_ACCOUNT_ID"
 echo ""
-echo "See PRODUCTION_DEPLOY.md for detailed instructions"
+echo "See DEPLOY_STEPS.md for detailed instructions"

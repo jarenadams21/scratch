@@ -5,9 +5,8 @@
 Before deploying, ensure you have:
 
 - [ ] GitHub account (for CI/CD)
-- [ ] Fly.io account (for backend)
-- [ ] Cloudflare account (for frontend)
-- [ ] AWS account (for DynamoDB)
+- [ ] AWS account (for Lambda, API Gateway, DynamoDB)
+- [ ] Cloudflare account (for frontend, optional if using Amplify)
 - [ ] Custom domain (optional)
 
 ## One-Time Setup
@@ -15,10 +14,7 @@ Before deploying, ensure you have:
 ### 1. Install Required Tools
 
 ```bash
-# Install Fly.io CLI
-curl -L https://fly.io/install.sh | sh
-
-# Install Wrangler (Cloudflare)
+# Install Wrangler (Cloudflare, if using Cloudflare Pages)
 npm install -g wrangler
 
 # Install AWS CLI
@@ -32,11 +28,11 @@ Edit `config/flags.prod.yml`:
 
 ```yaml
 api:
-  base_url: "https://harbinger-api.fly.dev"  # Your backend URL
+  base_url: "https://<api-id>.execute-api.<region>.amazonaws.com"
 
 database:
   table_name: "harbinger-prod"
-  region: "us-east-1"  # Your AWS region
+  region: "us-east-2"
 ```
 
 ### 3. Create DynamoDB Table
@@ -51,130 +47,90 @@ aws dynamodb create-table \
     AttributeName=pk,KeyType=HASH \
     AttributeName=sk,KeyType=RANGE \
   --billing-mode PAY_PER_REQUEST \
-  --region us-east-1
+  --region us-east-2
 ```
 
-### 4. Deploy Backend to Fly.io
+### 4. Deploy Backend to AWS Lambda
 
 ```bash
-cd backend
-
-# Login to Fly.io
-flyctl auth login
-
-# Create app (first time only)
-flyctl launch --name harbinger-api --region sjc
-
-# Set environment secrets
-flyctl secrets set \
-  NODE_ENV=production \
-  JWT_SECRET=$(openssl rand -hex 32) \
-  DYNAMODB_TABLE=harbinger-prod \
-  AWS_REGION=us-east-1 \
-  AWS_ACCESS_KEY_ID=your_access_key \
-  AWS_SECRET_ACCESS_KEY=your_secret_key
-
-# Deploy
-flyctl deploy
+# Build the zip from project root
+npm run build:lambda
 ```
 
-Get your backend URL:
-```bash
-flyctl info
-# Note the Hostname: harbinger-api.fly.dev
+Upload `harbinger-backend.zip` to Lambda:
+- AWS Console → Lambda → `harbinger-prod-lambda` → Code → Upload from .zip file
+- Or via CLI: `aws lambda update-function-code --function-name harbinger-prod-lambda --zip-file fileb://harbinger-backend.zip`
+
+Set Lambda environment variables (Configuration → Environment variables):
+
+```
+ALLOWED_ORIGINS     = https://your-amplify-url.amplifyapp.com
+JWT_SECRET          = <openssl rand -hex 32>
+DYNAMODB_TABLE      = harbinger-prod
+AWS_REGION          = us-east-2
 ```
 
-### 5. Update Frontend Config
+### 5. Configure API Gateway CORS
 
-Update `config/flags.prod.yml` with your backend URL:
+In API Gateway → your HTTP API → CORS:
+- **Allow origins**: your frontend URL
+- **Allow methods**: `GET, POST, DELETE, OPTIONS`
+- **Allow headers**: `Content-Type, Authorization`
+- **Allow credentials**: Yes
 
-```yaml
-api:
-  base_url: "https://harbinger-api.fly.dev"
-```
+### 6. Update Frontend Config
 
-Then rebuild config:
+Update `config/flags.prod.yml` with your API Gateway URL, then rebuild:
+
 ```bash
 npm run load-config
 ```
 
-### 6. Deploy Frontend to Cloudflare Pages
+### 7. Deploy Frontend
 
+**Amplify** (auto-deploys on push to your branch):
 ```bash
-# Login to Cloudflare
-wrangler login
+git push origin proto
+```
 
-# Build frontend
+**Cloudflare Pages** (manual):
+```bash
 cd frontend
 npm run build:prod
-
-# Deploy
 wrangler pages publish dist --project-name=harbinger
 ```
 
-Your site will be at: `https://harbinger.pages.dev`
+### 8. Setup Custom Domain (Optional)
 
-### 7. Setup Custom Domain (Optional)
+#### Backend (API Gateway):
+In API Gateway → Custom domain names → create domain → map to your API stage.
 
-#### For Backend (Fly.io):
-```bash
-cd backend
-flyctl certs add api.yourdomain.com
-```
+#### Frontend (Amplify):
+Amplify Console → your app → Domain management → Add domain.
 
-Add DNS CNAME:
-```
-api.yourdomain.com → harbinger-api.fly.dev
-```
+#### Frontend (Cloudflare Pages):
+Cloudflare Pages dashboard → Custom domains → Add your domain.
 
-#### For Frontend (Cloudflare Pages):
-In Cloudflare Pages dashboard:
-1. Go to your project
-2. Click "Custom domains"
-3. Add: `harbinger.yourdomain.com`
-4. Follow DNS instructions
+### 9. Setup GitHub Actions CI/CD
 
-### 8. Setup GitHub Actions CI/CD
-
-Add these secrets to your GitHub repository (Settings → Secrets and variables → Actions):
+Add these secrets to your GitHub repository (Settings → Secrets → Actions):
 
 ```
-FLY_API_TOKEN           # Get from: flyctl auth token
-CLOUDFLARE_API_TOKEN    # Get from: Cloudflare dashboard → API Tokens
-CLOUDFLARE_ACCOUNT_ID   # Get from: Cloudflare dashboard → Account ID
+CLOUDFLARE_API_TOKEN    # Cloudflare dashboard → API Tokens
+CLOUDFLARE_ACCOUNT_ID   # Cloudflare dashboard → Account ID
 ```
 
-To get Fly.io token:
-```bash
-flyctl auth token
-```
-
-To get Cloudflare API token:
-1. Go to: https://dash.cloudflare.com/profile/api-tokens
-2. Create Token → "Edit Cloudflare Workers" template
-3. Add "Cloudflare Pages" permissions
-
-Now every push to `main` or `proto` branch will automatically deploy!
+Now every push to `main` or `proto` branch will automatically deploy the frontend.
 
 ## Production Deployment Workflow
 
 ### Manual Deployment
 
-Use the deployment script:
-
 ```bash
 ./scripts/deploy/deploy.sh
 ```
 
-This will:
-1. Load production config
-2. Build frontend
-3. Deploy backend to Fly.io
-4. Deploy frontend to Cloudflare Pages
-
 ### Automatic Deployment (CI/CD)
-
-Simply push to main:
 
 ```bash
 git add .
@@ -182,24 +138,21 @@ git commit -m "Update journal styling"
 git push origin main
 ```
 
-GitHub Actions will:
-1. Deploy backend automatically
-2. Build and deploy frontend
-3. Notify you of deployment status
+GitHub Actions builds and deploys the frontend automatically.
 
 ## Post-Deployment Checks
 
 ### 1. Verify Backend
 
 ```bash
-curl https://harbinger-api.fly.dev
-# Should return: "Harbinger API - v1.0.0"
+curl -X OPTIONS https://<api-id>.execute-api.<region>.amazonaws.com/msg \
+  -H "Origin: https://your-frontend.amplifyapp.com" -v
+# Should return 200 with Access-Control-Allow-Origin header
 ```
 
 ### 2. Verify Frontend
 
-Visit: `https://harbinger.pages.dev`
-
+Visit your Amplify or Cloudflare Pages URL:
 - Login should work (no auto-login in production)
 - Create an entry
 - View archives
@@ -207,115 +160,81 @@ Visit: `https://harbinger.pages.dev`
 
 ### 3. Check Logs
 
-Backend logs:
-```bash
-flyctl logs
-```
-
-Frontend logs:
-- Check browser console for errors
+Lambda logs in CloudWatch:
+- AWS Console → Lambda → Monitor → View CloudWatch logs
 
 ### 4. Monitor Database
 
 ```bash
 aws dynamodb scan \
   --table-name harbinger-prod \
-  --region us-east-1 \
+  --region us-east-2 \
   --limit 10
 ```
 
 ## Environment Variables Reference
 
-### Backend (Fly.io)
+### Backend (Lambda)
 
-```bash
-NODE_ENV=production
+```
+ALLOWED_ORIGINS=https://your-frontend.amplifyapp.com
 JWT_SECRET=<random-32-byte-hex>
 DYNAMODB_TABLE=harbinger-prod
-AWS_REGION=us-east-1
-AWS_ACCESS_KEY_ID=<your-key>
-AWS_SECRET_ACCESS_KEY=<your-secret>
+AWS_REGION=us-east-2
 ```
 
-Set via:
-```bash
-flyctl secrets set KEY=value
-```
+Set via Lambda Console → Configuration → Environment variables.
 
-View current secrets:
-```bash
-flyctl secrets list
-```
+### Frontend
 
-### Frontend (Cloudflare Pages)
-
-No secrets needed - configuration is baked into build via `flags-runtime.js`
+No secrets needed — configuration is baked into the build via `flags-runtime.js`.
 
 ## Updating Production
 
-### Quick Updates
-
-For quick fixes:
+### Backend
 
 ```bash
-# Backend
-cd backend
-flyctl deploy
-
-# Frontend
-cd frontend
-npm run build:prod
-wrangler pages publish dist --project-name=harbinger
+npm run build:lambda
+aws lambda update-function-code \
+  --function-name harbinger-prod-lambda \
+  --zip-file fileb://harbinger-backend.zip
 ```
 
-### Via Git (Automatic)
+### Frontend
 
 ```bash
-git add .
-git commit -m "Fix login bug"
 git push origin main
+# Amplify auto-deploys, or run deploy.sh for Cloudflare Pages
 ```
-
-CI/CD handles the rest!
 
 ## Rollback
 
-### Backend Rollback
+### Backend
 
-```bash
-cd backend
-flyctl releases
-flyctl rollback <version>
-```
+In AWS Lambda Console → your function → Versions → deploy a previous version.
+Or re-upload a previous zip.
 
-### Frontend Rollback
+### Frontend (Amplify)
 
-In Cloudflare Pages dashboard:
-1. Go to Deployments
-2. Find previous deployment
-3. Click "Rollback to this deployment"
+Amplify Console → your app → your branch → redeploy a previous build.
+
+### Frontend (Cloudflare Pages)
+
+Cloudflare Pages dashboard → Deployments → Rollback to previous deployment.
 
 ## Monitoring
 
 ### Backend Health
 
-```bash
-flyctl status
-flyctl logs --recent
-```
+CloudWatch → Log groups → `/aws/lambda/harbinger-prod-lambda`
 
 ### Frontend Analytics
 
-Cloudflare Pages provides:
-- Request count
-- Bandwidth usage
-- Error rates
-
-View in: Cloudflare dashboard → Pages → Analytics
+Amplify Console → your app → Monitoring.
 
 ### Database
 
-Monitor DynamoDB in AWS Console:
+AWS DynamoDB Console → your table → Monitor tab:
 - Read/Write capacity units
 - Item count
 - Request latency
@@ -324,44 +243,41 @@ Monitor DynamoDB in AWS Console:
 
 | Service | Free Tier | Typical Cost |
 |---------|-----------|--------------|
-| Fly.io Backend | 3 shared VMs | $0-5/month |
-| Cloudflare Pages | Unlimited | FREE |
-| DynamoDB | 25 RCU/WCU | $0-2/month |
-| **Total** | | **~$5/month** |
+| Lambda + API Gateway | 1M req/month | FREE |
+| Amplify | Build minutes + hosting | FREE |
+| DynamoDB | 25 RCU/WCU | FREE |
+| **Total** | | **$0/month** |
 
 ## Troubleshooting
 
-### Backend not responding
+### CORS preflight blocked
 
 ```bash
-cd backend
-flyctl logs
-flyctl status
+curl -X OPTIONS https://<api-id>.execute-api.<region>.amazonaws.com/msg \
+  -H "Origin: https://your-frontend.amplifyapp.com" -v
 ```
 
-Common issues:
-- Environment secrets not set
-- DynamoDB permissions
-- AWS credentials
+Check that:
+1. API Gateway CORS is configured with your origin
+2. Lambda `ALLOWED_ORIGINS` env var includes your frontend URL
+3. Lambda is running without crashes (check CloudWatch logs)
+
+### Lambda crashes on cold start
+
+Check CloudWatch logs. Common causes:
+- Missing `config/flags.json` — rebuild zip with `npm run build:lambda`
+- Missing environment variables
 
 ### Frontend shows blank page
 
-Check browser console for:
-- API URL mismatch in `flags-runtime.js`
-- CORS errors (backend must allow your domain)
-- Network errors
+- Check browser console for errors
+- Verify `flags-runtime.js` has correct API URL
+- Check network tab for CORS or 5xx errors
 
 ### Authentication fails
 
-- Check JWT_SECRET is set on backend
-- Verify DynamoDB table exists
-- Check AWS credentials
-
-### Can't create posts
-
-- Verify DynamoDB write permissions
-- Check backend logs for errors
-- Ensure authToken in localStorage
+- Check `JWT_SECRET` is set in Lambda env vars
+- Verify DynamoDB table exists and region matches
 
 ## Development vs Production
 
@@ -372,21 +288,22 @@ Check browser console for:
 | Dev badges | ✅ Shown | ❌ Hidden |
 | Console logs | ✅ Verbose | ⚠️ Errors only |
 | Database | Mock | DynamoDB |
-| API | localhost | fly.dev |
+| API | localhost | API Gateway |
 
 ## Security Checklist
 
 - [ ] JWT_SECRET is strong random value (32+ bytes)
-- [ ] AWS credentials stored as Fly.io secrets (not in code)
+- [ ] AWS credentials stored as Lambda env vars (not in code)
 - [ ] CORS configured for your domain only
-- [ ] HTTPS enforced (Fly.io does this automatically)
+- [ ] HTTPS enforced (API Gateway + Amplify do this automatically)
 - [ ] DynamoDB table has proper IAM permissions
 - [ ] No sensitive data in GitHub repository
-- [ ] Environment secrets not committed to git
+- [ ] Environment variables not committed to git
 
 ## Support
 
-- Fly.io docs: https://fly.io/docs
+- AWS Lambda docs: https://docs.aws.amazon.com/lambda
+- API Gateway docs: https://docs.aws.amazon.com/apigateway
 - Cloudflare Pages: https://developers.cloudflare.com/pages
 - DynamoDB guide: https://docs.aws.amazon.com/dynamodb
 
@@ -394,7 +311,7 @@ Check browser console for:
 
 After deployment:
 1. Test thoroughly on production
-2. Set up monitoring/alerts
+2. Set up CloudWatch alarms for Lambda errors
 3. Configure custom domain
 4. Add email notifications (optional)
-5. Set up backups (DynamoDB on-demand backups)
+5. Set up DynamoDB on-demand backups

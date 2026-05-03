@@ -78,7 +78,7 @@ backend/
 ├── db/                   # Database operations
 │   └── db.js             # DynamoDB CRUD operations
 │
-├── fly.toml              # Fly.io deployment config
+├── lambda.js             # AWS Lambda handler entry point
 ├── .env.example          # Environment variables template
 ├── package.json          # Backend dependencies
 └── README.md             # Backend documentation

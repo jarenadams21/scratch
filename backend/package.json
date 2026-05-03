@@ -9,7 +9,7 @@
   "dependencies": {
     "@aws-sdk/client-dynamodb": "^3.500.0",
     "@aws-sdk/lib-dynamodb": "^3.500.0",
-    "bcrypt": "^5.1.1",
+    "bcryptjs": "^3.0.3",
     "jsonwebtoken": "^9.0.2",
     "serverless-http": "^4.0.0"
   }

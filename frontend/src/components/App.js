@@ -15,23 +15,16 @@ export function App() {
   const isAdmin = isLoggedIn();
   const showAdminPanel = AppState.showAdminPanel || false;
   
-  // Load public posts on mount (no auth required)
-  if (AppState.entries.length === 0 && !AppState.loading) {
-    updateState({ loading: true });
-    
-    getPosts('admin@harbinger.app') // Load from your admin account
+  // Load public posts once on first render
+  if (!AppState.postsLoaded && !AppState.loading) {
+    updateState({ loading: true, postsLoaded: true });
+
+    getPosts('admin@harbinger.app')
       .then(entries => {
-        updateState({ 
-          entries, 
-          loading: false,
-          error: null 
-        });
+        updateState({ entries, loading: false, error: null });
       })
       .catch(err => {
-        updateState({ 
-          error: err.message, 
-          loading: false 
-        });
+        updateState({ error: err.message, loading: false });
       });
   }
   
