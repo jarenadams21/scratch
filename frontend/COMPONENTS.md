@@ -50,11 +50,16 @@ frontend/src/
 - Form validation
 - Publish functionality
 
-### `ArchiveView.js` - Archive List
-- Display all entries
-- Entry deletion
+### `ArchiveView.js` - Archive List & Reading Pane
+- Outlook-style split view layout
+- Left pane: Entry list with preview
+- Right pane: Full reading view of selected entry
+- Click entry to expand in reading pane
+- Entry deletion from reading pane
 - Empty state handling
-- ArchiveEntry sub-component
+- Sub-components:
+  - `ArchiveListItem` - Compact entry in list
+  - `ReadingPane` - Expanded entry view
 
 ## State Flow
 
@@ -87,6 +92,42 @@ When user clicks COMPOSE or ARCHIVE:
 5. Renders appropriate component (EditorView or ArchiveView)
 6. Form refs are freshly assigned on mount
 7. Previous view's DOM is cleaned up by reconciler
+8. If switching away from archive, `selectedEntry` is cleared
+
+## Archive Split-View Interaction
+
+The archive uses an Outlook-style split layout:
+
+### Layout
+```
+┌──────────────────────────────────────────────────┐
+│ HARBINGER                    [COMPOSE][ARCHIVE] │
+├────────────────┬─────────────────────────────────┤
+│ Entry List     │ Reading Pane                    │
+│ (350px)        │ (flex: 1)                       │
+│                │                                  │
+│ • Entry 1      │ Selected Entry Title            │
+│ • Entry 2 ◄────┼─ Full content displayed here    │
+│ • Entry 3      │                                  │
+│                │ [DELETE] button                  │
+└────────────────┴─────────────────────────────────┘
+```
+
+### Interaction Flow
+
+1. User clicks entry in left list
+2. `updateState({ selectedEntry: entry })` called
+3. Reading pane re-renders with selected entry
+4. Clicked item highlighted in list
+5. User can read full content or delete from reading pane
+
+### State Management
+
+- `AppState.selectedEntry` tracks currently viewed entry
+- Clicking an entry updates this state
+- Reading pane displays `selectedEntry` or empty state
+- Deleting clears selection: `updateState({ selectedEntry: null })`
+- Switching views clears selection
 
 ## Key Design Decisions
 

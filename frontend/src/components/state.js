@@ -7,6 +7,7 @@ export const AppState = {
   loading: false,
   error: null,
   currentView: 'compose', // 'compose' or 'archive'
+  selectedEntry: null, // For archive reading pane
 };
 
 // State update callbacks (to trigger re-render)

@@ -89,7 +89,7 @@ function createDom(fiber) {
 // ─── Prop helpers ────────────────────────────────────────────────────────────
 
 const isEvent    = key => key.startsWith("on")                     // "onClick", "onInput", etc.
-const isProperty = key => key !== "children" && !isEvent(key) && key !== "ref"  // plain DOM attributes (exclude ref)
+const isProperty = key => key !== "children" && !isEvent(key) && key !== "ref" && key !== "key"  // plain DOM attributes (exclude ref and key)
 const isNew      = (prev, next) => key => prev[key] !== next[key]  // value changed between renders
 const isGone     = (prev, next) => key => !(key in next)           // prop was removed entirely
 
@@ -310,9 +310,12 @@ function reconcileChildren(wipFiber, elements) {
     const element = elements[index]
     let newFiber = null
 
+    // Check if types match AND keys match (or both undefined)
     const sameType = oldFiber && element && element.type == oldFiber.type
+    const sameKey = !oldFiber || !element || 
+      (oldFiber.props?.key === element.props?.key)
 
-    if (sameType) {
+    if (sameType && sameKey) {
       newFiber = {
         type: oldFiber.type,
         props: element.props,
@@ -323,7 +326,7 @@ function reconcileChildren(wipFiber, elements) {
       }
     }
 
-    if (element && !sameType) {
+    if (element && (!sameType || !sameKey)) {
       newFiber = {
         type: element.type,
         props: element.props,
@@ -334,7 +337,7 @@ function reconcileChildren(wipFiber, elements) {
       }
     }
 
-    if (oldFiber && !sameType) {
+    if (oldFiber && (!sameType || !sameKey)) {
       oldFiber.effectTag = "DELETION"
       deletions.push(oldFiber)
     }

@@ -79,7 +79,10 @@ export function App() {
   
   // Switch between compose/archive views
   const switchView = (view) => {
-    updateState({ currentView: view });
+    updateState({ 
+      currentView: view,
+      selectedEntry: null // Clear selection when switching views
+    });
   };
   
   // Dev indicator badge
@@ -109,13 +112,17 @@ export function App() {
       )
     ),
     
-    // Main content area
+    // Main content area - wrap each view in its own keyed container
     createElement('main', { className: 'workspace' },
       AppState.loading 
-        ? createElement('div', { className: 'loading-state' }, 'LOADING...')
+        ? createElement('div', { className: 'loading-state', key: 'loading' }, 'LOADING...')
         : AppState.currentView === 'compose'
-          ? createElement(EditorView, { onPostCreated: reloadEntries })
-          : createElement(ArchiveView, { entries: AppState.entries, onDeleted: reloadEntries })
+          ? createElement('div', { className: 'view-wrapper', key: 'compose-view' },
+              createElement(EditorView, { onPostCreated: reloadEntries })
+            )
+          : createElement('div', { className: 'view-wrapper', key: 'archive-view' },
+              createElement(ArchiveView, { entries: AppState.entries, onDeleted: reloadEntries })
+            )
     )
   );
 }
