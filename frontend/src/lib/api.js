@@ -101,8 +101,8 @@ export function isLoggedIn() {
 
 // ─── Posts API ──────────────────────────────────────────────────────────────
 
-export async function getPosts() {
-  const message = getPostsMessage();
+export async function getPosts(email = null) {
+  const message = getPostsMessage(email);
   return sendMessage(message);
 }
 

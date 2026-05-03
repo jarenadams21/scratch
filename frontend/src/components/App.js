@@ -9,29 +9,17 @@ import { AppState, updateState } from '../lib/state.js';
 
 /**
  * Main Application Component
- * Manages authentication, view routing, and data loading
+ * Public archive by default, hidden admin login for compose access
  */
 export function App() {
-  // Auto-login in DEV mode
-  if (CONFIG.DEV && !isLoggedIn()) {
-    devLog('Auto-login as:', MOCK_USER.email);
-    localStorage.setItem('authToken', MOCK_USER.token);
-  }
+  const isAdmin = isLoggedIn();
+  const showAdminPanel = AppState.showAdminPanel || false;
   
-  // Not logged in - show login form
-  if (!isLoggedIn()) {
-    return createElement(LoginForm, {
-      onAuthSuccess: () => {
-        updateState({ user: 'authenticated' });
-      }
-    });
-  }
-  
-  // Load entries if needed (only once on mount)
+  // Load public posts on mount (no auth required)
   if (AppState.entries.length === 0 && !AppState.loading) {
     updateState({ loading: true });
     
-    getPosts()
+    getPosts('admin@harbinger.app') // Load from your admin account
       .then(entries => {
         updateState({ 
           entries, 
@@ -51,7 +39,7 @@ export function App() {
   const reloadEntries = () => {
     updateState({ loading: true });
     
-    getPosts()
+    getPosts('admin@harbinger.app')
       .then(entries => {
         updateState({ 
           entries, 
@@ -67,63 +55,101 @@ export function App() {
       });
   };
   
+  // Toggle admin panel
+  const toggleAdminPanel = () => {
+    updateState({ showAdminPanel: !showAdminPanel });
+  };
+  
+  // Handle admin login success
+  const handleLoginSuccess = () => {
+    updateState({ 
+      showAdminPanel: false,
+      currentView: 'compose'
+    });
+    // Reload entries as admin
+    reloadEntries();
+  };
+  
   // Handle logout
   const handleLogout = () => {
     logout();
     updateState({ 
-      user: null, 
-      entries: [],
-      currentView: 'compose' 
+      showAdminPanel: false,
+      currentView: 'archive',
+      selectedEntry: null
     });
   };
   
-  // Switch between compose/archive views
+  // Switch between compose/archive views (admin only)
   const switchView = (view) => {
     updateState({ 
       currentView: view,
-      selectedEntry: null // Clear selection when switching views
+      selectedEntry: null
     });
   };
   
-  // Dev indicator badge
-  const devIndicator = CONFIG.DEV && CONFIG.SHOW_DEV_BADGES
-    ? createElement('span', { className: 'dev-indicator' }, '[DEV]')
-    : null;
-  
-  console.log('[App] Rendering with view:', AppState.currentView, 'logged in:', isLoggedIn());
+  console.log('[App] Rendering - Admin:', isAdmin, 'View:', AppState.currentView);
   
   // Render main app UI
   return createElement('div', { className: 'harbinger' },
-    // Header with navigation
+    // Header
     createElement('header', { className: 'masthead-bar' },
-      createElement('h1', { className: 'title-mark' }, 'HARBINGER'),
+      createElement('h1', { className: 'title-mark'}, 'HARBINGER'),
       createElement('nav', { className: 'nav-tabs' },
-        devIndicator,
-        createElement('button', { 
+        // Admin-only: Compose tab
+        isAdmin ? createElement('button', { 
           onClick: () => switchView('compose'),
           className: AppState.currentView === 'compose' ? 'tab active' : 'tab'
-        }, 'COMPOSE'),
+        }, 'COMPOSE') : null,
+        
+        // Always show Archive
         createElement('button', { 
           onClick: () => switchView('archive'),
           className: AppState.currentView === 'archive' ? 'tab active' : 'tab'
         }, 'ARCHIVE'),
-        createElement('button', { 
-          onClick: handleLogout,
-          className: 'tab logout'
-        }, 'EXIT')
+        
+        // Admin button or Logout
+        isAdmin 
+          ? createElement('button', { 
+              onClick: handleLogout,
+              className: 'tab logout'
+            }, 'EXIT')
+          : createElement('button', { 
+              onClick: toggleAdminPanel,
+              className: 'tab admin-btn'
+            }, 'ADMIN')
       )
     ),
     
-    // Main content area - wrap each view in its own keyed container
+    // Admin login panel (overlay)
+    showAdminPanel && !isAdmin
+      ? createElement('div', { className: 'admin-panel-overlay', key: 'admin-overlay' },
+          createElement('div', { className: 'admin-panel' },
+            createElement('button', { 
+              onClick: toggleAdminPanel,
+              className: 'close-btn'
+            }, '✕'),
+            createElement(LoginForm, { 
+              onAuthSuccess: handleLoginSuccess,
+              hideSignup: true
+            })
+          )
+        )
+      : null,
+    
+    // Main content area
     createElement('main', { className: 'workspace' },
       AppState.loading 
         ? createElement('div', { className: 'loading-state', key: 'loading' }, 'LOADING...')
-        : AppState.currentView === 'compose'
+        : AppState.currentView === 'compose' && isAdmin
           ? createElement('div', { className: 'view-wrapper', key: 'compose-view' },
               createElement(EditorView, { onPostCreated: reloadEntries })
             )
           : createElement('div', { className: 'view-wrapper', key: 'archive-view' },
-              createElement(ArchiveView, { entries: AppState.entries, onDeleted: reloadEntries })
+              createElement(ArchiveView, { 
+                entries: AppState.entries, 
+                onDeleted: isAdmin ? reloadEntries : null  // Only admin can delete
+              })
             )
     )
   );

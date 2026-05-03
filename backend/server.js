@@ -52,7 +52,8 @@ async function handleMessage(message, userId) {
   
   switch (command) {
     case 'auth_signup':
-      return await signup(content.email, content.password);
+      // DISABLED: Manual account provisioning only
+      throw new Error('Registration disabled. Contact administrator for account access.');
     
     case 'auth_login':
       return await login(content.email, content.password);
@@ -62,8 +63,10 @@ async function handleMessage(message, userId) {
       return await createEntry(userId, content);
     
     case 'get_posts':
-      if (!userId) throw new Error('Unauthorized');
-      return await getUserEntries(userId);
+      // PUBLIC: Anyone can read posts (no auth required)
+      // If userId provided, get their posts; otherwise get from a default public user
+      const targetUser = content.email || userId || 'admin@harbinger.app';
+      return await getUserEntries(targetUser);
     
     case 'delete_post':
       if (!userId) throw new Error('Unauthorized');

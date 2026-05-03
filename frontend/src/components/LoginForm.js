@@ -4,9 +4,9 @@ import { CONFIG } from '../config/flags-runtime.js';
 
 /**
  * LoginForm Component
- * Handles user authentication (login/signup)
+ * Handles user authentication (login only for admin, signup disabled)
  */
-export function LoginForm({ onAuthSuccess }) {
+export function LoginForm({ onAuthSuccess, hideSignup = false }) {
   // Store refs for form inputs
   let emailInput;
   let passwordInput;
@@ -64,11 +64,12 @@ export function LoginForm({ onAuthSuccess }) {
             onClick: handleLogin,
             className: 'typewriter-btn'
           }, 'ENTER'),
-          createElement('button', { 
+          // Only show REGISTER button if hideSignup is false
+          !hideSignup ? createElement('button', { 
             type: 'button', 
             onClick: handleSignup,
             className: 'typewriter-btn secondary'
-          }, 'REGISTER')
+          }, 'REGISTER') : null
         )
       )
     )

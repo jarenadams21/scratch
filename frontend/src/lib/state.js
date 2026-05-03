@@ -6,8 +6,9 @@ export const AppState = {
   entries: [],
   loading: false,
   error: null,
-  currentView: 'compose', // 'compose' or 'archive'
+  currentView: 'archive', // Default: public archive view
   selectedEntry: null, // For archive reading pane
+  showAdminPanel: false, // Admin login overlay
 };
 
 // State update callbacks (to trigger re-render)

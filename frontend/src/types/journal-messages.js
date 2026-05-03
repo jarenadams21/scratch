@@ -25,11 +25,11 @@ export function createPostMessage(title, content, mood) {
   };
 }
 
-export function getPostsMessage() {
+export function getPostsMessage(email = null) {
   return {
     command: "get_posts",
     payload: {
-      content: {},
+      content: email ? { email } : {},
       num: REGISTERED_NUM_MAP["get_posts"]
     }
   };
