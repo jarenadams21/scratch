@@ -26,13 +26,6 @@ function clearToken() {
   localStorage.removeItem('authToken');
 }
 
-export function getAdminEmail() {
-  return localStorage.getItem('adminEmail') || CONFIG.ADMIN_EMAIL || null;
-}
-
-function setAdminEmail(email) {
-  localStorage.setItem('adminEmail', email);
-}
 
 // ─── Message Sender ─────────────────────────────────────────────────────────
 
@@ -96,7 +89,6 @@ export async function login(email, password) {
   const message = loginMessage(email, password);
   const data = await sendMessage(message, false);
   setToken(data.token);
-  if (data.user?.email) setAdminEmail(data.user.email);
   return data;
 }
 

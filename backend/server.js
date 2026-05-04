@@ -70,7 +70,7 @@ async function handleMessage(message, userId) {
     case 'get_posts':
       // PUBLIC: Anyone can read posts (no auth required)
       // If userId provided, get their posts; otherwise get from a default public user
-      const targetUser = content.email || userId || 'admin@harbinger.app';
+      const targetUser = content.email || userId || process.env.ADMIN_EMAIL;
       return await getUserEntries(targetUser);
     
     case 'delete_post':
