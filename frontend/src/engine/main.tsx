@@ -341,9 +341,9 @@ function reconcileChildren(wipFiber, elements) {
     }
 
     // Wire the new fiber into the tree as either the first child or a sibling.
-    if (index === 0) {
+    if (newFiber && !wipFiber.child) {
       wipFiber.child = newFiber
-    } else if (element && prevSibling) {
+    } else if (newFiber && prevSibling) {
       prevSibling.sibling = newFiber
     }
 
