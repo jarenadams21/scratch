@@ -1,5 +1,5 @@
 import { createElement } from '../engine/main.js';
-import { isLoggedIn, logout, getPosts } from '../lib/api.js';
+import { isLoggedIn, logout, getPosts, getAdminEmail } from '../lib/api.js';
 import { CONFIG, devLog } from '../config/flags-runtime.js';
 import { MOCK_USER } from '../data/mock-data.js';
 import { LoginForm } from './LoginForm.js';
@@ -19,7 +19,7 @@ export function App() {
   if (!AppState.postsLoaded && !AppState.loading) {
     updateState({ loading: true, postsLoaded: true });
 
-    getPosts('admin@harbinger.app')
+    getPosts(getAdminEmail())
       .then(entries => {
         updateState({ entries, loading: false, error: null });
       })
@@ -32,7 +32,7 @@ export function App() {
   const reloadEntries = () => {
     updateState({ loading: true });
     
-    getPosts('admin@harbinger.app')
+    getPosts(getAdminEmail())
       .then(entries => {
         updateState({ 
           entries, 
