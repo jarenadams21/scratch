@@ -1,5 +1,5 @@
 import { DynamoDBClient } from '@aws-sdk/client-dynamodb';
-import { DynamoDBDocumentClient, PutCommand, GetCommand, QueryCommand, DeleteCommand } from '@aws-sdk/lib-dynamodb';
+import { DynamoDBDocumentClient, PutCommand, GetCommand, QueryCommand, DeleteCommand, ScanCommand } from '@aws-sdk/lib-dynamodb';
 import { config } from '../config/config.js';
 
 const client = new DynamoDBClient({ region: config.AWS_REGION });
@@ -87,6 +87,18 @@ export async function getEntry(userId, entryId, timestamp) {
   
   const result = await db.send(new GetCommand(params));
   return result.Item;
+}
+
+export async function getAllEntries(limit = 50) {
+  const params = {
+    TableName: config.DYNAMODB_TABLE,
+    FilterExpression: 'begins_with(sk, :sk)',
+    ExpressionAttributeValues: { ':sk': 'ENTRY#' },
+    Limit: limit
+  };
+
+  const result = await db.send(new ScanCommand(params));
+  return (result.Items || []).sort((a, b) => b.createdAt.localeCompare(a.createdAt));
 }
 
 export async function deleteEntry(userId, entryId, timestamp) {

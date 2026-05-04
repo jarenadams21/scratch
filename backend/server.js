@@ -1,7 +1,7 @@
 import http from 'http';
 import { config } from './config/config.js';
 import { signup, login, extractUser } from './auth/auth.js';
-import { createEntry, getUserEntries, deleteEntry } from './db/db.js';
+import { createEntry, getUserEntries, getAllEntries, deleteEntry } from './db/db.js';
 
 // ─── CORS Helper ────────────────────────────────────────────────────────────
 
@@ -68,10 +68,8 @@ async function handleMessage(message, userId) {
       return await createEntry(userId, content);
     
     case 'get_posts':
-      // PUBLIC: Anyone can read posts (no auth required)
-      // If userId provided, get their posts; otherwise get from a default public user
-      const targetUser = content.email || userId || process.env.ADMIN_EMAIL;
-      return await getUserEntries(targetUser);
+      if (userId) return await getUserEntries(userId);
+      return await getAllEntries();
     
     case 'delete_post':
       if (!userId) throw new Error('Unauthorized');
