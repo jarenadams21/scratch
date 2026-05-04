@@ -112,6 +112,7 @@ function commitDeletion(fiber, domParent) {
     commitDeletion(fiber.child, domParent);
   }
 }
+const scheduleWork = typeof requestIdleCallback !== "undefined" ? requestIdleCallback : (cb) => setTimeout(() => cb({ timeRemaining: () => 50 }), 1);
 function workLoop(deadline) {
   let shouldYield = false;
   while (nextUnitOfWork && !shouldYield) {
@@ -121,9 +122,9 @@ function workLoop(deadline) {
   if (!nextUnitOfWork && wipRoot) {
     commitRoot();
   }
-  requestIdleCallback(workLoop);
+  scheduleWork(workLoop);
 }
-requestIdleCallback(workLoop);
+scheduleWork(workLoop);
 function performUnitOfWork(fiber) {
   const isFunctionComponent = fiber.type instanceof Function;
   if (isFunctionComponent) {

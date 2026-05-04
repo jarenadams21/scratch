@@ -190,10 +190,13 @@ function commitDeletion(fiber, domParent) {
 
 // ─── Work loop ───────────────────────────────────────────────────────────────
 
-// The main render loop, driven by requestIdleCallback.
-// Processes fiber work in chunks — as much as fits within the browser's idle time —
-// then hands control back so the page stays responsive.
-// When there's no work left and a wip tree is ready, it commits everything to the DOM.
+// Safari has never shipped requestIdleCallback. Fall back to setTimeout so the
+// loop still runs — with a fixed 50ms budget instead of a real idle deadline.
+const scheduleWork: (cb: (deadline: { timeRemaining: () => number }) => void) => void =
+  typeof requestIdleCallback !== 'undefined'
+    ? requestIdleCallback
+    : (cb) => setTimeout(() => cb({ timeRemaining: () => 50 }), 1)
+
 function workLoop(deadline) {
   let shouldYield = false
   while (nextUnitOfWork && !shouldYield) {
@@ -205,10 +208,10 @@ function workLoop(deadline) {
     commitRoot()
   }
 
-  requestIdleCallback(workLoop)
+  scheduleWork(workLoop)
 }
 
-requestIdleCallback(workLoop)
+scheduleWork(workLoop)
 
 // Processes a single fiber and returns the next one to work on.
 // Traversal order: child first, then sibling, then climb back up and over.
