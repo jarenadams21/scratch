@@ -27,7 +27,7 @@ function clearToken() {
 }
 
 export function getAdminEmail() {
-  return localStorage.getItem('adminEmail');
+  return localStorage.getItem('adminEmail') || CONFIG.ADMIN_EMAIL || null;
 }
 
 function setAdminEmail(email) {

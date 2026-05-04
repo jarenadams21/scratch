@@ -38,12 +38,13 @@ export const flagsConfig = {
   },
   "database": {
     "table_name": "harbinger-prod",
-    "region": "us-east-1",
+    "region": "us-east-2",
     "description": "DynamoDB connection settings"
   },
   "auth": {
     "jwt_expires_in": "7d",
     "require_email_verification": false,
+    "public_admin_email": "jarbush27@gmail.com",
     "description": "Authentication configuration"
   }
 };
@@ -61,6 +62,7 @@ export const CONFIG = {
   MOCK_TOKEN: flagsConfig.dev.mock_token,
   SIMULATED_DELAY: flagsConfig.dev.simulated_delay_ms,
   SHOW_DEV_BADGES: flagsConfig.ui.show_dev_badges,
+  ADMIN_EMAIL: flagsConfig.auth.public_admin_email,
 };
 
 // Development helpers
