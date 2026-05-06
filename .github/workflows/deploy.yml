@@ -8,7 +8,7 @@ on:
 
 jobs:
   deploy-frontend:
-    name: Deploy Frontend to Cloudflare Pages
+    name: Deploy Frontend to Hosting Service
     runs-on: ubuntu-latest
 
     steps:
@@ -27,8 +27,7 @@ jobs:
 
       - name: Load production config
         run: |
-          cp config/flags.prod.yml config/flags.yml
-          npm run load-config
+          echo 'Flags disabled'
 
       - name: Build frontend
         run: |
