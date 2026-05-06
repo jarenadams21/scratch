@@ -133,18 +133,19 @@ export function Counter() {
 
 ## Mounting and ref
 
-Most components never need `ref`. It exists for imperative work that can't be expressed declaratively — wiring a media player, initializing a canvas, setting focus, attaching a third-party library.
+Normally you never touch the DOM directly — you describe what should exist and the engine handles it. A `ref` is the escape hatch for when you actually need the real DOM node: calling `.play()` on a video, measuring dimensions, handing an element to a third-party library, setting focus. Things that can't be expressed as a description.
+
+Pass a callback as `ref` and the engine calls it with the real DOM node after inserting it:
 
 ```js
 const onMount = (el) => {
-  // el is the DOM node for this element
-  el.style.opacity = '1';  // safe — el itself is in the DOM
+  el.style.opacity = '1';  // el is the actual DOM node
 };
 
 createElement('div', { ref: onMount })
 ```
 
-The catch: the engine fires `ref` the moment the element lands in the DOM, but its **children haven't been inserted yet** at that point — they follow in the next step of the commit walk. So `querySelector` inside a bare `ref` returns null.
+The timing issue: the engine inserts the element and immediately fires `ref` — but children are inserted in the next step. So at the moment `ref` fires, `querySelector` on children returns null. `requestAnimationFrame` defers until the call stack is clear, which is after children land:
 
 `requestAnimationFrame` defers until after the current JS call stack finishes, which is after all children are committed:
 
