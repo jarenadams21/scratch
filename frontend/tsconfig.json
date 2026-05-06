@@ -11,7 +11,7 @@
   "include": ["src/**/*"]
 }
 /**
- * CUSTOM VDOM ENGINE - NO REACT
+ * VDOM FIBER-BASED ENGINE - NO REACT
  * ==============================
  * TypeScript is used ONLY for type checking (noEmit: true).
  * JSX transformation is handled by esbuild with custom jsxFactory.
@@ -20,9 +20,6 @@
  *   1. TypeScript: Type checking only (jsx: "preserve" keeps JSX as-is)
  *   2. esbuild: Transforms JSX → engine.createElement calls
  *   
- * Your custom rendering engine: src/main.tsx
- * Zero React - 100% custom fiber-based vdom implementation.
- * 
  * How it works:
  *   <div>Hello</div>  →  engine.createElement("div", null, "Hello")
  *   

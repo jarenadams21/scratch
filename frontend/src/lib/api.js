@@ -1,4 +1,4 @@
-// Message-based API client using your VISITOR/Message architecture
+// Message-based API client using VISITOR/Message architecture
 import { 
   createPostMessage, 
   getPostsMessage, 

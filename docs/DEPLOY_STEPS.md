@@ -18,21 +18,21 @@
 npm run build:lambda
 ```
 
-Upload `harbinger-backend.zip` to your Lambda function:
-1. AWS Lambda Console → `harbinger-prod-lambda` → Code → Upload from .zip file
+Upload `project-backend.zip` to target Lambda function:
+1. AWS Lambda Console → `project-prod-lambda` → Code → Upload from .zip file
 2. Set the handler to `backend/lambda.handler`
 3. Set environment variables under Configuration → Environment variables:
    - `JWT_SECRET` — generate with `openssl rand -hex 32`
    - `AWS_REGION` — e.g. `us-east-2`
-   - `DYNAMODB_TABLE` — `harbinger-prod`
-   - `ALLOWED_ORIGINS` — your Amplify URL, e.g. `https://proto.d9avjouq8id14.amplifyapp.com`
+   - `DYNAMODB_TABLE` — `project-prod`
+   - `ALLOWED_ORIGINS` — Amplify URL, e.g. `https://yerrrrrrr.amplifyapp.com`
 
-Your backend endpoint: `https://<api-id>.execute-api.<region>.amazonaws.com/msg`
+backend endpoint: `https://<api-id>.execute-api.<region>.amazonaws.com/msg`
 
 ## 3. Configure API Gateway CORS
 
-In API Gateway → your HTTP API → CORS:
-- **Allow origins**: your Amplify URL
+In API Gateway → target HTTP API → CORS:
+- **Allow origins**: Frontend URL (e.g., Amplify frontend amplifyapp link)
 - **Allow methods**: `GET, POST, DELETE, OPTIONS`
 - **Allow headers**: `Content-Type, Authorization`
 - **Allow credentials**: Yes
@@ -52,19 +52,14 @@ Push to the `proto` (or `main`) branch — Amplify auto-deploys on push.
 
 ## 6. Test It!
 
-1. Open your Amplify URL in browser
-2. Log in with your admin account
-3. Write and publish an entry
-4. Check the archive
-5. Test delete functionality
 
 ## 7. Custom Domain (Optional)
 
 ### Backend (API Gateway)
-In API Gateway → Custom domain names → create a domain and map it to your API stage.
+In API Gateway → Custom domain names → create a domain and map it to target API stage.
 
 ### Frontend (Amplify)
-In Amplify Console → your app → Domain management → Add domain.
+In Amplify Console → target app → Domain management → Add domain.
 
 ## Troubleshooting
 
@@ -81,15 +76,6 @@ curl -X OPTIONS https://<api-id>.execute-api.<region>.amazonaws.com/msg \
 - Check browser console (F12)
 - Verify API URL in `config/flags.prod.yml`
 - Check CORS settings in API Gateway and `backend/server.js`
-
-## Cost
-
-- **AWS Lambda**: FREE (1M requests/month free tier)
-- **API Gateway**: FREE (1M requests/month free tier)
-- **Amplify**: FREE (build minutes + hosting)
-- **DynamoDB**: FREE (25GB storage, 25 RCU/WCU)
-
-**Total: $0/month** for small usage!
 
 ## Next Steps
 

@@ -12,7 +12,7 @@ Hello
 
 ## HARBINGER - Journal of Thought
 
-Personal journal built with custom vdom engine + DynamoDB + Cloudflare Pages.
+Personal journal built with custom vdom engine + DynamoDB + Lambda + Cloudflare
 
 ### Quick Start
 
@@ -23,8 +23,6 @@ npm run dev
 Opens:
 - Frontend: http://localhost:8080
 - Backend: http://localhost:3000
-
-See [START.md](START.md) for details.
 
 ### Stack
 - **Frontend**: Custom vdom engine, Message architecture
@@ -39,12 +37,3 @@ See [START.md](START.md) for details.
 - DEV mode with auto-login and mock data
 - YAML configuration system
 - Type-safe logging pipeline
-
-### Documentation
-- [START.md](START.md) - Quick start
-- [RUNNING.md](RUNNING.md) - Full commands
-- [CONFIGURATION.md](docs/CONFIGURATION.md) - Config system
-- [ARCHITECTURE.md](ARCHITECTURE.md) - Message architecture
-- [HARBINGER.md](HARBINGER.md) - Design philosophy
-
-**Cost**: ~$0/month + $9/year domain

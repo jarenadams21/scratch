@@ -1,8 +1,8 @@
 # Journal Architecture - Using Message System
 
-## Your Message System
+## Message System
 
-All operations flow through your VISITOR/Message architecture:
+All operations flow through VISITOR/Message architecture:
 
 ```typescript
 // Every operation is a Message
@@ -73,7 +73,7 @@ As admin, you send messages for:
 - `update_post` - Edit post (TODO)
 - `delete_post` - Remove post
 
-All validated through your REGISTERED_NUM_MAP system.
+All validated through REGISTERED_NUM_MAP system.
 
 ## Single Endpoint
 
@@ -81,9 +81,8 @@ Backend has ONE endpoint: `POST /msg`
 
 All operations route through message command validation.
 
-## Next Steps for You
+## Next Steps
 
 1. Add more message types to REGISTERED_NUM_MAP as needed
 2. Implement update_post handler
 3. Add visibility/draft status to posts
-4. Build your Substack-style frontend using your vdom

@@ -1,5 +1,4 @@
 # HARBINGER
-## A Journal of Thought
 
 ### 1960s Typewriter
 
@@ -9,7 +8,7 @@ Minimalist journal editor inspired by mid-century editorial design.
 
 - **COMPOSE** - Write new entries with typewriter interface
 - **ARCHIVE** - Browse all published entries
-- **Message-based architecture** - All operations flow through your VISITOR/Message system
+- **Message-based architecture** - All operations flow through VISITOR/Message system
 
 ## Design Philosophy
 
@@ -32,7 +31,7 @@ open frontend/index.html
 
 ## Architecture
 
-Built on your custom vdom engine with Message-based API:
+Built on existing fiber vdom engine with Message-based API:
 - Login → `auth_login` message (val: 21)
 - Compose → `create_post` message (val: 10)  
 - Archive → `get_posts` message (val: 11)

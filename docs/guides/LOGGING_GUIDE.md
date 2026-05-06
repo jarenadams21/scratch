@@ -92,7 +92,7 @@ ts-node scripts/validate-logging.ts
 
 ### CI/CD Integration
 
-Add to your `package.json`:
+Add to `package.json`:
 
 ```json
 {
@@ -103,7 +103,7 @@ Add to your `package.json`:
 }
 ```
 
-Or in your CI workflow:
+Or in CI workflow:
 
 ```yaml
 # .github/workflows/ci.yml
@@ -127,7 +127,7 @@ UTILITIES.LOG_WITH_LEVEL("types.ts", LOG_LEVEL.DEBUG, debugMessage);
 // At top of file
 const logger = UTILITIES.createLogger("types.ts");
 
-// In your functions
+// Usage in functions
 logger.info(message);
 logger.error(errorMessage);
 logger.debug(debugMessage);

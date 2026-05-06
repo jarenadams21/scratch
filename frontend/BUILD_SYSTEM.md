@@ -4,7 +4,7 @@
 
 **Zero React dependencies** - completely custom JSX transformation using esbuild.
 
-Your custom vdom engine (`src/main.tsx`) handles all rendering with:
+vdom engine (`src/main.tsx`) handles all rendering with:
 - Custom `createElement` function
 - Fiber-based reconciliation
 - Custom `useState` hook implementation
@@ -19,7 +19,7 @@ Your custom vdom engine (`src/main.tsx`) handles all rendering with:
         ↓
    .js files (ES modules)
         ↓
-   Browser executes with your custom engine
+   Browser executes with custom engine
 ```
 
 ## Why esbuild Instead of TypeScript
@@ -55,7 +55,7 @@ npx tsc --noEmit
 
 ## How JSX Works
 
-Your `.tsx` files use JSX syntax:
+`.tsx` files use JSX syntax:
 
 ```tsx
 function MyComponent() {
@@ -71,7 +71,7 @@ function MyComponent() {
 }
 ```
 
-Then your custom `engine.createElement` in `main.tsx` handles the rest.
+Then `engine.createElement` in `main.tsx` handles the rest.
 
 ## No React Anywhere
 

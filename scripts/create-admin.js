@@ -64,7 +64,7 @@ async function createAdmin() {
     console.log('✅ Admin account created successfully!');
     console.log(`   Email: ${email}`);
     console.log(`   Table: ${tableName}`);
-    console.log('\n🎯 You can now log in at your Harbinger URL');
+    console.log('\n🎯 You can now log in at Harbinger');
     
   } catch (error) {
     console.error('❌ Failed to create admin:', error.message);
