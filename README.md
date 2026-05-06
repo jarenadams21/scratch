@@ -99,7 +99,7 @@ updateState({ notes: data, loading: false });
 
 ## Components
 
-Functions that return `createElement` trees. The engine diffs and patches — no virtual DOM overhead from a framework.
+Functions that return `createElement` trees. The engine diffs and patches the real DOM — only nodes that actually changed get touched.
 
 ```js
 import { createElement } from '../engine/main.js';
@@ -114,18 +114,55 @@ export function NoteList() {
 }
 ```
 
-`ref` gives you the DOM node after it's mounted. Wrap imperative setup in `requestAnimationFrame` — the engine fires the ref before children are committed, so the frame gives them time to land.
+The reactive loop: `updateState` patches `AppState` → every subscriber fires → your component function re-runs → the engine walks the old and new trees simultaneously → only changed nodes get DOM operations. Nothing special required — that's just how it works.
+
+For **local** state that doesn't need to live globally, the engine has `useState`:
+
+```js
+import { useState } from '../engine/main.js';
+
+export function Counter() {
+  const [count, setCount] = useState(0);
+  return createElement('button', {
+    onClick: () => setCount(c => c + 1),
+  }, `Count: ${count}`);
+}
+```
+
+---
+
+## Mounting and ref
+
+Most components never need `ref`. It exists for imperative work that can't be expressed declaratively — wiring a media player, initializing a canvas, setting focus, attaching a third-party library.
+
+```js
+const onMount = (el) => {
+  // el is the DOM node for this element
+  el.style.opacity = '1';  // safe — el itself is in the DOM
+};
+
+createElement('div', { ref: onMount })
+```
+
+The catch: the engine fires `ref` the moment the element lands in the DOM, but its **children haven't been inserted yet** at that point — they follow in the next step of the commit walk. So `querySelector` inside a bare `ref` returns null.
+
+`requestAnimationFrame` defers until after the current JS call stack finishes, which is after all children are committed:
 
 ```js
 const onMount = (el) => {
   if (!el) return;
   requestAnimationFrame(() => {
+    // children are in the DOM here — querySelector works
     el.querySelector('input')?.focus();
   });
 };
 
-createElement('div', { ref: onMount }, ...children)
+createElement('div', { ref: onMount },
+  createElement('input', { type: 'text' })
+)
 ```
+
+Rule of thumb: no children to query → no `requestAnimationFrame` needed. Querying children → always wrap.
 
 ---
 
@@ -133,8 +170,8 @@ createElement('div', { ref: onMount }, ...children)
 
 ```js
 createElement(type, props, ...children)  // build a vnode
-render(element, container)               // mount or reconcile
-useState(initial)                        // local state with re-render on set
+render(element, container)               // mount or reconcile into container
+useState(initial)                        // local component state, triggers re-render on set
 ```
 
 ---
