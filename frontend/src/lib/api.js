@@ -1,4 +1,3 @@
-// Message-based API client using VISITOR/Message architecture
 import {
   createPostMessage,
   getPostsMessage,
@@ -20,114 +19,86 @@ const API_URL = CONFIG.API_URL;
 
 // ─── Storage ────────────────────────────────────────────────────────────────
 
-function getToken() {
-  return localStorage.getItem('authToken');
+function getToken() { return localStorage.getItem('authToken'); }
+function setToken(token) { localStorage.setItem('authToken', token); }
+function clearToken() { localStorage.removeItem('authToken'); }
+
+// ─── Visitor ─────────────────────────────────────────────────────────────────
+// Plain object mapping command strings to handler functions.
+// Each handler receives the full message and returns the mock result.
+
+const devVisitor = {
+  auth_signup:        ()    => ({ token: MOCK_USER.token, user: { email: MOCK_USER.email } }),
+  auth_login:         ()    => ({ token: MOCK_USER.token, user: { email: MOCK_USER.email } }),
+  get_posts:          ()    => mockDB.getPosts(),
+  create_post:        (msg) => { const { title, content, mood } = msg.payload.content; return mockDB.createPost(title, content, mood); },
+  delete_post:        (msg) => mockDB.deletePost(msg.payload.content.postId),
+  request_upload_url: (msg) => { const { filename, contentType } = msg.payload.content; return mockAudioDB.requestUploadUrl(filename, contentType); },
+  create_audio_post:  (msg) => { const c = msg.payload.content; return mockAudioDB.createAudioPost(c.title, c.audioKey, c.audioUrl, c.duration, c.mimeType, c.fileSize); },
+  get_audio_posts:    ()    => mockAudioDB.getAudioPosts(),
+  delete_audio_post:  (msg) => mockAudioDB.deleteAudioPost(msg.payload.content.entryId),
+};
+
+function visitMessage(message, visitor) {
+  const handler = visitor[message.command];
+  return handler ? handler(message) : Promise.resolve({ success: true });
 }
 
-function setToken(token) {
-  localStorage.setItem('authToken', token);
+// ─── Transports ──────────────────────────────────────────────────────────────
+
+async function devTransport(message) {
+  devLog('Mock message:', message.command);
+  await new Promise(resolve => setTimeout(resolve, CONFIG.DEV_DELAY));
+  return visitMessage(message, devVisitor);
 }
 
-function clearToken() {
-  localStorage.removeItem('authToken');
-}
-
-
-// ─── Message Sender ─────────────────────────────────────────────────────────
-
-async function sendMessage(message, requiresAuth = true) {
-  // DEV MODE: Return mock data instead of network call
-  if (CONFIG.DEV) {
-    devLog('Mock message:', message.command);
-    await new Promise(resolve => setTimeout(resolve, CONFIG.DEV_DELAY));
-    
-    switch (message.command) {
-      case 'auth_signup':
-      case 'auth_login':
-        return { token: MOCK_USER.token, user: { email: MOCK_USER.email } };
-      case 'get_posts':
-        return mockDB.getPosts();
-      case 'create_post':
-        const { title, content, mood } = message.payload.content;
-        return mockDB.createPost(title, content, mood);
-      case 'delete_post':
-        return mockDB.deletePost(message.payload.content.postId);
-      case 'request_upload_url': {
-        const { filename, contentType } = message.payload.content;
-        return mockAudioDB.requestUploadUrl(filename, contentType);
-      }
-      case 'create_audio_post': {
-        const c = message.payload.content;
-        return mockAudioDB.createAudioPost(c.title, c.audioKey, c.audioUrl, c.duration, c.mimeType, c.fileSize);
-      }
-      case 'get_audio_posts':
-        return mockAudioDB.getAudioPosts();
-      case 'delete_audio_post':
-        return mockAudioDB.deleteAudioPost(message.payload.content.entryId);
-      default:
-        return { success: true };
-    }
-  }
-  
-  // PRODUCTION MODE: Actual network call
+async function httpTransport(message, requiresAuth) {
   const token = getToken();
-  
-  const headers = {
-    'Content-Type': 'application/json',
-  };
-  
-  if (requiresAuth && token) {
-    headers.Authorization = `Bearer ${token}`;
-  }
-  
+  const headers = { 'Content-Type': 'application/json' };
+  if (requiresAuth && token) headers.Authorization = `Bearer ${token}`;
+
   const response = await fetch(`${API_URL}/msg`, {
     method: 'POST',
     headers,
     body: JSON.stringify(message),
   });
-  
+
   if (!response.ok) {
     const error = await response.json().catch(() => ({ error: 'Request failed' }));
     throw new Error(error.error || 'Request failed');
   }
-  
   return response.json();
+}
+
+function sendMessage(message, requiresAuth = true) {
+  return CONFIG.DEV ? devTransport(message) : httpTransport(message, requiresAuth);
 }
 
 // ─── Auth API ───────────────────────────────────────────────────────────────
 
 export async function signup(email, password) {
-  const message = signupMessage(email, password);
-  const data = await sendMessage(message, false);
+  const data = await sendMessage(signupMessage(email, password), false);
   setToken(data.token);
   return data;
 }
 
 export async function login(email, password) {
-  const message = loginMessage(email, password);
-  const data = await sendMessage(message, false);
+  const data = await sendMessage(loginMessage(email, password), false);
   setToken(data.token);
   return data;
 }
 
-export function logout() {
-  clearToken();
-}
-
-export function isLoggedIn() {
-  return !!getToken();
-}
+export function logout() { clearToken(); }
+export function isLoggedIn() { return !!getToken(); }
 
 // ─── Posts API ──────────────────────────────────────────────────────────────
 
 export async function getPosts(email = null) {
-  const message = getPostsMessage(email);
-  return sendMessage(message);
+  return sendMessage(getPostsMessage(email));
 }
 
 export async function createPost(title, content, mood = null) {
-  const message = createPostMessage(title, content, mood);
-  return sendMessage(message);
+  return sendMessage(createPostMessage(title, content, mood));
 }
 
 export async function deletePost(postId, timestamp) {
@@ -147,7 +118,7 @@ export async function requestUploadUrl(filename, contentType, duration, fileSize
 }
 
 export async function uploadAudioToS3(uploadUrl, blob, mimeType) {
-  if (uploadUrl === 'mock://upload') return; // DEV mode bypass
+  if (uploadUrl === 'mock://upload') return;
   const res = await fetch(uploadUrl, {
     method: 'PUT',
     body: blob,

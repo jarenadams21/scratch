@@ -79,6 +79,11 @@ function commitRoot() {
   currentRoot = wipRoot;
   wipRoot = null;
 }
+function maybeCallRef(fiber) {
+  if (fiber.props.ref) {
+    fiber.props.ref(fiber.dom);
+  }
+}
 function commitWork(fiber) {
   if (!fiber) {
     return;
@@ -90,17 +95,13 @@ function commitWork(fiber) {
   const domParent = domParentFiber.dom;
   if (fiber.effectTag === "PLACEMENT" && fiber.dom != null) {
     domParent.appendChild(fiber.dom);
-    if (fiber.props.ref) {
-      fiber.props.ref(fiber.dom);
-    }
+    maybeCallRef(fiber);
   } else if (fiber.effectTag === "DELETION") {
     commitDeletion(fiber, domParent);
     return;
   } else if (fiber.effectTag === "UPDATE" && fiber.dom != null) {
     updateDom(fiber.dom, fiber.alternate.props, fiber.props);
-    if (fiber.props.ref) {
-      fiber.props.ref(fiber.dom);
-    }
+    maybeCallRef(fiber);
   }
   commitWork(fiber.child);
   commitWork(fiber.sibling);

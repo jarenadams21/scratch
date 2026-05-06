@@ -2,39 +2,17 @@ import { createElement } from '../engine/main.js';
 import { deleteAudioPost } from '../lib/api.js';
 import { AppState, updateState } from '../lib/state.js';
 import { MIME_TO_LABEL } from '../types/audio-types.js';
+import { formatTime, formatFileSize } from '../lib/format.js';
+import { confirmDelete } from '../lib/actions.js';
 
-function formatTime(seconds) {
-  if (!seconds || isNaN(seconds)) return '00:00';
-  const m = Math.floor(seconds / 60);
-  const s = Math.floor(seconds % 60);
-  return `${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
-}
-
-function formatFileSize(bytes) {
-  if (!bytes) return '';
-  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(0)}KB`;
-  return `${(bytes / (1024 * 1024)).toFixed(1)}MB`;
-}
-
-/**
- * AudioPlayer Component
- * Tape-era styled player rendered in the right pane of RecordingsView.
- */
 export function AudioPlayer({ entry, onDeleted }) {
   if (!entry) return null;
 
-  const handleClose = () => updateState({ selectedAudio: null });
-
-  const handleDelete = async () => {
-    if (!confirm('Destroy this recording?')) return;
-    try {
-      await deleteAudioPost(entry.entryId, entry.createdAt);
-      updateState({ selectedAudio: null });
-      if (onDeleted) onDeleted();
-    } catch (err) {
-      alert('Deletion failed: ' + err.message);
-    }
-  };
+  const handleDelete = confirmDelete(
+    'Destroy this recording?',
+    () => deleteAudioPost(entry.entryId, entry.createdAt),
+    () => { updateState({ selectedAudio: null }); if (onDeleted) onDeleted(); }
+  );
 
   const date = new Date(entry.createdAt).toLocaleDateString('en-US', {
     weekday: 'long', year: 'numeric', month: 'long', day: 'numeric',
@@ -43,48 +21,39 @@ export function AudioPlayer({ entry, onDeleted }) {
 
   const formatLabel = MIME_TO_LABEL[entry.mimeType] || 'AUDIO';
 
-  // Wire up HTML5 audio controls via DOM events on mount
   const onPlayerMount = (container) => {
     if (!container) return;
-    const audio    = container.querySelector('audio');
-    const playBtn  = container.querySelector('.ap-play-btn');
-    const bar      = container.querySelector('.ap-progress-bar');
-    const fill     = container.querySelector('.ap-progress-fill');
-    const current  = container.querySelector('.ap-time-current');
-    const total    = container.querySelector('.ap-time-total');
+    requestAnimationFrame(() => {
+      const audio   = container.querySelector('audio');
+      const playBtn = container.querySelector('.ap-play-btn');
+      const bar     = container.querySelector('.ap-progress-bar');
+      const fill    = container.querySelector('.ap-progress-fill');
+      const current = container.querySelector('.ap-time-current');
+      const total   = container.querySelector('.ap-time-total');
 
-    if (!audio || !playBtn) return;
+      if (!audio || !playBtn) return;
 
-    audio.addEventListener('loadedmetadata', () => {
-      total.textContent = formatTime(audio.duration);
-    });
-
-    audio.addEventListener('timeupdate', () => {
-      current.textContent = formatTime(audio.currentTime);
-      const pct = audio.duration ? (audio.currentTime / audio.duration) * 100 : 0;
-      fill.style.width = pct + '%';
-    });
-
-    audio.addEventListener('ended', () => {
-      playBtn.textContent = '▶';
-      fill.style.width = '0%';
-      audio.currentTime = 0;
-    });
-
-    playBtn.addEventListener('click', () => {
-      if (audio.paused) {
-        audio.play();
-        playBtn.textContent = '▌▌';
-      } else {
-        audio.pause();
+      audio.addEventListener('loadedmetadata', () => {
+        total.textContent = formatTime(audio.duration);
+      });
+      audio.addEventListener('timeupdate', () => {
+        current.textContent = formatTime(audio.currentTime);
+        const pct = audio.duration ? (audio.currentTime / audio.duration) * 100 : 0;
+        fill.style.width = pct + '%';
+      });
+      audio.addEventListener('ended', () => {
         playBtn.textContent = '▶';
-      }
-    });
-
-    bar.addEventListener('click', (e) => {
-      const rect = bar.getBoundingClientRect();
-      const pct  = (e.clientX - rect.left) / rect.width;
-      audio.currentTime = pct * audio.duration;
+        fill.style.width = '0%';
+        audio.currentTime = 0;
+      });
+      playBtn.addEventListener('click', () => {
+        if (audio.paused) { audio.play(); playBtn.textContent = '▌▌'; }
+        else { audio.pause(); playBtn.textContent = '▶'; }
+      });
+      bar.addEventListener('click', (e) => {
+        const rect = bar.getBoundingClientRect();
+        audio.currentTime = ((e.clientX - rect.left) / rect.width) * audio.duration;
+      });
     });
   };
 
@@ -92,7 +61,11 @@ export function AudioPlayer({ entry, onDeleted }) {
     createElement('div', { className: 'reading-header' },
       createElement('div', { className: 'reading-title-row' },
         createElement('h1', { className: 'reading-title' }, entry.title.toUpperCase()),
-        createElement('button', { onClick: handleClose, className: 'close-btn', title: 'Close' }, '✕')
+        createElement('button', {
+          onClick: () => updateState({ selectedAudio: null }),
+          className: 'close-btn',
+          title: 'Close',
+        }, '✕')
       ),
       createElement('div', { className: 'reading-meta' },
         createElement('span', { className: 'reading-date' }, date.toUpperCase()),
@@ -101,7 +74,6 @@ export function AudioPlayer({ entry, onDeleted }) {
     ),
     createElement('div', { className: 'reading-divider' }),
 
-    // Player shell — ref wires up audio events after mount
     createElement('div', { className: 'audio-player-shell', ref: onPlayerMount },
       createElement('audio', { src: entry.audioUrl, preload: 'metadata' }),
 

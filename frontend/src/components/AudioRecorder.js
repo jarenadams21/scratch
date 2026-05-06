@@ -1,5 +1,6 @@
 import { createElement } from '../engine/main.js';
 import { requestUploadUrl, uploadAudioToS3, createAudioPost } from '../lib/api.js';
+import { formatTime } from '../lib/format.js';
 import {
   AudioMimeType,
   UPLOADABLE_MIME_TYPES,
@@ -12,22 +13,6 @@ import {
   RecorderState,
 } from '../types/audio-types.js';
 
-function formatCountdown(secondsRemaining) {
-  const m = Math.floor(secondsRemaining / 60);
-  const s = secondsRemaining % 60;
-  return `${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
-}
-
-function formatDuration(seconds) {
-  const m = Math.floor(seconds / 60);
-  const s = Math.floor(seconds % 60);
-  return `${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
-}
-
-/**
- * Detect the best supported MIME type for MediaRecorder on this browser.
- * Safari → mp4, Chrome/Firefox → webm.
- */
 function getSupportedMimeType() {
   const candidates = [AudioMimeType.WEBM, AudioMimeType.MP4, AudioMimeType.OGG];
   for (const type of candidates) {
@@ -35,25 +20,16 @@ function getSupportedMimeType() {
       return type;
     }
   }
-  return AudioMimeType.MP4; // Safari fallback
+  return AudioMimeType.MP4;
 }
 
-/**
- * AudioRecorder Component
- * Handles both in-browser microphone recording and file upload.
- * Mounts once; manages its own DOM state via ref callback.
- */
 export function AudioRecorder({ onTransmitted }) {
   const date = new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
 
   const onMount = (container) => {
     if (!container) return;
-    // Defer until the full subtree is committed to the DOM.
-    // The engine fires ref immediately after the container is appended,
-    // before children are walked — querySelector returns null otherwise.
     requestAnimationFrame(() => {
 
-    // ── Shared state ──────────────────────────────────────────────────────────
     let recorderState   = RecorderState.IDLE;
     let mediaRecorder   = null;
     let audioStream     = null;
@@ -64,7 +40,6 @@ export function AudioRecorder({ onTransmitted }) {
     let uploadedFile    = null;
     let countdownInterval = null;
 
-    // ── DOM refs ──────────────────────────────────────────────────────────────
     const titleInput     = container.querySelector('.ar-title-input');
     const recordBtn      = container.querySelector('.ar-record-btn');
     const stopBtn        = container.querySelector('.ar-stop-btn');
@@ -85,13 +60,13 @@ export function AudioRecorder({ onTransmitted }) {
       const isStopped   = next === RecorderState.STOPPED;
       const isUploading = next === RecorderState.UPLOADING;
 
-      recordBtn.style.display    = isIdle      ? '' : 'none';
-      uploadLabel.style.display  = isIdle      ? '' : 'none';
-      stopBtn.style.display      = isRecording ? '' : 'none';
-      countdownEl.style.display  = isRecording ? '' : 'none';
+      recordBtn.style.display      = isIdle      ? '' : 'none';
+      uploadLabel.style.display    = isIdle      ? '' : 'none';
+      stopBtn.style.display        = isRecording ? '' : 'none';
+      countdownEl.style.display    = isRecording ? '' : 'none';
       previewSection.style.display = isStopped   ? '' : 'none';
-      transmitBtn.disabled       = isUploading;
-      transmitBtn.textContent    = isUploading  ? 'TRANSMITTING...' : '▶  TRANSMIT';
+      transmitBtn.disabled         = isUploading;
+      transmitBtn.textContent      = isUploading ? 'TRANSMITTING...' : '▶  TRANSMIT';
     }
 
     function showError(code) {
@@ -106,10 +81,10 @@ export function AudioRecorder({ onTransmitted }) {
 
     function startCountdown() {
       let remaining = MAX_RECORDING_SECONDS;
-      countdownEl.textContent = formatCountdown(remaining);
+      countdownEl.textContent = formatTime(remaining);
       countdownInterval = setInterval(() => {
         remaining--;
-        countdownEl.textContent = formatCountdown(remaining);
+        countdownEl.textContent = formatTime(remaining);
         if (remaining <= 0) stopRecording(true);
       }, 1000);
     }
@@ -120,8 +95,6 @@ export function AudioRecorder({ onTransmitted }) {
         countdownInterval = null;
       }
     }
-
-    // ── Recording ─────────────────────────────────────────────────────────────
 
     recordBtn.addEventListener('click', async () => {
       clearError();
@@ -147,7 +120,7 @@ export function AudioRecorder({ onTransmitted }) {
         recordedBlob = new Blob(recordedChunks, { type: recordedMime });
         uploadedFile = null;
         previewLabel.textContent =
-          `RECORDED — ${formatDuration(recordedSeconds)} · ${(recordedBlob.size / (1024 * 1024)).toFixed(1)}MB`;
+          `RECORDED — ${formatTime(recordedSeconds)} · ${(recordedBlob.size / (1024 * 1024)).toFixed(1)}MB`;
         setState(RecorderState.STOPPED);
         audioStream.getTracks().forEach(t => t.stop());
         audioStream = null;
@@ -168,8 +141,6 @@ export function AudioRecorder({ onTransmitted }) {
 
     stopBtn.addEventListener('click', () => stopRecording(false));
 
-    // ── File upload ───────────────────────────────────────────────────────────
-
     uploadInput.addEventListener('change', (e) => {
       clearError();
       const file = e.target.files[0];
@@ -189,9 +160,8 @@ export function AudioRecorder({ onTransmitted }) {
       uploadedFile    = file;
       recordedBlob    = null;
       recordedMime    = file.type;
-      recordedSeconds = 0; // unknown until loaded; backend stores 0
+      recordedSeconds = 0;
 
-      // Try to get duration from the file
       const url = URL.createObjectURL(file);
       const tempAudio = document.createElement('audio');
       tempAudio.src = url;
@@ -200,14 +170,12 @@ export function AudioRecorder({ onTransmitted }) {
         URL.revokeObjectURL(url);
         previewLabel.textContent =
           `${file.name} — ${(file.size / (1024 * 1024)).toFixed(1)}MB` +
-          (recordedSeconds ? ` · ${formatDuration(recordedSeconds)}` : '');
+          (recordedSeconds ? ` · ${formatTime(recordedSeconds)}` : '');
       });
 
       previewLabel.textContent = `${file.name} — ${(file.size / (1024 * 1024)).toFixed(1)}MB`;
       setState(RecorderState.STOPPED);
     });
-
-    // ── Transmit ──────────────────────────────────────────────────────────────
 
     transmitBtn.addEventListener('click', async () => {
       clearError();
@@ -239,8 +207,6 @@ export function AudioRecorder({ onTransmitted }) {
       }
     });
 
-    // ── Drop ──────────────────────────────────────────────────────────────────
-
     dropBtn.addEventListener('click', () => {
       clearError();
       recordedBlob    = null;
@@ -252,7 +218,6 @@ export function AudioRecorder({ onTransmitted }) {
       setState(RecorderState.IDLE);
     });
 
-    // Init
     setState(RecorderState.IDLE);
     }); // end requestAnimationFrame
   };
@@ -274,24 +239,16 @@ export function AudioRecorder({ onTransmitted }) {
 
     createElement('div', { className: 'ar-controls' },
 
-      // Record button
-      createElement('button', { className: 'ar-record-btn ar-action-btn' },
-        '⏺  RECORD'
-      ),
+      createElement('button', { className: 'ar-record-btn ar-action-btn' }, '⏺  RECORD'),
 
-      // Stop button (hidden initially)
-      createElement('button', { className: 'ar-stop-btn ar-action-btn ar-stop', style: 'display:none' },
-        '⏹  STOP'
-      ),
+      createElement('button', { className: 'ar-stop-btn ar-action-btn ar-stop', style: 'display:none' }, '⏹  STOP'),
 
-      // Countdown display
       createElement('div', { className: 'ar-countdown', style: 'display:none' },
-        formatCountdown(MAX_RECORDING_SECONDS)
+        formatTime(MAX_RECORDING_SECONDS)
       ),
 
       createElement('div', { className: 'ar-divider-label' }, '— OR —'),
 
-      // File upload
       createElement('label', { className: 'ar-upload-label ar-action-btn' },
         '⬆  UPLOAD FILE',
         createElement('input', {
@@ -309,7 +266,6 @@ export function AudioRecorder({ onTransmitted }) {
 
     createElement('div', { className: 'ar-status' }),
 
-    // Preview / transmit section (hidden until recording/upload ready)
     createElement('div', { className: 'ar-preview-section', style: 'display:none' },
       createElement('div', { className: 'ar-preview-label' }),
       createElement('div', { className: 'ar-transmit-row' },

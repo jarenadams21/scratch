@@ -139,6 +139,12 @@ function commitRoot() {
   wipRoot = null
 }
 
+function maybeCallRef(fiber) {
+  if (fiber.props.ref) {
+    fiber.props.ref(fiber.dom)
+  }
+}
+
 // Applies a fiber's effect tag to the DOM, then walks into children and siblings.
 // Function components don't own DOM nodes, so we climb the parent chain to find
 // the nearest ancestor that does before touching the DOM.
@@ -156,19 +162,13 @@ function commitWork(fiber) {
 
   if (fiber.effectTag === "PLACEMENT" && fiber.dom != null) {
     domParent.appendChild(fiber.dom)
-    // Call ref callback after DOM node is mounted
-    if (fiber.props.ref) {
-      fiber.props.ref(fiber.dom)
-    }
+    maybeCallRef(fiber)
   } else if (fiber.effectTag === "DELETION") {
     commitDeletion(fiber, domParent)
     return
   } else if (fiber.effectTag === "UPDATE" && fiber.dom != null) {
     updateDom(fiber.dom, fiber.alternate.props, fiber.props)
-    // Call ref callback after update (in case ref changed)
-    if (fiber.props.ref) {
-      fiber.props.ref(fiber.dom)
-    }
+    maybeCallRef(fiber)
   }
 
   // Must be outside the if-else — every fiber needs to walk its subtree
