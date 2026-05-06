@@ -2,13 +2,6 @@
 Hello
 ## Foundation created from
 > https://pomb.us/build-your-own-react/
-### Steps
-    > terminal 1: npm run dev (implicit ```node server.js``` and ```tsc``` call)
-#### todo
-    1. Implement types for main.tsx implementation simplification (e.g., types/react)
-    2. Comment cleanup (they were auto gen'd)
-
----
 
 ## HARBINGER - Journal of Thought
 
@@ -17,7 +10,7 @@ Personal journal built with custom vdom engine + DynamoDB + Lambda + Cloudflare
 ### Quick Start
 
 ```bash
-npm run dev
+npm run dev (implicit ```node server.js``` and ```tsc``` call)
 ```
 
 Opens:
@@ -25,7 +18,7 @@ Opens:
 - Backend: http://localhost:3000
 
 ### Stack
-- **Frontend**: Custom vdom engine, Message architecture
+- **Frontend**: Fiber-based vdom engine, Message architecture
 - **Backend**: Node.js HTTP server with JWT auth
 - **Database**: DynamoDB (or mock data in DEV mode)
 - **Auth**: bcrypt + JWT
