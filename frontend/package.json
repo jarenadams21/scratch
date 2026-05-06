@@ -1,11 +1,13 @@
 {
-  "name": "mini-vdom",
+  "name": "app",
   "private": true,
+  "type": "module",
   "scripts": {
-    "build": "tsc",
-    "dev": "node server.js"
+    "dev": "node server.js",
+    "build": "node esbuild.build.js"
   },
   "devDependencies": {
+    "esbuild": "^0.28.0",
     "typescript": "^6.0.2",
     "undici-types": "^8.2.0"
   }

@@ -1,136 +1,37 @@
-import http from 'http';
-import { config } from './config.js';
-import { signup, login, extractUser } from './auth.js';
-import { createEntry, getUserEntries, deleteEntry } from './db.js';
+import serverless from 'serverless-http';
+import express from 'express';
 
-// ─── CORS Helper ────────────────────────────────────────────────────────────
+const app = express();
+app.use(express.json());
 
-function setCors(res, origin) {
-  const allowed = config.ALLOWED_ORIGINS.includes(origin);
-  if (allowed) {
+const ALLOWED_ORIGINS = (process.env.ALLOWED_ORIGINS || 'http://localhost:3000').split(',');
+
+app.use((req, res, next) => {
+  const origin = req.headers.origin;
+  if (ALLOWED_ORIGINS.includes(origin)) {
     res.setHeader('Access-Control-Allow-Origin', origin);
   }
-  res.setHeader('Access-Control-Allow-Methods', 'GET, POST, DELETE, OPTIONS');
+  res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
-  res.setHeader('Access-Control-Max-Age', '86400');
-}
-
-// ─── Response Helpers ───────────────────────────────────────────────────────
-
-function json(res, data, status = 200) {
-  res.writeHead(status, { 'Content-Type': 'application/json' });
-  res.end(JSON.stringify(data));
-}
-
-function error(res, message, status = 400) {
-  json(res, { error: message }, status);
-}
-
-async function parseBody(req) {
-  return new Promise((resolve, reject) => {
-    let body = '';
-    req.on('data', chunk => body += chunk);
-    req.on('end', () => {
-      try {
-        resolve(body ? JSON.parse(body) : {});
-      } catch (err) {
-        reject(new Error('Invalid JSON'));
-      }
-    });
-  });
-}
-
-// ─── Routes ─────────────────────────────────────────────────────────────────
-
-// ─── Message Handler ────────────────────────────────────────────────────────
-
-async function handleMessage(message, userId) {
-  const { command, payload } = message;
-  const content = typeof payload.content === 'string' 
-    ? JSON.parse(payload.content) 
-    : payload.content;
-  
-  switch (command) {
-    case 'auth_signup':
-      return await signup(content.email, content.password);
-    
-    case 'auth_login':
-      return await login(content.email, content.password);
-    
-    case 'create_post':
-      if (!userId) throw new Error('Unauthorized');
-      return await createEntry(userId, content);
-    
-    case 'get_posts':
-      if (!userId) throw new Error('Unauthorized');
-      return await getUserEntries(userId);
-    
-    case 'delete_post':
-      if (!userId) throw new Error('Unauthorized');
-      await deleteEntry(userId, content.postId, content.timestamp);
-      return { message: 'Deleted' };
-    
-    default:
-      throw new Error(`Unknown command: ${command}`);
-  }
-}
-
-// ─── Request Handler ────────────────────────────────────────────────────────
-
-async function handleRequest(req, res) {
-  const origin = req.headers.origin;
-  setCors(res, origin);
-  
-  // Handle preflight
-  if (req.method === 'OPTIONS') {
-    res.writeHead(204);
-    res.end();
-    return;
-  }
-  
-  const url = new URL(req.url, `http://${req.headers.host}`);
-  const path = url.pathname;
-  
-  try {
-    // Single message endpoint
-    if (path === '/msg' && req.method === 'POST') {
-      const message = await parseBody(req);
-      
-      // Validate message structure
-      if (!message.command || !message.payload?.num) {
-        return error(res, 'Invalid message format');
-      }
-      
-      // Extract user if auth token present
-      const userId = extractUser(req);
-      
-      // Handle the message
-      const result = await handleMessage(message, userId);
-      
-      // Auth messages return tokens
-      if (message.command.startsWith('auth_')) {
-        return json(res, result);
-      }
-      
-      return json(res, result);
-    }
-    
-    // Not found
-    return error(res, 'Not found', 404);
-    
-  } catch (err) {
-    console.error('Request error:', err);
-    return error(res, err.message, 500);
-  }
-}
-
-// ─── Server ─────────────────────────────────────────────────────────────────
-
-const server = http.createServer(handleRequest);
-
-server.listen(config.PORT, () => {
-  console.log('🚀 Backend: http://localhost:' + config.PORT);
-  console.log(`   DEV mode: ${config.DEV_MODE ? 'ON' : 'OFF'}`);
-  console.log(`   DB Table: ${config.DYNAMODB_TABLE}`);
-  console.log('');
+  if (req.method === 'OPTIONS') return res.sendStatus(200);
+  next();
 });
+
+// Register one async handler per command.
+// Each receives (content, userId) and returns a plain object.
+const handlers = {
+  // my_command: async (content, userId) => ({ result: 'ok' }),
+};
+
+app.post('/msg', async (req, res) => {
+  const { command, payload } = req.body ?? {};
+  const handler = handlers[command];
+  if (!handler) return res.status(400).json({ error: 'Unknown command' });
+  try {
+    res.json(await handler(payload?.content, req.userId));
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+export const handler = serverless(app);
