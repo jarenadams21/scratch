@@ -19,4 +19,4 @@ await esbuild.build({
   logLevel: 'info',
 });
 
-console.log('✅ Build complete - custom engine.createElement (no React)\n');
+console.log('✅ Build complete - engine.createElement (fiber dom)\n');

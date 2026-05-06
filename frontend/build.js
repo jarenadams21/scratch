@@ -44,6 +44,7 @@ function copyDir(src, dest) {
 console.log('Copying source files...');
 copyDir(path.join(__dirname, 'src'), srcDist);
 
+/* DISABLED
 // Copy config files (for runtime access)
 const configDist = path.join(distDir, 'config');
 fs.mkdirSync(configDist, { recursive: true });
@@ -52,6 +53,7 @@ fs.copyFileSync(
   path.join(configDist, 'flags.json')
 );
 console.log('✓ Copied config/flags.json');
+*/
 
 console.log('\n✅ Build complete: frontend/dist/');
 console.log('   Test with: npx serve dist -p 8080');
