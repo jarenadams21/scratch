@@ -2,6 +2,7 @@ import http from 'http';
 import { config } from './config/config.js';
 import { signup, login, extractUser } from './auth/auth.js';
 import { createEntry, getUserEntries, getAllEntries, deleteEntry } from './db/db.js';
+import { generateUploadUrl, createAudioEntry, getUserAudioEntries, getAllAudioEntries, deleteAudioEntry } from './db/audio-db.js';
 
 // ─── CORS Helper ────────────────────────────────────────────────────────────
 
@@ -76,6 +77,23 @@ async function handleMessage(message, userId) {
       await deleteEntry(userId, content.postId, content.timestamp);
       return { message: 'Deleted' };
     
+    case 'request_upload_url':
+      if (!userId) throw new Error('Unauthorized');
+      return await generateUploadUrl(content.filename, content.contentType);
+
+    case 'create_audio_post':
+      if (!userId) throw new Error('Unauthorized');
+      return await createAudioEntry(userId, content);
+
+    case 'get_audio_posts':
+      if (userId) return await getUserAudioEntries(userId);
+      return await getAllAudioEntries();
+
+    case 'delete_audio_post':
+      if (!userId) throw new Error('Unauthorized');
+      await deleteAudioEntry(userId, content.entryId, content.createdAt);
+      return { message: 'Deleted' };
+
     default:
       throw new Error(`Unknown command: ${command}`);
   }

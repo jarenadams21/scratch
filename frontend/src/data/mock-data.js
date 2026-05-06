@@ -38,7 +38,33 @@ export const MOCK_POSTS = [
   }
 ];
 
+export const MOCK_AUDIO = [
+  {
+    entryId: 'mock-audio-1',
+    title: 'Situation Report — April',
+    audioKey: 'audio/mock-audio-1.mp3',
+    audioUrl: '',
+    mimeType: 'audio/mpeg',
+    duration: 142,
+    fileSize: 1138000,
+    createdAt: new Date(2026, 3, 10, 9, 0).toISOString(),
+    updatedAt: new Date(2026, 3, 10, 9, 0).toISOString(),
+  },
+  {
+    entryId: 'mock-audio-2',
+    title: 'Memorandum on Press Coverage',
+    audioKey: 'audio/mock-audio-2.mp3',
+    audioUrl: '',
+    mimeType: 'audio/mpeg',
+    duration: 87,
+    fileSize: 696000,
+    createdAt: new Date(2026, 3, 22, 14, 30).toISOString(),
+    updatedAt: new Date(2026, 3, 22, 14, 30).toISOString(),
+  },
+];
+
 let mockData = [...MOCK_POSTS];
+let mockAudioData = [...MOCK_AUDIO];
 
 // Mock database operations
 export const mockDB = {
@@ -68,5 +94,46 @@ export const mockDB = {
   
   reset: () => {
     mockData = [...MOCK_POSTS];
+  }
+};
+
+export const mockAudioDB = {
+  getAudioPosts: () => {
+    return Promise.resolve([...mockAudioData].sort((a, b) =>
+      new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+    ));
+  },
+
+  createAudioPost: (title, audioKey, audioUrl, duration, mimeType, fileSize) => {
+    const entry = {
+      entryId: `mock-audio-${Date.now()}`,
+      title,
+      audioKey,
+      audioUrl,
+      mimeType,
+      duration,
+      fileSize,
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+    };
+    mockAudioData.unshift(entry);
+    return Promise.resolve(entry);
+  },
+
+  deleteAudioPost: (entryId) => {
+    mockAudioData = mockAudioData.filter(e => e.entryId !== entryId);
+    return Promise.resolve({ message: 'Deleted' });
+  },
+
+  requestUploadUrl: (filename, contentType) => {
+    return Promise.resolve({
+      uploadUrl: 'mock://upload',
+      audioKey: `audio/mock-${Date.now()}.${filename.split('.').pop()}`,
+      audioUrl: '',
+    });
+  },
+
+  reset: () => {
+    mockAudioData = [...MOCK_AUDIO];
   }
 };

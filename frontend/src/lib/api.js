@@ -1,14 +1,20 @@
 // Message-based API client using VISITOR/Message architecture
-import { 
-  createPostMessage, 
-  getPostsMessage, 
+import {
+  createPostMessage,
+  getPostsMessage,
   deletePostMessage,
   signupMessage,
   loginMessage,
-  logoutMessage 
+  logoutMessage
 } from '../types/journal-messages.js';
+import {
+  requestUploadUrlMessage,
+  createAudioPostMessage,
+  getAudioPostsMessage,
+  deleteAudioPostMessage,
+} from '../types/audio-messages.js';
 import { CONFIG, devLog } from '../config/flags-runtime.js';
-import { MOCK_USER, mockDB } from '../data/mock-data.js';
+import { MOCK_USER, mockDB, mockAudioDB } from '../data/mock-data.js';
 
 const API_URL = CONFIG.API_URL;
 
@@ -46,6 +52,18 @@ async function sendMessage(message, requiresAuth = true) {
         return mockDB.createPost(title, content, mood);
       case 'delete_post':
         return mockDB.deletePost(message.payload.content.postId);
+      case 'request_upload_url': {
+        const { filename, contentType } = message.payload.content;
+        return mockAudioDB.requestUploadUrl(filename, contentType);
+      }
+      case 'create_audio_post': {
+        const c = message.payload.content;
+        return mockAudioDB.createAudioPost(c.title, c.audioKey, c.audioUrl, c.duration, c.mimeType, c.fileSize);
+      }
+      case 'get_audio_posts':
+        return mockAudioDB.getAudioPosts();
+      case 'delete_audio_post':
+        return mockAudioDB.deleteAudioPost(message.payload.content.entryId);
       default:
         return { success: true };
     }
@@ -116,4 +134,32 @@ export async function deletePost(postId, timestamp) {
   const message = deletePostMessage(postId);
   message.payload.content.timestamp = timestamp;
   return sendMessage(message);
+}
+
+// ─── Audio API ───────────────────────────────────────────────────────────────
+
+export async function getAudioPosts() {
+  return sendMessage(getAudioPostsMessage(), false);
+}
+
+export async function requestUploadUrl(filename, contentType, duration, fileSize) {
+  return sendMessage(requestUploadUrlMessage(filename, contentType, duration, fileSize));
+}
+
+export async function uploadAudioToS3(uploadUrl, blob, mimeType) {
+  if (uploadUrl === 'mock://upload') return; // DEV mode bypass
+  const res = await fetch(uploadUrl, {
+    method: 'PUT',
+    body: blob,
+    headers: { 'Content-Type': mimeType },
+  });
+  if (!res.ok) throw new Error('S3 upload failed: ' + res.status);
+}
+
+export async function createAudioPost(title, audioKey, audioUrl, duration, mimeType, fileSize) {
+  return sendMessage(createAudioPostMessage(title, audioKey, audioUrl, duration, mimeType, fileSize));
+}
+
+export async function deleteAudioPost(entryId, createdAt) {
+  return sendMessage(deleteAudioPostMessage(entryId, createdAt));
 }

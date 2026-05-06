@@ -622,6 +622,220 @@ body {
   color: #000;
 }
 
+/* ─── Audio Player ───────────────────────────────────────────────────────── */
+
+.audio-reading-pane {
+  background: #f4f1e8;
+}
+
+.audio-player-shell {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+  padding-top: 8px;
+}
+
+.ap-transport {
+  display: flex;
+  align-items: center;
+  gap: 20px;
+}
+
+.ap-play-btn {
+  flex-shrink: 0;
+  width: 48px;
+  height: 48px;
+  background: #000;
+  color: #f4f1e8;
+  border: none;
+  font-size: 16px;
+  cursor: pointer;
+  font-family: 'Courier New', monospace;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background 0.15s;
+}
+
+.ap-play-btn:hover { background: #222; }
+
+.ap-timeline {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.ap-progress-bar {
+  height: 3px;
+  background: #d8d5cc;
+  cursor: pointer;
+  position: relative;
+}
+
+.ap-progress-fill {
+  height: 100%;
+  background: #000;
+  width: 0%;
+  transition: width 0.25s linear;
+  pointer-events: none;
+}
+
+.ap-time-row {
+  display: flex;
+  gap: 6px;
+  font-size: 10px;
+  letter-spacing: 2px;
+  color: #888;
+  font-family: 'Courier New', monospace;
+}
+
+.ap-time-divider { color: #ccc; }
+
+.ap-meta-row {
+  display: flex;
+  gap: 16px;
+  font-size: 9px;
+  letter-spacing: 2px;
+  color: #aaa;
+  border-top: 1px solid #ddd;
+  padding-top: 12px;
+}
+
+.ap-format-tag {
+  background: #000;
+  color: #f4f1e8;
+  padding: 2px 6px;
+  font-size: 8px;
+  letter-spacing: 1px;
+}
+
+/* ─── Audio Recorder ─────────────────────────────────────────────────────── */
+
+.audio-recorder-sheet {
+  gap: 0;
+}
+
+.ar-error {
+  font-size: 10px;
+  letter-spacing: 1px;
+  color: #900;
+  padding: 8px 0;
+  border-bottom: 1px solid #e8d8d8;
+  margin-bottom: 16px;
+}
+
+.ar-controls {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 16px;
+  padding: 32px 0;
+}
+
+.ar-action-btn {
+  background: transparent;
+  border: 1px solid #000;
+  color: #000;
+  padding: 10px 24px;
+  font-family: 'Courier New', monospace;
+  font-size: 11px;
+  letter-spacing: 2px;
+  cursor: pointer;
+  transition: all 0.15s;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.ar-action-btn:hover {
+  background: #000;
+  color: #f4f1e8;
+}
+
+.ar-stop {
+  border-color: #900;
+  color: #900;
+}
+
+.ar-stop:hover {
+  background: #900;
+  color: #fff;
+  border-color: #900;
+}
+
+.ar-countdown {
+  font-size: 28px;
+  letter-spacing: 4px;
+  font-family: 'Courier New', monospace;
+  color: #900;
+  font-weight: bold;
+}
+
+.ar-divider-label {
+  font-size: 9px;
+  letter-spacing: 3px;
+  color: #bbb;
+  padding: 4px 0;
+}
+
+.ar-format-hint {
+  font-size: 9px;
+  letter-spacing: 1px;
+  color: #aaa;
+}
+
+.ar-status {
+  font-size: 9px;
+  letter-spacing: 3px;
+  color: #aaa;
+  min-height: 16px;
+}
+
+.ar-preview-section {
+  border-top: 1px solid #ddd;
+  padding-top: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.ar-preview-label {
+  font-size: 10px;
+  letter-spacing: 2px;
+  color: #555;
+}
+
+.ar-transmit-row {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+}
+
+.ar-drop-btn {
+  background: transparent;
+  border: 1px solid #ccc;
+  color: #999;
+  padding: 10px 20px;
+  font-family: 'Courier New', monospace;
+  font-size: 10px;
+  letter-spacing: 2px;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+
+.ar-drop-btn:hover {
+  border-color: #900;
+  color: #900;
+}
+
+.recording-preview {
+  color: #666;
+  letter-spacing: 1px;
+}
+
 /* ─── Responsive ─────────────────────────────────────────────────────────── */
 
 @media (max-width: 640px) {

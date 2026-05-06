@@ -11,6 +11,7 @@ const REGISTERED_NUM_MAP = {
   "auth_signup": 7,
   "auth_login": 8,
   "auth_logout": 9,
+  // Audio commands (10–13 reserved — see audio-messages.js)
 };
 
 // ─── Journal Message Creators ───────────────────────────────────────────────

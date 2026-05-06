@@ -10,6 +10,11 @@ export const AppState = {
   currentView: 'archive',
   selectedEntry: null,
   showAdminPanel: false,
+  // Audio state
+  audioEntries: [],
+  audioLoaded: false,
+  audioLoading: false,
+  selectedAudio: null,
 };
 
 // State update callbacks (to trigger re-render)
