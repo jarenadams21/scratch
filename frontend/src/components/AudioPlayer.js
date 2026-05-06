@@ -33,11 +33,12 @@ export function AudioPlayer({ entry, onDeleted }) {
 
       if (!audio || !playBtn) return;
 
-      // MediaRecorder WebM files lack duration metadata — audio.duration comes back
-      // as Infinity. Fall back to the server-stored duration in that case.
+      // MediaRecorder WebM files lack duration metadata — audio.duration is Infinity.
+      // iOS reports NaN for unsupported formats, or tiny transient values while loading.
+      // Fall back to the server-stored wall-clock duration in all those cases.
       function knownDuration() {
         const d = audio.duration;
-        return (Number.isFinite(d) && d > 0) ? d : (entry.duration || 0);
+        return (Number.isFinite(d) && d > 1) ? d : (entry.duration || 0);
       }
 
       function refreshTotal() {
@@ -46,7 +47,8 @@ export function AudioPlayer({ entry, onDeleted }) {
 
       audio.addEventListener('loadedmetadata', refreshTotal);
       audio.addEventListener('durationchange', refreshTotal);
-      // Mobile browsers often fire loadedmetadata before the rAF listener attaches
+      audio.addEventListener('canplay', refreshTotal);
+      // iOS ignores preload="metadata" — check in case it already loaded synchronously
       if (audio.readyState >= 1) refreshTotal();
 
       audio.addEventListener('timeupdate', () => {

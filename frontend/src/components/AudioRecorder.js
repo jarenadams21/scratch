@@ -14,7 +14,14 @@ import {
 } from '../types/audio-types.js';
 
 function getSupportedMimeType() {
-  const candidates = [AudioMimeType.WEBM, AudioMimeType.MP4, AudioMimeType.OGG];
+  // iOS Safari added partial WebM container support in iOS 16+ but Opus audio codec
+  // playback inside WebM is unreliable. MP4/AAC is the only format guaranteed to
+  // record AND play back correctly on iOS, so always prefer it there.
+  const isIOS = /iP(hone|ad|od)/.test(navigator.userAgent) ||
+    (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+  const candidates = isIOS
+    ? [AudioMimeType.MP4, AudioMimeType.OGG, AudioMimeType.WEBM]
+    : [AudioMimeType.WEBM, AudioMimeType.MP4, AudioMimeType.OGG];
   for (const type of candidates) {
     if (typeof MediaRecorder !== 'undefined' && MediaRecorder.isTypeSupported(type)) {
       return type;
@@ -166,7 +173,8 @@ export function AudioRecorder({ onTransmitted }) {
       const tempAudio = document.createElement('audio');
       tempAudio.src = url;
       tempAudio.addEventListener('loadedmetadata', () => {
-        recordedSeconds = Math.round(tempAudio.duration) || 0;
+        const d = tempAudio.duration;
+        recordedSeconds = (Number.isFinite(d) && d > 0) ? Math.round(d) : 0;
         URL.revokeObjectURL(url);
         previewLabel.textContent =
           `${file.name} — ${(file.size / (1024 * 1024)).toFixed(1)}MB` +

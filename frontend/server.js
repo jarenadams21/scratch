@@ -36,8 +36,9 @@ http.createServer((req, res) => {
       return 
     }
     const ext = path.extname(file)
-    res.writeHead(200, { 
+    res.writeHead(200, {
       'Content-Type': MIME[ext] || 'text/plain',
+      'Cache-Control': 'no-store',
       'Access-Control-Allow-Origin': '*'
     })
     res.end(data)
