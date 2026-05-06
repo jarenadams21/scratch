@@ -6,6 +6,17 @@ frontend:
         - npm ci
         - cd frontend && npm ci
         - cd ..
+        - |
+          cat > frontend/src/config/flags-runtime.js << TEMPLATE
+          export const CONFIG = {
+            DEV:        false,
+            API_URL:    '$API_URL',
+            MOCK_USER:  '',
+            MOCK_TOKEN: '',
+            DEV_DELAY:  0,
+          };
+          export function devLog() {}
+          TEMPLATE
         - npm run build:prod
   artifacts:
     baseDirectory: frontend/dist
