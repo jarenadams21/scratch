@@ -64,7 +64,7 @@ export function applyVintageChain(audioEl) {
     hiss.loop = true;
     hiss.start(0);
     const hissGain = ctx.createGain();
-    hissGain.gain.value = 0.025;
+    hissGain.gain.value = 0.008;
 
     // Vinyl crackle — pre-generated sparse impulse buffer, looped
     const crackLen = sr * 8;
@@ -84,7 +84,16 @@ export function applyVintageChain(audioEl) {
     crack.loop = true;
     crack.start(0);
     const crackGain = ctx.createGain();
-    crackGain.gain.value = 0.07;
+    crackGain.gain.value = 0.015;
+
+    // Gate cuts noise when the audio element is paused
+    const noiseGate = ctx.createGain();
+    noiseGate.gain.value = 0;
+    const openGate  = () => noiseGate.gain.setTargetAtTime(1, ctx.currentTime, 0.05);
+    const closeGate = () => noiseGate.gain.setTargetAtTime(0, ctx.currentTime, 0.05);
+    audioEl.addEventListener('play',  openGate);
+    audioEl.addEventListener('pause', closeGate);
+    audioEl.addEventListener('ended', closeGate);
 
     const out = ctx.createGain();
     out.gain.value = 1.1;
@@ -95,9 +104,10 @@ export function applyVintageChain(audioEl) {
     lp.connect(shaper);
     shaper.connect(comp);
     hiss.connect(hissGain);
-    hissGain.connect(comp);
+    hissGain.connect(noiseGate);
     crack.connect(crackGain);
-    crackGain.connect(comp);
+    crackGain.connect(noiseGate);
+    noiseGate.connect(comp);
     comp.connect(out);
     out.connect(ctx.destination);
 
