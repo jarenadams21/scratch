@@ -3,6 +3,7 @@ import { deleteAudioPost } from '../lib/api.js';
 import { AppState, updateState } from '../lib/state.js';
 import { MIME_TO_LABEL } from '../types/audio-types.js';
 import { formatTime, formatFileSize } from '../lib/format.js';
+import { applyVintageChain } from '../lib/vintage-audio.js';
 import { confirmDelete } from '../lib/actions.js';
 
 export function AudioPlayer({ entry, onDeleted }) {
@@ -63,6 +64,7 @@ export function AudioPlayer({ entry, onDeleted }) {
       });
       playBtn.addEventListener('click', () => {
         if (audio.paused) {
+          applyVintageChain(audio);
           audio.play()
             .then(() => { playBtn.textContent = '▌▌'; })
             .catch(() => { playBtn.textContent = '▶'; });
