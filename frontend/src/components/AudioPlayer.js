@@ -99,7 +99,7 @@ export function AudioPlayer({ entry, onDeleted }) {
     createElement('div', { className: 'reading-divider' }),
 
     createElement('div', { className: 'audio-player-shell', ref: onPlayerMount },
-      createElement('audio', { src: entry.audioUrl, preload: 'metadata' }),
+      createElement('audio', { src: entry.audioUrl, preload: 'metadata', crossOrigin: 'anonymous' }),
 
       createElement('div', { className: 'ap-transport' },
         createElement('button', { className: 'ap-play-btn' }, '▶'),
