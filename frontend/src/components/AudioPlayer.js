@@ -33,13 +33,26 @@ export function AudioPlayer({ entry, onDeleted }) {
 
       if (!audio || !playBtn) return;
 
-      audio.addEventListener('loadedmetadata', () => {
-        total.textContent = formatTime(audio.duration);
-      });
+      // MediaRecorder WebM files lack duration metadata — audio.duration comes back
+      // as Infinity. Fall back to the server-stored duration in that case.
+      function knownDuration() {
+        const d = audio.duration;
+        return (Number.isFinite(d) && d > 0) ? d : (entry.duration || 0);
+      }
+
+      function refreshTotal() {
+        total.textContent = formatTime(knownDuration());
+      }
+
+      audio.addEventListener('loadedmetadata', refreshTotal);
+      audio.addEventListener('durationchange', refreshTotal);
+      // Mobile browsers often fire loadedmetadata before the rAF listener attaches
+      if (audio.readyState >= 1) refreshTotal();
+
       audio.addEventListener('timeupdate', () => {
         current.textContent = formatTime(audio.currentTime);
-        const pct = audio.duration ? (audio.currentTime / audio.duration) * 100 : 0;
-        fill.style.width = pct + '%';
+        const dur = knownDuration();
+        fill.style.width = dur ? `${(audio.currentTime / dur) * 100}%` : '0%';
       });
       audio.addEventListener('ended', () => {
         playBtn.textContent = '▶';
@@ -47,12 +60,19 @@ export function AudioPlayer({ entry, onDeleted }) {
         audio.currentTime = 0;
       });
       playBtn.addEventListener('click', () => {
-        if (audio.paused) { audio.play(); playBtn.textContent = '▌▌'; }
-        else { audio.pause(); playBtn.textContent = '▶'; }
+        if (audio.paused) {
+          audio.play()
+            .then(() => { playBtn.textContent = '▌▌'; })
+            .catch(() => { playBtn.textContent = '▶'; });
+        } else {
+          audio.pause();
+          playBtn.textContent = '▶';
+        }
       });
       bar.addEventListener('click', (e) => {
         const rect = bar.getBoundingClientRect();
-        audio.currentTime = ((e.clientX - rect.left) / rect.width) * audio.duration;
+        const dur = knownDuration();
+        if (dur > 0) audio.currentTime = ((e.clientX - rect.left) / rect.width) * dur;
       });
     });
   };

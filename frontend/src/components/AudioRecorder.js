@@ -66,7 +66,7 @@ export function AudioRecorder({ onTransmitted }) {
       countdownEl.style.display    = isRecording ? '' : 'none';
       previewSection.style.display = isStopped   ? '' : 'none';
       transmitBtn.disabled         = isUploading;
-      transmitBtn.textContent      = isUploading ? 'TRANSMITTING...' : '▶  TRANSMIT';
+      transmitBtn.textContent      = isUploading ? 'DISPATCHING...' : '▶  FILE DISPATCH';
     }
 
     function showError(code) {
@@ -136,7 +136,7 @@ export function AudioRecorder({ onTransmitted }) {
       if (mediaRecorder && mediaRecorder.state !== 'inactive') {
         mediaRecorder.stop();
       }
-      statusEl.textContent = autoStopped ? 'MAX LENGTH REACHED' : '';
+      statusEl.textContent = autoStopped ? 'SESSION TIME LIMIT REACHED' : '';
     }
 
     stopBtn.addEventListener('click', () => stopRecording(false));
@@ -225,7 +225,7 @@ export function AudioRecorder({ onTransmitted }) {
   return createElement('div', { className: 'editor-sheet audio-recorder-sheet', ref: onMount },
     createElement('div', { className: 'sheet-header' },
       createElement('span', { className: 'date-stamp' }, date.toUpperCase()),
-      createElement('span', { className: 'date-stamp' }, 'RECORD')
+      createElement('span', { className: 'date-stamp' }, 'DICTATION LOG')
     ),
 
     createElement('div', { className: 'ar-error', style: 'display:none' }),
@@ -233,24 +233,24 @@ export function AudioRecorder({ onTransmitted }) {
     createElement('input', {
       type: 'text',
       className: 'headline-input ar-title-input',
-      placeholder: 'TRANSMISSION TITLE',
+      placeholder: 'SUBJECT',
       autocomplete: 'off',
     }),
 
     createElement('div', { className: 'ar-controls' },
 
-      createElement('button', { className: 'ar-record-btn ar-action-btn' }, '⏺  RECORD'),
+      createElement('button', { className: 'ar-record-btn ar-action-btn' }, '⏺  BEGIN DICTATION'),
 
-      createElement('button', { className: 'ar-stop-btn ar-action-btn ar-stop', style: 'display:none' }, '⏹  STOP'),
+      createElement('button', { className: 'ar-stop-btn ar-action-btn ar-stop', style: 'display:none' }, '⏹  END SESSION'),
 
       createElement('div', { className: 'ar-countdown', style: 'display:none' },
         formatTime(MAX_RECORDING_SECONDS)
       ),
 
-      createElement('div', { className: 'ar-divider-label' }, '— OR —'),
+      createElement('div', { className: 'ar-divider-label' }, '— OR ATTACH RECORDING —'),
 
       createElement('label', { className: 'ar-upload-label ar-action-btn' },
-        '⬆  UPLOAD FILE',
+        '⬆  ARCHIVE IMPORT',
         createElement('input', {
           type: 'file',
           className: 'ar-file-input',
@@ -269,8 +269,8 @@ export function AudioRecorder({ onTransmitted }) {
     createElement('div', { className: 'ar-preview-section', style: 'display:none' },
       createElement('div', { className: 'ar-preview-label' }),
       createElement('div', { className: 'ar-transmit-row' },
-        createElement('button', { className: 'publish-btn ar-transmit-btn' }, '▶  TRANSMIT'),
-        createElement('button', { className: 'ar-drop-btn' }, 'DROP')
+        createElement('button', { className: 'publish-btn ar-transmit-btn' }, '▶  FILE DISPATCH'),
+        createElement('button', { className: 'ar-drop-btn' }, 'DISCARD')
       )
     )
   );
