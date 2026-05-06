@@ -48,6 +48,10 @@ export function AudioRecorder({ onTransmitted }) {
 
   const onMount = (container) => {
     if (!container) return;
+    // Defer until the full subtree is committed to the DOM.
+    // The engine fires ref immediately after the container is appended,
+    // before children are walked — querySelector returns null otherwise.
+    requestAnimationFrame(() => {
 
     // ── Shared state ──────────────────────────────────────────────────────────
     let recorderState   = RecorderState.IDLE;
@@ -250,6 +254,7 @@ export function AudioRecorder({ onTransmitted }) {
 
     // Init
     setState(RecorderState.IDLE);
+    }); // end requestAnimationFrame
   };
 
   return createElement('div', { className: 'editor-sheet audio-recorder-sheet', ref: onMount },
