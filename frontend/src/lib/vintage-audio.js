@@ -36,9 +36,10 @@ export function applyVintageChain(audioEl) {
     lp.frequency.value = 3400;
     lp.Q.value = 0.7;
 
-    // Tape saturation — soft-clip curve simulating tube/analog warmth
+    // Tape saturation — k=12 gives warm harmonic coloring without clipping the signal.
+    // k=120 (previous) was near-square-wave clipping that destroyed speech intelligibility.
     const shaper = ctx.createWaveShaper();
-    const n = 256, k = 120, satCurve = new Float32Array(n);
+    const n = 256, k = 12, satCurve = new Float32Array(n);
     for (let i = 0; i < n; i++) {
       const x = i * 2 / n - 1;
       satCurve[i] = (Math.PI + k) * x / (Math.PI + k * Math.abs(x));
@@ -46,13 +47,13 @@ export function applyVintageChain(audioEl) {
     shaper.curve = satCurve;
     shaper.oversample = '4x';
 
-    // Tape compression
+    // Gentle tape compression
     const comp = ctx.createDynamicsCompressor();
-    comp.threshold.value = -20;
-    comp.knee.value = 8;
-    comp.ratio.value = 5;
-    comp.attack.value = 0.003;
-    comp.release.value = 0.25;
+    comp.threshold.value = -24;
+    comp.knee.value = 20;
+    comp.ratio.value = 3;
+    comp.attack.value = 0.01;
+    comp.release.value = 0.4;
 
     // Tape hiss — looped white noise buffer at low gain
     const sr = ctx.sampleRate;
@@ -98,17 +99,21 @@ export function applyVintageChain(audioEl) {
     const out = ctx.createGain();
     out.gain.value = 1.1;
 
+    // Speech chain — compressor never sees the noise
     src.connect(mono);
     mono.connect(hp);
     hp.connect(lp);
     lp.connect(shaper);
     shaper.connect(comp);
+    comp.connect(out);
+
+    // Noise mixes in at the output stage, after compression
     hiss.connect(hissGain);
     hissGain.connect(noiseGate);
     crack.connect(crackGain);
     crackGain.connect(noiseGate);
-    noiseGate.connect(comp);
-    comp.connect(out);
+    noiseGate.connect(out);
+
     out.connect(ctx.destination);
 
     if (ctx.state === 'suspended') ctx.resume();
