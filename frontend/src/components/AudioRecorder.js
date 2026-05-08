@@ -11,6 +11,7 @@ import {
   AudioErrorCode,
   AudioErrorMessage,
   RecorderState,
+  resolveAudioMimeType,
 } from '../types/audio-types.js';
 
 function getSupportedMimeType() {
@@ -153,7 +154,8 @@ export function AudioRecorder({ onTransmitted }) {
       const file = e.target.files[0];
       if (!file) return;
 
-      if (!UPLOADABLE_MIME_TYPES.includes(file.type)) {
+      const resolvedMime = resolveAudioMimeType(file);
+      if (!resolvedMime) {
         showError(AudioErrorCode.UNSUPPORTED_FORMAT);
         uploadInput.value = '';
         return;
@@ -166,7 +168,7 @@ export function AudioRecorder({ onTransmitted }) {
 
       uploadedFile    = file;
       recordedBlob    = null;
-      recordedMime    = file.type;
+      recordedMime    = resolvedMime;
       recordedSeconds = 0;
 
       const url = URL.createObjectURL(file);
@@ -262,7 +264,7 @@ export function AudioRecorder({ onTransmitted }) {
         createElement('input', {
           type: 'file',
           className: 'ar-file-input',
-          accept: UPLOADABLE_MIME_TYPES.join(','),
+          accept: [...UPLOADABLE_MIME_TYPES, '.mp3', '.m4a', '.mp4', '.wav', '.webm', '.ogg', '.oga', '.aac'].join(','),
           style: 'display:none',
         })
       ),

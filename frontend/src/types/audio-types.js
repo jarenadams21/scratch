@@ -43,6 +43,53 @@ export const MIME_TO_LABEL = {
   [AudioMimeType.OGG]:  'OGG',
 };
 
+// Browsers (especially iOS Safari) report inconsistent MIME strings for the
+// same container — e.g. iPhone Voice Memos saved as .m4a may surface as
+// 'audio/x-m4a', 'audio/m4a', or an empty string. Normalize aliases and fall
+// back to extension when the type is empty/unknown.
+const MIME_ALIASES = {
+  'audio/x-m4a':    AudioMimeType.MP4,
+  'audio/m4a':      AudioMimeType.MP4,
+  'audio/aac':      AudioMimeType.MP4,
+  'audio/mp3':      AudioMimeType.MPEG,
+  'audio/x-mpeg':   AudioMimeType.MPEG,
+  'audio/x-wav':    AudioMimeType.WAV,
+  'audio/wave':     AudioMimeType.WAV,
+  'audio/vnd.wave': AudioMimeType.WAV,
+  'audio/x-ogg':    AudioMimeType.OGG,
+};
+
+const EXT_TO_MIME = {
+  m4a:  AudioMimeType.MP4,
+  mp4:  AudioMimeType.MP4,
+  aac:  AudioMimeType.MP4,
+  mp3:  AudioMimeType.MPEG,
+  wav:  AudioMimeType.WAV,
+  webm: AudioMimeType.WEBM,
+  ogg:  AudioMimeType.OGG,
+  oga:  AudioMimeType.OGG,
+};
+
+/**
+ * Resolve a File to a canonical AudioMimeType, or null if unsupported.
+ * Trusts the browser's MIME first, then aliases, then file extension.
+ * @param {File} file
+ * @returns {AudioMimeType|null}
+ */
+export function resolveAudioMimeType(file) {
+  const reported = (file.type || '').toLowerCase();
+  if (UPLOADABLE_MIME_TYPES.includes(reported)) return reported;
+  if (MIME_ALIASES[reported]) return MIME_ALIASES[reported];
+
+  const name = (file.name || '').toLowerCase();
+  const dot  = name.lastIndexOf('.');
+  if (dot >= 0) {
+    const ext = name.slice(dot + 1);
+    if (EXT_TO_MIME[ext]) return EXT_TO_MIME[ext];
+  }
+  return null;
+}
+
 // ─── Limits ──────────────────────────────────────────────────────────────────
 
 /** Maximum recording duration in seconds (10 minutes) */
