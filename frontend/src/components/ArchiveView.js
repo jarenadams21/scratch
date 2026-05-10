@@ -57,6 +57,36 @@ function ArchiveListItem({ entry, isSelected }) {
   );
 }
 
+// Big tappable card pinned to the top of the archive — admins land on the
+// most-recent entry they should see (theirs or hers); visitors land on the
+// most-recent PUBLIC entry (admins-only entries are already filtered out
+// server-side, so there's no leak risk).
+function FeaturedEntry({ entry }) {
+  if (!entry) return null;
+  const visibility = visibilityOf(entry);
+  const author = displayNameFor(entry);
+  const preview = (entry.content || '').slice(0, 240);
+  const truncated = (entry.content || '').length > 240;
+  return createElement('button', {
+    className: 'featured-entry',
+    onClick: () => updateState({ selectedEntry: entry }),
+    'aria-label': 'Open the most recent entry',
+  },
+    createElement('div', { className: 'featured-tag-row' },
+      createElement('span', { className: 'featured-tag' }, 'LATEST'),
+      createElement('span', { className: 'featured-meta' },
+        formatShortDate(entry.createdAt).toUpperCase() + ' · ' + author.toUpperCase()
+      ),
+      createElement(VisibilityTag, { visibility })
+    ),
+    createElement('div', { className: 'featured-title' }, entry.title.toUpperCase()),
+    createElement('div', { className: 'featured-preview' },
+      preview + (truncated ? '…' : '')
+    ),
+    createElement('div', { className: 'featured-cta' }, 'READ  →')
+  );
+}
+
 function ReadingPane({ entry, onDeleted, onVisibilityChanged }) {
   if (!entry) return null;
 
@@ -132,17 +162,24 @@ function ReadingPane({ entry, onDeleted, onVisibilityChanged }) {
 
 export function ArchiveView({ entries, onDeleted }) {
   const isAdmin = isLoggedIn();
-  // Pre-fetch any author profiles we don't already know about so display
-  // names render on first paint instead of after a follow-up render.
   ensureProfilesFor((entries || []).map(authorOf));
+
+  // Featured = newest entry (entries are already sorted newest-first by the
+  // backend). Show it as a big card only when nothing is selected — in the
+  // narrow split-view, the card would crowd the reading pane.
+  const featured = (!AppState.selectedEntry && (entries || []).length > 0) ? entries[0] : null;
+  // Don't show the featured entry duplicated as a list row directly below.
+  const listEntries = featured ? entries.slice(1) : entries;
+
   return createElement(ListView, {
     title: 'ARCHIVES',
-    entries,
-    emptyLabel: 'NO RECORDS FOUND',
+    entries: listEntries,
+    emptyLabel: featured ? 'NO OTHER RECORDS' : 'NO RECORDS FOUND',
     renderItem: (entry) => createElement(ArchiveListItem, {
       entry,
       isSelected: AppState.selectedEntry?.entryId === entry.entryId,
     }),
+    topSlot: featured ? createElement(FeaturedEntry, { entry: featured }) : null,
     detailPane: AppState.selectedEntry
       ? createElement(ReadingPane, {
           entry: AppState.selectedEntry,

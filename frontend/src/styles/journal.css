@@ -1567,6 +1567,95 @@ body {
   .feature-row     { padding: 14px 14px; gap: 14px; }
 }
 
+/* ─── Featured (most recent) entry — pinned to top of archive ─────────────── */
+
+.featured-entry {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  text-align: left;
+  background: #161616;
+  color: #e8e3d4;
+  border: 1px solid #2a2a2a;
+  border-left: 3px solid #c87053;
+  padding: 22px 24px;
+  margin: 14px 14px 8px;
+  cursor: pointer;
+  font-family: 'Courier New', monospace;
+  transition: background 0.15s, border-color 0.15s, transform 0.1s;
+}
+
+.featured-entry:hover  { background: #1c1c1c; border-left-color: #d4a04a; }
+.featured-entry:active { transform: translateY(1px); }
+.featured-entry:focus-visible {
+  outline: 2px solid #d4a04a;
+  outline-offset: 2px;
+}
+
+.featured-tag-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+  font-size: 9px;
+  letter-spacing: 2px;
+  color: #888;
+}
+
+.featured-tag {
+  background: #c87053;
+  color: #1a1816;
+  padding: 3px 8px;
+  letter-spacing: 3px;
+  font-weight: bold;
+}
+
+.featured-meta {
+  color: #888;
+  letter-spacing: 1px;
+}
+
+/* The visibility chip lives on a dark surface here — boost contrast. */
+.featured-entry .vis-tag-public { color: #aaa; border-color: #555; }
+.featured-entry .vis-tag-admins { color: #d99a82; border-color: #d99a82; background: rgba(200, 112, 83, 0.18); }
+
+.featured-title {
+  font-size: 18px;
+  letter-spacing: 3px;
+  font-weight: bold;
+  color: #fff;
+  line-height: 1.3;
+  word-break: break-word;
+}
+
+.featured-preview {
+  font-size: 12px;
+  letter-spacing: 0.5px;
+  line-height: 1.7;
+  color: #b0a99a;
+  display: -webkit-box;
+  -webkit-line-clamp: 4;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.featured-cta {
+  margin-top: 4px;
+  font-size: 10px;
+  letter-spacing: 4px;
+  color: #d4a04a;
+  align-self: flex-start;
+}
+
+@media (max-width: 640px) {
+  .featured-entry {
+    padding: 18px 16px;
+    margin: 10px 10px 6px;
+    gap: 10px;
+  }
+  .featured-title { font-size: 15px; letter-spacing: 2px; }
+}
+
 /* ─── Visibility Tags + Toggle ─────────────────────────────────────────────── */
 
 .item-meta {
