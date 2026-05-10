@@ -244,7 +244,7 @@ export function CalendarView() {
       : createElement('div', { className: 'meal-editor-pane meal-editor-empty' },
           createElement('div', { className: 'meal-editor-empty-label' }, 'Choose a day to log'),
           createElement('div', { className: 'meal-editor-empty-blurb' },
-            'Honor what you ate. The board is shared with other admins, so you can cheer each other on.'
+            'cheer each other on.'
           )
         )
   );

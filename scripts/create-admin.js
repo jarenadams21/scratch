@@ -7,7 +7,7 @@
  */
 
 import { input, password } from '@inquirer/prompts';
-import bcrypt from 'bcrypt';
+import bcrypt from 'bcryptjs';
 import { DynamoDBClient } from '@aws-sdk/client-dynamodb';
 import { DynamoDBDocumentClient, PutCommand } from '@aws-sdk/lib-dynamodb';
 
