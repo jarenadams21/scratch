@@ -8,7 +8,7 @@ const FEATURE_CATALOG = [
   {
     id: 'calendar',
     name: 'MEAL CALENDAR',
-    description: 'A breathable monthly board for logging what was eaten each day. Shared with other admins.',
+    description: 'monthly eating board',
   },
 ];
 
