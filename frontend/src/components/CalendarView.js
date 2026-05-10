@@ -106,15 +106,84 @@ function DayCell({ dateKey, entries, isToday, isSelected, currentEmail }) {
   );
 }
 
+// Meal log is stored as a single string per (date, author). We treat newline
+// characters as item separators on the client — keeps the wire format and
+// existing mock data working without any schema migration.
+function textToItems(text) {
+  return (text || '').split('\n').map(s => s.trim()).filter(Boolean);
+}
+function itemsToText(items) {
+  return items.join('\n');
+}
+
+function MealItemRow({ value, onChange, onDelete }) {
+  const commit = (e) => {
+    const next = (e.target.value || '').trim();
+    if (next === value) return;
+    if (next === '') onDelete();   // emptying a row deletes it
+    else onChange(next);
+  };
+  return createElement('div', { className: 'meal-item-row' },
+    createElement('span', { className: 'meal-item-bullet' }, '·'),
+    createElement('input', {
+      // Key on the value so a server-side change re-syncs the input. When the
+      // user is mid-edit the input is focused, so this only re-applies when
+      // they aren't actively typing.
+      key: `item-${value}`,
+      type: 'text',
+      className: 'meal-item-input',
+      defaultValue: value,
+      maxLength: 200,
+      onBlur: commit,
+      onKeyDown: (e) => {
+        if (e.key === 'Enter')  { e.preventDefault(); e.target.blur(); }
+        if (e.key === 'Escape') { e.target.value = value; e.target.blur(); }
+      },
+    }),
+    createElement('button', {
+      type: 'button',
+      className: 'meal-item-delete',
+      onClick: onDelete,
+      title: 'Remove',
+      'aria-label': 'Remove item',
+    }, '✕')
+  );
+}
+
+function MealAddRow({ onAdd }) {
+  const handleKey = (e) => {
+    if (e.key !== 'Enter') return;
+    e.preventDefault();
+    const v = (e.target.value || '').trim();
+    if (!v) return;
+    onAdd(v);
+    e.target.value = '';
+    // Cursor stays in the field so rapid entry feels natural.
+  };
+  return createElement('div', { className: 'meal-item-row meal-item-row-add' },
+    createElement('span', { className: 'meal-item-bullet meal-item-bullet-add' }, '+'),
+    createElement('input', {
+      type: 'text',
+      className: 'meal-item-input',
+      placeholder: 'add an item',
+      maxLength: 200,
+      onKeyDown: handleKey,
+    })
+  );
+}
+
 function DayEditor({ date, entries, currentEmail, onSaved, onClose }) {
   const ownEntry = entries.find(e => e.author === currentEmail);
   const others = entries.filter(e => e.author !== currentEmail);
+  const items = textToItems(ownEntry?.text);
 
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-    const text = e.target.elements['meal'].value.trim();
+  const persist = async (nextItems) => {
     try {
-      await upsertMealEntry(date, text);
+      if (nextItems.length === 0) {
+        await deleteMealEntry(date);
+      } else {
+        await upsertMealEntry(date, itemsToText(nextItems));
+      }
       mealLoader.reload();
       if (onSaved) onSaved();
     } catch (err) {
@@ -122,16 +191,9 @@ function DayEditor({ date, entries, currentEmail, onSaved, onClose }) {
     }
   };
 
-  const handleDelete = async () => {
-    if (!confirm('Clear your entry for this day?')) return;
-    try {
-      await deleteMealEntry(date);
-      mealLoader.reload();
-      if (onSaved) onSaved();
-    } catch (err) {
-      alert('Could not delete: ' + err.message);
-    }
-  };
+  const addItem    = (t)        => persist([...items, t]);
+  const updateItem = (i, t)     => persist(items.map((v, idx) => idx === i ? t : v));
+  const deleteItem = (i)        => persist(items.filter((_, idx) => idx !== i));
 
   const dateLabel = (() => {
     const d = new Date(date + 'T00:00:00');
@@ -146,22 +208,17 @@ function DayEditor({ date, entries, currentEmail, onSaved, onClose }) {
       createElement('button', { className: 'meal-close-btn', onClick: onClose, title: 'Close' }, '✕')
     ),
 
-    createElement('form', { className: 'meal-editor-form', onSubmit: handleSubmit },
-      createElement('label', { className: 'meal-editor-label' }, 'WHAT YOU ATE'),
-      createElement('textarea', {
-        key: `meal-text-${date}`,
-        name: 'meal',
-        className: 'meal-editor-text',
-        placeholder: 'Update here :^1',
-        defaultValue: ownEntry?.text || '',
-        rows: 6,
-      }),
-      createElement('div', { className: 'meal-editor-actions' },
-        ownEntry
-          ? createElement('button', { type: 'button', className: 'meal-clear-btn', onClick: handleDelete }, 'CLEAR')
-          : null,
-        createElement('button', { type: 'submit', className: 'meal-save-btn' }, ownEntry ? 'UPDATE' : 'SAVE')
-      )
+    createElement('div', { className: 'meal-editor-list' },
+      createElement('div', { className: 'meal-editor-label' }, 'WHAT YOU ATE'),
+      ...items.map((item, idx) =>
+        createElement(MealItemRow, {
+          key: `item-${date}-${idx}-${item}`,
+          value: item,
+          onChange: (v) => updateItem(idx, v),
+          onDelete: () => deleteItem(idx),
+        })
+      ),
+      createElement(MealAddRow, { key: `add-${date}-${items.length}`, onAdd: addItem })
     ),
 
     others.length
@@ -169,10 +226,17 @@ function DayEditor({ date, entries, currentEmail, onSaved, onClose }) {
           createElement('div', { className: 'meal-others-label' }, 'ALSO ON THIS DAY'),
           ...others.map(e => {
             const profile = profileFor(e.author);
+            const theirItems = textToItems(e.text);
             return createElement('div', { className: 'meal-other-entry' },
-              createElement('span', { className: `cal-author-dot ${authorClass(e.author, currentEmail)}` }),
-              createElement('span', { className: 'meal-other-author' }, profile.displayName),
-              createElement('div', { className: 'meal-other-text' }, e.text || '—')
+              createElement('div', { className: 'meal-other-author-row' },
+                createElement('span', { className: `cal-author-dot ${authorClass(e.author, currentEmail)}` }),
+                createElement('span', { className: 'meal-other-author' }, profile.displayName)
+              ),
+              theirItems.length === 0
+                ? createElement('div', { className: 'meal-other-empty' }, '—')
+                : createElement('ul', { className: 'meal-other-list' },
+                    ...theirItems.map(t => createElement('li', { className: 'meal-other-item' }, t))
+                  )
             );
           })
         )

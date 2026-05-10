@@ -1429,87 +1429,93 @@ body {
 
 .meal-close-btn:hover { background: #c87053; border-color: #c87053; color: #f7efe2; }
 
-.meal-editor-form {
+.meal-editor-list {
   display: flex;
   flex-direction: column;
-  gap: 12px;
+  gap: 4px;
 }
 
 .meal-editor-label {
   font-size: 9px;
   letter-spacing: 3px;
   color: #a89876;
+  margin-bottom: 6px;
 }
 
-.meal-editor-text {
-  background: #f7efe2;
-  border: 1px solid #d8cdb0;
+/* One row per logged item. Looks like a flat list, not a form, until focus. */
+.meal-item-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 4px 6px;
   border-radius: 4px;
-  padding: 12px 14px;
+  transition: background 0.12s;
+}
+
+.meal-item-row:hover { background: #f7efe2; }
+.meal-item-row:focus-within { background: #fffaf0; }
+
+.meal-item-bullet {
+  flex-shrink: 0;
+  width: 18px;
+  text-align: center;
+  font-size: 14px;
+  color: #c8b896;
+  user-select: none;
+}
+
+.meal-item-bullet-add { color: #3d6b48; font-weight: bold; }
+
+.meal-item-input {
+  flex: 1;
+  min-width: 0;
+  background: transparent;
+  border: none;
+  border-bottom: 1px solid transparent;
+  padding: 4px 0;
   font-family: 'Courier New', monospace;
   font-size: 13px;
-  line-height: 1.7;
+  line-height: 1.5;
   color: #1a1816;
-  resize: vertical;
   outline: none;
-  transition: border-color 0.15s, background 0.15s;
+  transition: border-color 0.12s;
 }
 
-.meal-editor-text::placeholder { color: #b8a888; }
-.meal-editor-text:focus {
-  border-color: #3d6b48;
-  background: #fffaf0;
-}
+.meal-item-input::placeholder { color: #b8a888; font-style: italic; }
+.meal-item-input:focus       { border-bottom-color: #3d6b48; }
+.meal-item-row-add .meal-item-input::placeholder { color: #8c8366; font-style: normal; }
 
-.meal-editor-actions {
-  display: flex;
-  justify-content: flex-end;
-  gap: 10px;
-}
-
-.meal-save-btn {
-  background: #3d6b48;
-  color: #f7efe2;
-  border: 1px solid #2f5238;
-  padding: 9px 22px;
-  font-family: 'Courier New', monospace;
-  font-size: 10px;
-  letter-spacing: 3px;
-  cursor: pointer;
-  border-radius: 6px;
-  box-shadow: 0 2px 0 #2f5238;
-  transition: all 0.15s;
-}
-
-.meal-save-btn:hover {
-  background: #2f5238;
-  transform: translateY(-1px);
-  box-shadow: 0 3px 0 #2f5238;
-}
-
-.meal-save-btn:active {
-  transform: translateY(1px);
-  box-shadow: 0 0 0 #2f5238;
-}
-
-.meal-clear-btn {
+/* Delete is reachable on touch but doesn't shout — fades up on hover, always
+   visible on mobile where there's no hover state. */
+.meal-item-delete {
+  flex-shrink: 0;
+  width: 28px;
+  height: 28px;
   background: transparent;
-  color: #a89876;
-  border: 1px solid #d8cdb0;
-  padding: 9px 18px;
+  border: none;
+  color: #c8b896;
   font-family: 'Courier New', monospace;
-  font-size: 10px;
-  letter-spacing: 3px;
+  font-size: 14px;
   cursor: pointer;
-  border-radius: 6px;
-  transition: all 0.15s;
+  border-radius: 4px;
+  opacity: 0;
+  transition: opacity 0.12s, color 0.12s, background 0.12s;
 }
 
-.meal-clear-btn:hover { color: #c87053; border-color: #c87053; }
+.meal-item-row:hover .meal-item-delete,
+.meal-item-row:focus-within .meal-item-delete { opacity: 1; }
+.meal-item-delete:hover { color: #c87053; background: rgba(200, 112, 83, 0.1); }
+.meal-item-row-add .meal-item-delete { display: none; }
 
+@media (max-width: 900px) {
+  .meal-item-delete { opacity: 0.45; }   /* always visible on touch */
+}
+
+/* Others' entries — read-only bulleted list. */
 .meal-others {
   border-top: 1px solid #ece1c9;
   padding-top: 18px;
+  margin-top: 14px;
   display: flex;
   flex-direction: column;
   gap: 14px;
@@ -1528,22 +1534,50 @@ body {
   border-radius: 0 4px 4px 0;
   display: flex;
   flex-direction: column;
-  gap: 4px;
+  gap: 6px;
 }
 
-.meal-other-entry .cal-author-dot { margin-right: 4px; }
+.meal-other-author-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
 
 .meal-other-author {
-  font-size: 9px;
-  letter-spacing: 1px;
+  font-size: 10px;
+  letter-spacing: 2px;
   color: #6f6450;
+  font-weight: bold;
 }
 
-.meal-other-text {
+.meal-other-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.meal-other-item {
+  position: relative;
+  padding-left: 16px;
   font-size: 12px;
   line-height: 1.6;
   color: #2a2620;
-  white-space: pre-wrap;
+}
+
+.meal-other-item::before {
+  content: '·';
+  position: absolute;
+  left: 4px;
+  color: #c8b896;
+}
+
+.meal-other-empty {
+  font-size: 11px;
+  color: #b8a888;
+  font-style: italic;
 }
 
 /* Tablet: stack the calendar editor under the board so both fit on screen. */
