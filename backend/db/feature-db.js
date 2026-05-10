@@ -261,11 +261,14 @@ export async function attachMealImage(userId, date, image) {
   // Atomic append. Creates the entry if missing (nothing else exists for
   // that day yet), bumps updatedAt, caps the list at MAX_IMAGES_PER_DAY.
   try {
+    // `date` is a reserved keyword in DynamoDB UpdateExpressions — has to go
+     // through ExpressionAttributeNames or the parser rejects it outright.
     await db.send(new UpdateCommand({
       TableName: config.DYNAMODB_TABLE,
       Key: { pk: SHARED_BOARD, sk: dayKey(date, userId) },
-      UpdateExpression: 'SET images = list_append(if_not_exists(images, :empty), :one), date = if_not_exists(date, :d), author = if_not_exists(author, :a), updatedAt = :ts',
+      UpdateExpression: 'SET images = list_append(if_not_exists(images, :empty), :one), #d = if_not_exists(#d, :d), author = if_not_exists(author, :a), updatedAt = :ts',
       ConditionExpression: 'attribute_not_exists(images) OR size(images) < :max',
+      ExpressionAttributeNames: { '#d': 'date' },
       ExpressionAttributeValues: {
         ':empty': [],
         ':one':   [item],
