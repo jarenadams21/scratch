@@ -13,10 +13,15 @@ const db = DynamoDBDocumentClient.from(client);
 
 const SHARED_BOARD = 'MEALBOARD#default';
 
-// Allowlist of trait keys clients may toggle. New traits MUST be added here
-// before they can be persisted — prevents arbitrary keys from being written
-// into a user's TRAITS document.
-export const ALLOWED_TRAITS = Object.freeze(['calendar']);
+// Schema of trait keys clients may persist. Each trait declares its type,
+// which both gates the value and tells the client how to render the control.
+// Adding a new trait = one new entry here, plus rendering in SettingsView.
+export const TRAIT_SCHEMA = Object.freeze({
+  calendar:          { type: 'boolean' },
+  defaultVisibility: { type: 'enum', values: ['public', 'admins'] },
+});
+
+export const ALLOWED_TRAITS = Object.freeze(Object.keys(TRAIT_SCHEMA));
 
 const DATE_RX = /^\d{4}-(0[1-9]|1[0-2])-(0[1-9]|[12]\d|3[01])$/;
 const MEAL_TEXT_MAX = 2000;
@@ -24,10 +29,17 @@ const MEAL_QUERY_MAX_DAYS = 366;
 
 // ─── Validation helpers ────────────────────────────────────────────────────
 
-function assertTrait(trait) {
-  if (!ALLOWED_TRAITS.includes(trait)) {
-    throw new Error(`Unknown trait: ${trait}`);
+function validateTraitValue(trait, value) {
+  const schema = TRAIT_SCHEMA[trait];
+  if (!schema) throw new Error(`Unknown trait: ${trait}`);
+  if (schema.type === 'boolean') return !!value;
+  if (schema.type === 'enum') {
+    if (!schema.values.includes(value)) {
+      throw new Error(`Invalid value for ${trait} (must be one of: ${schema.values.join(', ')})`);
+    }
+    return value;
   }
+  throw new Error(`Unsupported trait type: ${schema.type}`);
 }
 
 function assertDate(date, label = 'date') {
@@ -71,10 +83,10 @@ export async function getTraits(userId) {
   return result.Item?.traits || {};
 }
 
-export async function setTrait(userId, trait, enabled) {
-  assertTrait(trait);
+export async function setTrait(userId, trait, value) {
+  const validated = validateTraitValue(trait, value);
   const current = await getTraits(userId);
-  const next = { ...current, [trait]: !!enabled };
+  const next = { ...current, [trait]: validated };
   await db.send(new PutCommand({
     TableName: config.DYNAMODB_TABLE,
     Item: {

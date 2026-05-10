@@ -1,19 +1,13 @@
 import { createElement } from '../engine/main.js';
 import { createPost } from '../lib/api.js';
-
-const VIS_PREF_KEY = 'harbinger.defaultVisibility';
-function readDefaultVisibility() {
-  try {
-    const v = localStorage.getItem(VIS_PREF_KEY);
-    return v === 'admins' ? 'admins' : 'public';
-  } catch { return 'public'; }
-}
-function rememberVisibility(v) {
-  try { localStorage.setItem(VIS_PREF_KEY, v); } catch { /* private mode etc. */ }
-}
+import { AppState } from '../lib/state.js';
+import { DEFAULT_VISIBILITY_FALLBACK } from './SettingsView.js';
 
 export function EditorView({ onPostCreated }) {
-  const defaultVis = readDefaultVisibility();
+  // Default audience comes from the admin's own trait. Falls back to
+  // 'admins' (the system-wide cautious default) until they explicitly
+  // change it under SETTINGS → DEFAULT AUDIENCE.
+  const defaultVis = AppState.traits?.defaultVisibility ?? DEFAULT_VISIBILITY_FALLBACK;
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -26,7 +20,6 @@ export function EditorView({ onPostCreated }) {
     }
     try {
       await createPost(title, content, null, visibility);
-      rememberVisibility(visibility);
       e.target.reset();
       if (onPostCreated) onPostCreated();
     } catch (err) {
@@ -43,7 +36,14 @@ export function EditorView({ onPostCreated }) {
       createElement('span', { className: 'date-stamp' }, date.toUpperCase()),
       createElement('span', { className: 'date-stamp' }, 'COMPOSE')
     ),
-    createElement('form', { className: 'typewriter-form', onSubmit: handleSubmit },
+    createElement('form', {
+      className: 'typewriter-form',
+      onSubmit: handleSubmit,
+      // Remount the form if the resolved default changes mid-session — the
+      // radio's `defaultChecked` doesn't reflect post-mount, so we need a
+      // fresh DOM tree to apply the new default.
+      key: `editor-${defaultVis}`,
+    },
       createElement('input', {
         type: 'text',
         name: 'title',

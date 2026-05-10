@@ -47,7 +47,7 @@ const devVisitor = {
   get_audio_posts:    ()    => mockAudioDB.getAudioPosts(),
   delete_audio_post:  (msg) => mockAudioDB.deleteAudioPost(msg.payload.content.entryId),
   get_traits:         ()    => mockFeatureDB.getTraits(),
-  set_trait:          (msg) => mockFeatureDB.setTrait(msg.payload.content.trait, msg.payload.content.enabled),
+  set_trait:          (msg) => mockFeatureDB.setTrait(msg.payload.content.trait, msg.payload.content.value),
   get_meal_entries:   (msg) => mockFeatureDB.getMealEntries(msg.payload.content.startDate, msg.payload.content.endDate),
   upsert_meal_entry:  (msg) => mockFeatureDB.upsertMealEntry(MOCK_USER.email, msg.payload.content.date, msg.payload.content.text),
   delete_meal_entry:  (msg) => mockFeatureDB.deleteMealEntry(MOCK_USER.email, msg.payload.content.date),
@@ -159,8 +159,8 @@ export async function getTraits() {
   return sendMessage(getTraitsMessage());
 }
 
-export async function setTrait(trait, enabled) {
-  return sendMessage(setTraitMessage(trait, enabled));
+export async function setTrait(trait, value) {
+  return sendMessage(setTraitMessage(trait, value));
 }
 
 // ─── Shared Meal Calendar ───────────────────────────────────────────────────

@@ -1048,6 +1048,39 @@ body {
 
 .feature-toggle:disabled { opacity: 0.6; cursor: not-allowed; }
 
+/* Enum picker — segmented control. Same row layout as ToggleRow. */
+.feature-enum {
+  flex-shrink: 0;
+  display: inline-flex;
+  border: 1px solid #c8b896;
+  border-radius: 6px;
+  overflow: hidden;
+  background: #f7efe2;
+}
+
+.feature-enum-btn {
+  background: transparent;
+  border: none;
+  border-right: 1px solid #d8cdb0;
+  color: #6f6450;
+  padding: 6px 14px;
+  font-family: 'Courier New', monospace;
+  font-size: 9px;
+  letter-spacing: 2px;
+  cursor: pointer;
+  transition: background 0.15s, color 0.15s;
+}
+
+.feature-enum-btn:last-child { border-right: none; }
+.feature-enum-btn:hover:not(:disabled):not(.active) { background: #f0e6d0; }
+
+.feature-enum-btn.active {
+  background: #1a1816;
+  color: #f7efe2;
+}
+
+.feature-enum-btn:disabled { opacity: 0.6; cursor: not-allowed; }
+
 /* ─── Calendar View ───────────────────────────────────────────────────────── */
 /* African earth-tone palette + Nintendo-soft chrome. Breathable spacing — */
 /* this is a sensitive surface, no harsh borders, no shouting. */

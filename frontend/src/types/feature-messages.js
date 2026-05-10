@@ -16,10 +16,10 @@ export function getTraitsMessage() {
   };
 }
 
-export function setTraitMessage(trait, enabled) {
+export function setTraitMessage(trait, value) {
   return {
     command: 'set_trait',
-    payload: { content: { trait, enabled }, num: FEATURE_COMMAND_MAP['set_trait'] },
+    payload: { content: { trait, value }, num: FEATURE_COMMAND_MAP['set_trait'] },
   };
 }
 

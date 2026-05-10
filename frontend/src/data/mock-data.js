@@ -170,8 +170,10 @@ export const mockAudioDB = {
 export const mockFeatureDB = {
   getTraits: () => Promise.resolve({ traits: { ...mockTraits } }),
 
-  setTrait: (trait, enabled) => {
-    mockTraits = { ...mockTraits, [trait]: !!enabled };
+  setTrait: (trait, value) => {
+    // Mirror the backend's per-trait shape: boolean trait → bool, enum → string.
+    const next = trait === 'defaultVisibility' ? value : !!value;
+    mockTraits = { ...mockTraits, [trait]: next };
     return Promise.resolve({ traits: { ...mockTraits } });
   },
 

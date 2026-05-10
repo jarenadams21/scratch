@@ -112,7 +112,8 @@ async function handleMessage(message, userId) {
 
     case 'set_trait':
       if (!userId) throw new Error('Unauthorized');
-      return { traits: await setTrait(userId, content.trait, content.enabled) };
+      // Accept either `value` (new) or `enabled` (old) for back-compat.
+      return { traits: await setTrait(userId, content.trait, content.value ?? content.enabled) };
 
     case 'get_meal_entries':
       if (!userId) throw new Error('Unauthorized');
