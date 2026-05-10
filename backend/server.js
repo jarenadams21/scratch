@@ -3,7 +3,7 @@ import { config } from './config/config.js';
 import { signup, login, extractUser } from './auth/auth.js';
 import { createEntry, getAllEntries, deleteEntry, updateEntryVisibility, DEFAULT_VISIBILITY } from './db/db.js';
 import { generateUploadUrl, createAudioEntry, getUserAudioEntries, deleteAudioEntry } from './db/audio-db.js';
-import { getTraits, setTrait, upsertMealEntry, deleteMealEntry, getMealEntries, getProfiles, DEFAULT_DISPLAY_NAME } from './db/feature-db.js';
+import { getTraits, setTrait, upsertMealEntry, deleteMealEntry, getMealEntries, getProfiles, DEFAULT_DISPLAY_NAME, generateImageUploadUrl, attachMealImage, detachMealImage } from './db/feature-db.js';
 
 // ─── CORS Helper ────────────────────────────────────────────────────────────
 
@@ -146,6 +146,18 @@ async function handleMessage(message, userId) {
       if (!userId) throw new Error('Unauthorized');
       await deleteMealEntry(userId, content.date);
       return { message: 'Deleted' };
+
+    case 'request_image_upload_url':
+      if (!userId) throw new Error('Unauthorized');
+      return await generateImageUploadUrl(content.filename, content.contentType);
+
+    case 'attach_meal_image':
+      if (!userId) throw new Error('Unauthorized');
+      return await attachMealImage(userId, content.date, content.image);
+
+    case 'detach_meal_image':
+      if (!userId) throw new Error('Unauthorized');
+      return await detachMealImage(userId, content.date, content.imageKey);
 
     default:
       throw new Error(`Unknown command: ${command}`);

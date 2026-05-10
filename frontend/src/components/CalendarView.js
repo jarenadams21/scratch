@@ -1,5 +1,5 @@
 import { createElement } from '../engine/main.js';
-import { upsertMealEntry, deleteMealEntry, currentUserEmail } from '../lib/api.js';
+import { upsertMealEntry, deleteMealEntry, currentUserEmail, uploadMealImage, detachMealImage } from '../lib/api.js';
 import { AppState, updateState } from '../lib/state.js';
 import { mealLoader, ensureProfilesFor, profileFor } from '../lib/loaders.js';
 
@@ -189,6 +189,98 @@ function MealAddRow({ onAdd }) {
   );
 }
 
+// Read-only or editable photo grid. When editable, the ADD PHOTO button wraps
+// a hidden file input — accept="image/*" and no `capture` so phones offer
+// the native picker (Take Photo / Photo Library / Choose File). Each thumb
+// is a link to the full-size image (opens in a new tab); owners get a tiny
+// ✕ overlay to remove a photo.
+function MealPhotos({ date, images, editable }) {
+  let fileInput = null;
+  const isUploading = AppState.mealImageUploading === date;
+
+  const trigger = () => { if (!isUploading) fileInput?.click(); };
+
+  const handleFile = async (e) => {
+    const file = e.target.files?.[0];
+    e.target.value = ''; // allow re-picking the same file later
+    if (!file) return;
+    updateState({ mealImageUploading: date });
+    try {
+      await uploadMealImage(date, file);
+      mealLoader.reload();
+    } catch (err) {
+      alert('Upload failed: ' + err.message);
+    } finally {
+      updateState({ mealImageUploading: null });
+    }
+  };
+
+  const handleDelete = async (imageKey) => {
+    if (!confirm('Remove this photo?')) return;
+    try {
+      await detachMealImage(date, imageKey);
+      mealLoader.reload();
+    } catch (err) {
+      alert('Could not remove: ' + err.message);
+    }
+  };
+
+  const hasImages = images && images.length > 0;
+  if (!hasImages && !editable) return null;
+
+  return createElement('div', { className: 'meal-photos' },
+    hasImages
+      ? createElement('div', { className: 'meal-photo-grid' },
+          ...images.map(img =>
+            createElement('div', { className: 'meal-photo' },
+              createElement('a', {
+                href: img.imageUrl,
+                target: '_blank',
+                rel: 'noopener noreferrer',
+                className: 'meal-photo-link',
+                'aria-label': 'Open photo full size',
+              },
+                createElement('img', {
+                  src: img.imageUrl,
+                  alt: 'Meal photo',
+                  loading: 'lazy',
+                  className: 'meal-photo-img',
+                })
+              ),
+              editable
+                ? createElement('button', {
+                    type: 'button',
+                    className: 'meal-photo-delete',
+                    onClick: () => handleDelete(img.imageKey),
+                    title: 'Remove photo',
+                    'aria-label': 'Remove photo',
+                  }, '✕')
+                : null
+            )
+          )
+        )
+      : null,
+
+    editable
+      ? createElement('div', { className: 'meal-photo-actions' },
+          createElement('button', {
+            type: 'button',
+            className: isUploading ? 'meal-photo-add-btn busy' : 'meal-photo-add-btn',
+            onClick: trigger,
+            disabled: isUploading,
+          }, isUploading ? 'UPLOADING…' : '+ ADD PHOTO'),
+          createElement('input', {
+            ref: (el) => { fileInput = el; },
+            type: 'file',
+            accept: 'image/*',
+            className: 'meal-photo-file',
+            onChange: handleFile,
+          })
+        )
+      : null
+  );
+}
+
 function DayEditor({ date, entries, currentEmail, onSaved, onClose }) {
   const ownEntry = entries.find(e => e.author === currentEmail);
   const others = entries.filter(e => e.author !== currentEmail);
@@ -241,22 +333,41 @@ function DayEditor({ date, entries, currentEmail, onSaved, onClose }) {
       createElement(MealAddRow, { key: `add-${date}`, onAdd: addItem })
     ),
 
+    createElement(MealPhotos, {
+      key: `photos-${date}`,
+      date,
+      images: ownEntry?.images || [],
+      editable: true,
+    }),
+
     others.length
       ? createElement('div', { className: 'meal-others' },
           createElement('div', { className: 'meal-others-label' }, 'ALSO ON THIS DAY'),
           ...others.map(e => {
             const profile = profileFor(e.author);
             const theirItems = textToItems(e.text);
+            const theirImages = e.images || [];
             return createElement('div', { className: 'meal-other-entry' },
               createElement('div', { className: 'meal-other-author-row' },
                 createElement('span', { className: `cal-author-dot ${authorClass(e.author, currentEmail)}` }),
                 createElement('span', { className: 'meal-other-author' }, profile.displayName)
               ),
-              theirItems.length === 0
+              theirItems.length === 0 && theirImages.length === 0
                 ? createElement('div', { className: 'meal-other-empty' }, '—')
-                : createElement('ul', { className: 'meal-other-list' },
+                : null,
+              theirItems.length > 0
+                ? createElement('ul', { className: 'meal-other-list' },
                     ...theirItems.map(t => createElement('li', { className: 'meal-other-item' }, t))
                   )
+                : null,
+              theirImages.length > 0
+                ? createElement(MealPhotos, {
+                    key: `others-photos-${e.author}-${date}`,
+                    date,
+                    images: theirImages,
+                    editable: false,
+                  })
+                : null
             );
           })
         )

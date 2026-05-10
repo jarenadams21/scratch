@@ -20,6 +20,11 @@ import {
   upsertMealEntryMessage,
   deleteMealEntryMessage,
   getProfilesMessage,
+  requestImageUploadUrlMessage,
+  attachMealImageMessage,
+  detachMealImageMessage,
+  ALLOWED_IMAGE_TYPES,
+  MAX_IMAGE_SIZE,
 } from '../types/feature-messages.js';
 import { CONFIG, devLog } from '../config/flags-runtime.js';
 import { MOCK_USER, mockDB, mockAudioDB, mockFeatureDB } from '../data/mock-data.js';
@@ -53,6 +58,9 @@ const devVisitor = {
   upsert_meal_entry:  (msg) => mockFeatureDB.upsertMealEntry(MOCK_USER.email, msg.payload.content.date, msg.payload.content.text),
   delete_meal_entry:  (msg) => mockFeatureDB.deleteMealEntry(MOCK_USER.email, msg.payload.content.date),
   get_profiles:       (msg) => mockFeatureDB.getProfiles(msg.payload.content.emails),
+  request_image_upload_url: (msg) => { const c = msg.payload.content; return mockFeatureDB.requestImageUploadUrl(c.filename, c.contentType); },
+  attach_meal_image:  (msg) => { const c = msg.payload.content; return mockFeatureDB.attachMealImage(MOCK_USER.email, c.date, c.image); },
+  detach_meal_image:  (msg) => { const c = msg.payload.content; return mockFeatureDB.detachMealImage(MOCK_USER.email, c.date, c.imageKey); },
 };
 
 function visitMessage(message, visitor) {
@@ -183,6 +191,64 @@ export async function deleteMealEntry(date) {
 
 export async function getProfiles(emails) {
   return sendMessage(getProfilesMessage(emails), false); // public read
+}
+
+// ─── Meal Calendar Images ───────────────────────────────────────────────────
+
+export async function requestImageUploadUrl(filename, contentType) {
+  return sendMessage(requestImageUploadUrlMessage(filename, contentType));
+}
+
+export async function attachMealImage(date, image) {
+  return sendMessage(attachMealImageMessage(date, image));
+}
+
+export async function detachMealImage(date, imageKey) {
+  return sendMessage(detachMealImageMessage(date, imageKey));
+}
+
+// Composes the full upload flow for a single image. Validates first so we
+// don't even ask the server for a presigned URL on rejected files. Returns
+// the persisted metadata (or throws). Caller is responsible for triggering
+// a UI refresh (e.g. mealLoader.reload()) after success.
+export async function uploadMealImage(date, file) {
+  if (!(file instanceof Blob)) throw new Error('Invalid file');
+  const type = (file.type || '').toLowerCase();
+  if (!ALLOWED_IMAGE_TYPES.includes(type)) {
+    throw new Error('Invalid file type — pick a JPEG, PNG, WebP, GIF, or HEIC');
+  }
+  if (file.size > MAX_IMAGE_SIZE) {
+    throw new Error(`File too large (max ${Math.floor(MAX_IMAGE_SIZE / 1024 / 1024)}MB)`);
+  }
+
+  const filename = (file.name || `image-${Date.now()}.jpg`);
+  const presigned = await requestImageUploadUrl(filename, type);
+
+  let finalImageUrl = presigned.imageUrl;
+  if (presigned.uploadUrl === 'mock://upload') {
+    // Dev path: replace the placeholder with a data URL so <img src=...>
+    // actually renders. Production never reaches this branch.
+    finalImageUrl = await new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload  = () => resolve(reader.result);
+      reader.onerror = () => reject(new Error('Could not read file'));
+      reader.readAsDataURL(file);
+    });
+  } else {
+    const res = await fetch(presigned.uploadUrl, {
+      method: 'PUT',
+      body: file,
+      headers: { 'Content-Type': type },
+    });
+    if (!res.ok) throw new Error(`Upload failed (${res.status})`);
+  }
+
+  return await attachMealImage(date, {
+    imageKey: presigned.imageKey,
+    imageUrl: finalImageUrl,
+    mimeType: type,
+    size: file.size,
+  });
 }
 
 // Returns the authenticated user's email if a token is present.

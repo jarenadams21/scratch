@@ -1554,6 +1554,136 @@ body {
   .meal-item-delete { opacity: 0.45; }   /* always visible on touch */
 }
 
+/* ─── Meal photos ──────────────────────────────────────────────────────── */
+
+.meal-photos {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 14px 0 4px;
+  border-top: 1px dashed #ece1c9;
+  margin-top: 12px;
+}
+
+.meal-photo-grid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.meal-photo {
+  position: relative;
+  width: 96px;
+  height: 96px;
+  flex-shrink: 0;
+  border-radius: 6px;
+  overflow: hidden;
+  background: #ece1c9;
+}
+
+.meal-photo-link {
+  display: block;
+  width: 100%;
+  height: 100%;
+  text-decoration: none;
+}
+
+.meal-photo-img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+  transition: transform 0.2s;
+}
+
+.meal-photo:hover .meal-photo-img { transform: scale(1.04); }
+
+.meal-photo-delete {
+  position: absolute;
+  top: 4px;
+  right: 4px;
+  width: 22px;
+  height: 22px;
+  background: rgba(26, 24, 22, 0.78);
+  color: #f7efe2;
+  border: none;
+  border-radius: 50%;
+  cursor: pointer;
+  font-family: 'Courier New', monospace;
+  font-size: 11px;
+  line-height: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  opacity: 0;
+  transition: opacity 0.12s, background 0.15s;
+}
+
+.meal-photo:hover .meal-photo-delete,
+.meal-photo:focus-within .meal-photo-delete { opacity: 1; }
+.meal-photo-delete:hover { background: #c87053; }
+
+/* On touch the hover-to-reveal trick doesn't work — keep delete visible. */
+@media (max-width: 900px) {
+  .meal-photo-delete { opacity: 0.85; }
+}
+
+.meal-photo-actions {
+  display: flex;
+  align-items: center;
+}
+
+.meal-photo-add-btn {
+  background: transparent;
+  color: #6f6450;
+  border: 1px dashed #c8b896;
+  padding: 8px 16px;
+  font-family: 'Courier New', monospace;
+  font-size: 10px;
+  letter-spacing: 2px;
+  cursor: pointer;
+  border-radius: 6px;
+  transition: all 0.15s;
+}
+
+.meal-photo-add-btn:hover:not(:disabled) {
+  color: #1a1816;
+  border-color: #3d6b48;
+  background: #fffaf0;
+}
+
+.meal-photo-add-btn:disabled,
+.meal-photo-add-btn.busy {
+  opacity: 0.6;
+  cursor: not-allowed;
+  border-style: solid;
+  color: #1a1816;
+  background: #f7efe2;
+}
+
+.meal-photo-file {
+  /* visually hidden but still focusable for accessibility */
+  position: absolute;
+  width: 1px; height: 1px;
+  padding: 0; margin: -1px;
+  overflow: hidden; clip: rect(0,0,0,0);
+  white-space: nowrap; border: 0;
+}
+
+@media (max-width: 640px) {
+  .meal-photo { width: 84px; height: 84px; }
+  .meal-photo-add-btn { padding: 10px 16px; font-size: 11px; }
+}
+
+/* Read-only photo grid in someone-else's section: tighter, no border-top
+   since it's already inside the meal-other-entry card. */
+.meal-other-entry .meal-photos {
+  border-top: none;
+  padding: 0;
+  margin-top: 4px;
+}
+.meal-other-entry .meal-photo { width: 72px; height: 72px; }
+
 /* Others' entries — read-only bulleted list. */
 .meal-others {
   border-top: 1px solid #ece1c9;

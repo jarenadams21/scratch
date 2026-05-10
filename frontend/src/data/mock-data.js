@@ -209,14 +209,78 @@ export const mockFeatureDB = {
 
   upsertMealEntry: (author, date, text) => {
     const idx = mockMealEntries.findIndex(e => e.date === date && e.author === author);
-    const entry = { date, author, text: text || '', updatedAt: new Date().toISOString() };
-    if (idx >= 0) mockMealEntries[idx] = entry;
-    else mockMealEntries.push(entry);
-    return Promise.resolve(entry);
+    const ts = new Date().toISOString();
+    if (idx >= 0) {
+      // Preserve images on text edit.
+      mockMealEntries[idx] = { ...mockMealEntries[idx], text: text || '', updatedAt: ts };
+    } else {
+      mockMealEntries.push({ date, author, text: text || '', images: [], updatedAt: ts });
+    }
+    return Promise.resolve(mockMealEntries.find(e => e.date === date && e.author === author));
   },
 
   deleteMealEntry: (author, date) => {
-    mockMealEntries = mockMealEntries.filter(e => !(e.date === date && e.author === author));
+    const idx = mockMealEntries.findIndex(e => e.date === date && e.author === author);
+    if (idx < 0) return Promise.resolve({ message: 'Deleted' });
+    const hasImages = (mockMealEntries[idx].images || []).length > 0;
+    if (hasImages) {
+      mockMealEntries[idx] = { ...mockMealEntries[idx], text: '', updatedAt: new Date().toISOString() };
+    } else {
+      mockMealEntries.splice(idx, 1);
+    }
     return Promise.resolve({ message: 'Deleted' });
+  },
+
+  // ─── Mock image flow ─────────────────────────────────────────────────────
+  // Caller (api.js uploadMealImage) generates a data URL from the chosen file
+  // and passes it as image.imageUrl, so the dev UI can actually display the
+  // photo without ever touching S3.
+
+  requestImageUploadUrl: (filename, contentType) => {
+    const id = `${Date.now()}-${Math.random().toString(36).slice(2, 11)}`;
+    const ext = String(filename || '').split('.').pop().toLowerCase().slice(0, 8) || 'jpg';
+    const imageKey = `meal-images/${id}.${ext}`;
+    return Promise.resolve({
+      uploadUrl: 'mock://upload',
+      imageKey,
+      imageUrl: `mock://${imageKey}`, // overwritten by the caller in dev
+    });
+  },
+
+  attachMealImage: (author, date, image) => {
+    const meta = {
+      imageKey: image.imageKey,
+      imageUrl: image.imageUrl,
+      mimeType: image.mimeType || null,
+      size: typeof image.size === 'number' ? image.size : null,
+      uploadedAt: new Date().toISOString(),
+    };
+    const idx = mockMealEntries.findIndex(e => e.date === date && e.author === author);
+    if (idx >= 0) {
+      mockMealEntries[idx] = {
+        ...mockMealEntries[idx],
+        images: [...(mockMealEntries[idx].images || []), meta],
+        updatedAt: meta.uploadedAt,
+      };
+    } else {
+      mockMealEntries.push({
+        date, author, text: '', images: [meta], updatedAt: meta.uploadedAt,
+      });
+    }
+    return Promise.resolve(meta);
+  },
+
+  detachMealImage: (author, date, imageKey) => {
+    const idx = mockMealEntries.findIndex(e => e.date === date && e.author === author);
+    if (idx < 0) return Promise.resolve({ removed: 0 });
+    const before = mockMealEntries[idx].images || [];
+    const after = before.filter(i => i.imageKey !== imageKey);
+    if (after.length === before.length) return Promise.resolve({ removed: 0 });
+    if (after.length === 0 && !mockMealEntries[idx].text) {
+      mockMealEntries.splice(idx, 1);
+    } else {
+      mockMealEntries[idx] = { ...mockMealEntries[idx], images: after, updatedAt: new Date().toISOString() };
+    }
+    return Promise.resolve({ removed: 1 });
   },
 };

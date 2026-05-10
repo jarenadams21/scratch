@@ -25,6 +25,7 @@ export const AppState = {
   mealLoading: false,
   mealMonth: null,        // 'YYYY-MM' currently shown
   selectedMealDate: null, // 'YYYY-MM-DD' currently being edited
+  mealImageUploading: null, // 'YYYY-MM-DD' actively receiving a photo upload
   // Map of email -> { displayName, displayColor }. Populated lazily as
   // we encounter authors in posts/meals/etc.
   profiles: {},
