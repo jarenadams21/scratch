@@ -201,7 +201,7 @@ export function SettingsView({ onChanged }) {
     ),
     createElement('div', { className: 'settings-body' },
       createElement('p', { className: 'settings-blurb' },
-        'Toggle the modules and defaults for your terminal. Each operator keeps their own preferences.'
+        'Toggle the modules and defaults for your terminal; change at any point!'
       ),
       createElement('div', { className: 'feature-list' },
         ...FEATURE_CATALOG.map(renderRow)
