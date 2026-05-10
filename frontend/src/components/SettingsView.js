@@ -11,28 +11,28 @@ const FEATURE_CATALOG = [
   {
     id: 'displayName',
     name: 'DISPLAY NAME',
-    description: 'How you appear on shared surfaces. Public posts show this instead of your email.',
+    description: 'How you appear in shared spaces. Posts show this instead of your email',
     type: 'string',
-    placeholder: 'e.g. Jaren',
+    placeholder: 'e.g. Boogaloo',
     maxLength: 32,
   },
   {
     id: 'displayColor',
     name: 'DOT COLOR',
-    description: 'Your accent color for the calendar and any future shared views.',
+    description: 'Your accent color for the calendar and any shared views',
     type: 'swatch',
     options: DISPLAY_COLORS,
   },
   {
     id: 'calendar',
     name: 'MEAL CALENDAR',
-    description: 'monthly eating board',
+    description: 'Monthly eating board',
     type: 'boolean',
   },
   {
     id: 'defaultVisibility',
     name: 'DEFAULT AUDIENCE',
-    description: 'Where new posts go by default. You can still override per-entry in the editor.',
+    description: 'Where new posts go by default; you can still override per-entry in the editor',
     type: 'enum',
     options: [
       { value: 'public', label: 'PUBLIC' },
