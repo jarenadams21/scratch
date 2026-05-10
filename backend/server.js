@@ -1,8 +1,8 @@
 import http from 'http';
 import { config } from './config/config.js';
 import { signup, login, extractUser } from './auth/auth.js';
-import { createEntry, getUserEntries, getAllEntries, deleteEntry } from './db/db.js';
-import { generateUploadUrl, createAudioEntry, getUserAudioEntries, getAllAudioEntries, deleteAudioEntry } from './db/audio-db.js';
+import { createEntry, getAllEntries, deleteEntry } from './db/db.js';
+import { generateUploadUrl, createAudioEntry, getAllAudioEntries, deleteAudioEntry } from './db/audio-db.js';
 import { getTraits, setTrait, upsertMealEntry, deleteMealEntry, getMealEntries } from './db/feature-db.js';
 
 // ─── CORS Helper ────────────────────────────────────────────────────────────
@@ -70,7 +70,6 @@ async function handleMessage(message, userId) {
       return await createEntry(userId, content);
     
     case 'get_posts':
-      if (userId) return await getUserEntries(userId);
       return await getAllEntries();
     
     case 'delete_post':
@@ -87,7 +86,6 @@ async function handleMessage(message, userId) {
       return await createAudioEntry(userId, content);
 
     case 'get_audio_posts':
-      if (userId) return await getUserAudioEntries(userId);
       return await getAllAudioEntries();
 
     case 'delete_audio_post':

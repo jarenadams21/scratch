@@ -122,7 +122,7 @@ export async function deletePost(postId, timestamp) {
 // ─── Audio API ───────────────────────────────────────────────────────────────
 
 export async function getAudioPosts() {
-  return sendMessage(getAudioPostsMessage(), false);
+  return sendMessage(getAudioPostsMessage());
 }
 
 export async function requestUploadUrl(filename, contentType, duration, fileSize) {

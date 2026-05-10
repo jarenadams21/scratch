@@ -1,5 +1,5 @@
 import { DynamoDBClient } from '@aws-sdk/client-dynamodb';
-import { DynamoDBDocumentClient, PutCommand, QueryCommand, DeleteCommand, ScanCommand } from '@aws-sdk/lib-dynamodb';
+import { DynamoDBDocumentClient, PutCommand, DeleteCommand, ScanCommand } from '@aws-sdk/lib-dynamodb';
 import { S3Client, PutObjectCommand } from '@aws-sdk/client-s3';
 import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
 import { config } from '../config/config.js';
@@ -64,24 +64,7 @@ export async function createAudioEntry(userId, entry) {
 }
 
 /**
- * Fetch authenticated user's audio entries, newest first.
- */
-export async function getUserAudioEntries(userId, limit = 50) {
-  const result = await dynamo.send(new QueryCommand({
-    TableName: AUDIO_TABLE,
-    KeyConditionExpression: 'pk = :pk AND begins_with(sk, :sk)',
-    ExpressionAttributeValues: {
-      ':pk': `USER#${userId}`,
-      ':sk': 'ENTRY#',
-    },
-    ScanIndexForward: false,
-    Limit: limit,
-  }));
-  return result.Items || [];
-}
-
-/**
- * Scan all audio entries for the public feed, newest first.
+ * Scan all audio entries for the shared feed, newest first.
  */
 export async function getAllAudioEntries(limit = 50) {
   const result = await dynamo.send(new ScanCommand({

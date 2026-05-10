@@ -1,5 +1,5 @@
 import { DynamoDBClient } from '@aws-sdk/client-dynamodb';
-import { DynamoDBDocumentClient, PutCommand, GetCommand, QueryCommand, DeleteCommand, ScanCommand } from '@aws-sdk/lib-dynamodb';
+import { DynamoDBDocumentClient, PutCommand, GetCommand, DeleteCommand, ScanCommand } from '@aws-sdk/lib-dynamodb';
 import { config } from '../config/config.js';
 
 const client = new DynamoDBClient({ region: config.AWS_REGION });
@@ -58,22 +58,6 @@ export async function createEntry(userId, entry) {
   
   await db.send(new PutCommand(params));
   return params.Item;
-}
-
-export async function getUserEntries(userId, limit = 50) {
-  const params = {
-    TableName: config.DYNAMODB_TABLE,
-    KeyConditionExpression: 'pk = :pk AND begins_with(sk, :sk)',
-    ExpressionAttributeValues: {
-      ':pk': `USER#${userId}`,
-      ':sk': 'ENTRY#'
-    },
-    ScanIndexForward: false, // newest first
-    Limit: limit
-  };
-  
-  const result = await db.send(new QueryCommand(params));
-  return result.Items || [];
 }
 
 export async function getEntry(userId, entryId, timestamp) {
