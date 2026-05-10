@@ -18,6 +18,15 @@ export function EditorView({ onPostCreated }) {
       alert('Headline and body required');
       return;
     }
+    // Acknowledgement gate when going public — only on the riskier direction.
+    if (visibility === 'public') {
+      const ok = confirm(
+        'Publish to the PUBLIC web?\n\n' +
+        'Unauthenticated visitors will see the title, body, and your display name. ' +
+        'Personal details and admin emails are never exposed.'
+      );
+      if (!ok) return;
+    }
     try {
       await createPost(title, content, null, visibility);
       e.target.reset();

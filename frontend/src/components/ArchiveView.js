@@ -75,6 +75,15 @@ function ReadingPane({ entry, onDeleted, onVisibilityChanged }) {
   );
 
   const handleVisibilityFlip = async () => {
+    // Acknowledgement gate when going public — only on the riskier direction.
+    if (nextVisibility === 'public') {
+      const ok = confirm(
+        'Make this post visible on the PUBLIC web?\n\n' +
+        'Unauthenticated visitors will see the title, body, and the author\'s display name. ' +
+        'Personal details and admin emails are never exposed.'
+      );
+      if (!ok) return;
+    }
     try {
       await updatePostVisibility(entry.entryId, entry.createdAt, nextVisibility, author);
       // Patch in-memory entry so the chip updates instantly; reload syncs
