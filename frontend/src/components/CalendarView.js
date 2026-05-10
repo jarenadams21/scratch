@@ -233,25 +233,31 @@ function MealPhotos({ date, images, editable }) {
       ? createElement('div', { className: 'meal-photo-grid' },
           ...images.map(img =>
             createElement('div', { className: 'meal-photo' },
-              createElement('a', {
-                href: img.imageUrl,
-                target: '_blank',
-                rel: 'noopener noreferrer',
+              createElement('button', {
+                type: 'button',
                 className: 'meal-photo-link',
                 'aria-label': 'Open photo full size',
+                // In-app lightbox keeps the URL out of browser history and
+                // off the address bar — privacy-respectful viewing for
+                // sensitive content.
+                onClick: () => updateState({
+                  lightboxImage: { url: img.imageUrl, alt: 'Meal photo' },
+                }),
               },
                 createElement('img', {
                   src: img.imageUrl,
                   alt: 'Meal photo',
                   loading: 'lazy',
                   className: 'meal-photo-img',
+                  referrerpolicy: 'no-referrer',
+                  draggable: 'false',
                 })
               ),
               editable
                 ? createElement('button', {
                     type: 'button',
                     className: 'meal-photo-delete',
-                    onClick: () => handleDelete(img.imageKey),
+                    onClick: (e) => { e.stopPropagation(); handleDelete(img.imageKey); },
                     title: 'Remove photo',
                     'aria-label': 'Remove photo',
                   }, '✕')

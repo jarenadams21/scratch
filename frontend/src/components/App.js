@@ -8,6 +8,7 @@ import { AudioRecorder } from './AudioRecorder.js';
 import { RecordingsView } from './RecordingsView.js';
 import { SettingsView } from './SettingsView.js';
 import { CalendarView } from './CalendarView.js';
+import { Lightbox } from './Lightbox.js';
 import { AppState, updateState } from '../lib/state.js';
 import { postLoader, audioLoader, traitsLoader, mealLoader } from '../lib/loaders.js';
 
@@ -164,6 +165,10 @@ export function App() {
         )
       : null,
 
-    createElement('main', { className: 'workspace' }, workspaceContent)
+    createElement('main', { className: 'workspace' }, workspaceContent),
+
+    AppState.lightboxImage
+      ? createElement(Lightbox, { key: 'lightbox', image: AppState.lightboxImage })
+      : null
   );
 }

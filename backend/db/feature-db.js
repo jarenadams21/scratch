@@ -7,7 +7,7 @@ import {
   QueryCommand,
   DeleteCommand,
 } from '@aws-sdk/lib-dynamodb';
-import { S3Client, PutObjectCommand } from '@aws-sdk/client-s3';
+import { S3Client, PutObjectCommand, GetObjectCommand } from '@aws-sdk/client-s3';
 import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
 import { config } from '../config/config.js';
 
@@ -22,6 +22,30 @@ const MEDIA_BUCKET = process.env.MEDIA_BUCKET || process.env.AUDIO_BUCKET || 'ha
 const IMAGE_PREFIX = 'meal-images';
 const ALLOWED_IMAGE_TYPES = Object.freeze(['image/jpeg', 'image/png', 'image/webp', 'image/gif', 'image/heic']);
 const MAX_IMAGES_PER_DAY = 12;
+const IMAGE_VIEW_TTL_SECONDS = 900;  // 15 min — long enough to browse, short enough to expire fast
+
+// Generate a short-lived signed GET URL for an image. Even if the bucket
+// has public-read enabled today, switching readers to short-TTL signed URLs
+// means saved URLs become useless quickly — and once the bucket is locked
+// down (recommended) this is the only way to read them at all.
+async function presignImageGet(imageKey) {
+  if (!imageKey || typeof imageKey !== 'string') return null;
+  const cmd = new GetObjectCommand({ Bucket: MEDIA_BUCKET, Key: imageKey });
+  return getSignedUrl(s3, cmd, { expiresIn: IMAGE_VIEW_TTL_SECONDS });
+}
+
+// Walk a list of meal entries and re-sign every image's imageUrl. Idempotent
+// and safe on entries that have no images.
+async function presignImagesOn(entries) {
+  for (const e of entries || []) {
+    if (!Array.isArray(e.images) || e.images.length === 0) continue;
+    e.images = await Promise.all(e.images.map(async img => ({
+      ...img,
+      imageUrl: img.imageKey ? await presignImageGet(img.imageKey) : img.imageUrl,
+    })));
+  }
+  return entries;
+}
 
 // Schema of trait keys clients may persist. Each trait declares its type,
 // which both gates the value and tells the client how to render the control.
@@ -340,5 +364,6 @@ export async function getMealEntries(startDate, endDate) {
       ':hi': `DAY#${endDate}#~`,
     },
   }));
-  return result.Items || [];
+  // Re-sign image URLs at read time so stored URLs are never long-lived.
+  return presignImagesOn(result.Items || []);
 }
