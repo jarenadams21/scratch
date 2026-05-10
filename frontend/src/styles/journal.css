@@ -1081,6 +1081,63 @@ body {
 
 .feature-enum-btn:disabled { opacity: 0.6; cursor: not-allowed; }
 
+/* String input — display name etc. */
+.feature-string-input {
+  flex-shrink: 0;
+  width: 200px;
+  background: #fffaf0;
+  border: 1px solid #d8cdb0;
+  border-radius: 4px;
+  padding: 8px 12px;
+  font-family: 'Courier New', monospace;
+  font-size: 12px;
+  letter-spacing: 1px;
+  color: #1a1816;
+  outline: none;
+  transition: border-color 0.15s, background 0.15s;
+}
+
+.feature-string-input::placeholder { color: #b8a888; letter-spacing: 1px; }
+.feature-string-input:focus { border-color: #3d6b48; background: #fff; }
+.feature-string-input:disabled { opacity: 0.6; cursor: not-allowed; }
+
+/* Swatch picker — color circles */
+.feature-swatches {
+  flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.feature-swatch {
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  border: 2px solid transparent;
+  background-clip: padding-box;
+  cursor: pointer;
+  padding: 0;
+  transition: transform 0.12s, border-color 0.12s, box-shadow 0.12s;
+  /* The author-* classes set the actual fill color via background. */
+}
+
+.feature-swatch:hover:not(:disabled) { transform: scale(1.08); }
+
+.feature-swatch.active {
+  border-color: #1a1816;
+  box-shadow: 0 0 0 2px #fffaf0, 0 0 0 3px #1a1816;
+}
+
+.feature-swatch:disabled { opacity: 0.5; cursor: not-allowed; }
+
+/* Re-use the cal-author-dot color variables for swatches. */
+.feature-swatch.author-green      { background: #3d6b48; }
+.feature-swatch.author-indigo     { background: #3a3a7d; }
+.feature-swatch.author-terracotta { background: #c87053; }
+.feature-swatch.author-ochre      { background: #d4a04a; }
+.feature-swatch.author-sand       { background: #b39271; }
+.feature-swatch.author-plum       { background: #6b3a5e; }
+
 /* ─── Calendar View ───────────────────────────────────────────────────────── */
 /* African earth-tone palette + Nintendo-soft chrome. Breathable spacing — */
 /* this is a sensitive surface, no harsh borders, no shouting. */
@@ -1273,10 +1330,12 @@ body {
   display: inline-block;
 }
 
-.cal-author-dot.author-green     { background: #3d6b48; }
-.cal-author-dot.author-indigo    { background: #3a3a7d; }
+.cal-author-dot.author-green      { background: #3d6b48; }
+.cal-author-dot.author-indigo     { background: #3a3a7d; }
 .cal-author-dot.author-terracotta { background: #c87053; }
-.cal-author-dot.author-ochre     { background: #d4a04a; }
+.cal-author-dot.author-ochre      { background: #d4a04a; }
+.cal-author-dot.author-sand       { background: #b39271; }
+.cal-author-dot.author-plum       { background: #6b3a5e; }
 
 .cal-legend {
   display: flex;

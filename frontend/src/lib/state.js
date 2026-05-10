@@ -25,6 +25,10 @@ export const AppState = {
   mealLoading: false,
   mealMonth: null,        // 'YYYY-MM' currently shown
   selectedMealDate: null, // 'YYYY-MM-DD' currently being edited
+  // Map of email -> { displayName, displayColor }. Populated lazily as
+  // we encounter authors in posts/meals/etc.
+  profiles: {},
+  profilesLoading: false,
 };
 
 // State update callbacks (to trigger re-render)

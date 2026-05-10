@@ -3,7 +3,7 @@ import { config } from './config/config.js';
 import { signup, login, extractUser } from './auth/auth.js';
 import { createEntry, getAllEntries, deleteEntry, updateEntryVisibility, DEFAULT_VISIBILITY } from './db/db.js';
 import { generateUploadUrl, createAudioEntry, getUserAudioEntries, deleteAudioEntry } from './db/audio-db.js';
-import { getTraits, setTrait, upsertMealEntry, deleteMealEntry, getMealEntries } from './db/feature-db.js';
+import { getTraits, setTrait, upsertMealEntry, deleteMealEntry, getMealEntries, getProfiles, DEFAULT_DISPLAY_NAME } from './db/feature-db.js';
 
 // ─── CORS Helper ────────────────────────────────────────────────────────────
 
@@ -71,11 +71,30 @@ async function handleMessage(message, userId) {
 
     case 'get_posts': {
       const all = await getAllEntries();
-      // Authed admins see everything. Visitors only see public entries
-      // (and treat missing visibility as public for back-compat).
+      // Authed admins see everything verbatim — they have legitimate need
+      // for the raw author email (it's the pk for delete/visibility ops).
       if (userId) return all;
-      return all.filter(e => (e.visibility || DEFAULT_VISIBILITY) === 'public');
+      // Visitors see only public entries, with author emails scrubbed and
+      // replaced by the author's chosen displayName (Operator if unset).
+      const publicEntries = all.filter(e => (e.visibility || DEFAULT_VISIBILITY) === 'public');
+      const profiles = await getProfiles(publicEntries.map(e => e.author).filter(Boolean));
+      return publicEntries.map(e => ({
+        entryId:    e.entryId,
+        title:      e.title,
+        content:    e.content,
+        mood:       e.mood ?? null,
+        visibility: e.visibility || DEFAULT_VISIBILITY,
+        createdAt:  e.createdAt,
+        updatedAt:  e.updatedAt,
+        displayName: profiles[e.author]?.displayName || DEFAULT_DISPLAY_NAME,
+        // pk and author are intentionally omitted.
+      }));
     }
+
+    case 'get_profiles':
+      // Public — anyone can ask for display info. Returns display name /
+      // color only, never the email or any other trait.
+      return { profiles: await getProfiles(content.emails) };
 
     case 'update_post_visibility':
       // Any logged-in admin may flip any entry. The owner's email tells us

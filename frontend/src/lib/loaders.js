@@ -1,5 +1,5 @@
 import { AppState, updateState } from './state.js';
-import { getPosts, getAudioPosts, getTraits, getMealEntries } from './api.js';
+import { getPosts, getAudioPosts, getTraits, getMealEntries, getProfiles } from './api.js';
 
 export function makeLoader({ fetchFn, stateKey, loadingKey, loadedKey, errorKey }) {
   function load() {
@@ -75,3 +75,36 @@ export const mealLoader = makeLoader({
   loadingKey: 'mealLoading',
   loadedKey: 'mealLoaded',
 });
+
+// Profiles loader: on-demand. Given a list of emails, fetch any we don't
+// already have in AppState.profiles and merge the result. De-duped + idempotent
+// so it's safe to call from inside any view's render path.
+const _inflightProfileFetches = new Set();
+export function ensureProfilesFor(emails) {
+  const known = AppState.profiles || {};
+  const missing = [...new Set((emails || []).filter(e => typeof e === 'string' && e && !known[e] && !_inflightProfileFetches.has(e)))];
+  if (missing.length === 0) return;
+  for (const e of missing) _inflightProfileFetches.add(e);
+  updateState({ profilesLoading: true });
+  getProfiles(missing).then(res => {
+    const incoming = res?.profiles || {};
+    updateState({
+      profiles: { ...(AppState.profiles || {}), ...incoming },
+      profilesLoading: false,
+    });
+  }).catch(() => {
+    updateState({ profilesLoading: false });
+  }).finally(() => {
+    for (const e of missing) _inflightProfileFetches.delete(e);
+  });
+}
+
+// Helper for consumers — given an email, return its profile or a synthesized
+// fallback. Never throws; never returns null.
+export function profileFor(email) {
+  const p = (AppState.profiles || {})[email];
+  return {
+    displayName: p?.displayName || 'Operator',
+    displayColor: p?.displayColor || null,
+  };
+}

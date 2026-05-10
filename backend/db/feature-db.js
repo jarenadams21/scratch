@@ -16,12 +16,20 @@ const SHARED_BOARD = 'MEALBOARD#default';
 // Schema of trait keys clients may persist. Each trait declares its type,
 // which both gates the value and tells the client how to render the control.
 // Adding a new trait = one new entry here, plus rendering in SettingsView.
+export const DISPLAY_COLORS = Object.freeze(['green', 'indigo', 'terracotta', 'ochre', 'sand', 'plum']);
+
 export const TRAIT_SCHEMA = Object.freeze({
   calendar:          { type: 'boolean' },
   defaultVisibility: { type: 'enum', values: ['public', 'admins'] },
+  displayName:       { type: 'string', minLength: 1, maxLength: 32 },
+  displayColor:      { type: 'enum', values: DISPLAY_COLORS },
 });
 
 export const ALLOWED_TRAITS = Object.freeze(Object.keys(TRAIT_SCHEMA));
+
+// Public-facing fallback. Visitors and admins without a displayName render
+// as "Operator" — keeps the surface anonymous without exposing email parts.
+export const DEFAULT_DISPLAY_NAME = 'Operator';
 
 const DATE_RX = /^\d{4}-(0[1-9]|1[0-2])-(0[1-9]|[12]\d|3[01])$/;
 const MEAL_TEXT_MAX = 2000;
@@ -38,6 +46,25 @@ function validateTraitValue(trait, value) {
       throw new Error(`Invalid value for ${trait} (must be one of: ${schema.values.join(', ')})`);
     }
     return value;
+  }
+  if (schema.type === 'string') {
+    if (typeof value !== 'string') {
+      throw new Error(`Invalid value for ${trait} (must be a string)`);
+    }
+    const trimmed = value.trim();
+    if (trimmed.length < (schema.minLength ?? 0)) {
+      throw new Error(`Invalid value for ${trait} (too short)`);
+    }
+    if (trimmed.length > (schema.maxLength ?? Infinity)) {
+      throw new Error(`Invalid value for ${trait} (too long, max ${schema.maxLength})`);
+    }
+    // Reject anything email-shaped or markup-shaped — display names should be
+    // free of @ < > so they can't masquerade as system identifiers or open
+    // an HTML-injection vector if rendering ever changes.
+    if (/[@<>]/.test(trimmed)) {
+      throw new Error(`Invalid value for ${trait} (cannot contain @ < >)`);
+    }
+    return trimmed;
   }
   throw new Error(`Unsupported trait type: ${schema.type}`);
 }
@@ -81,6 +108,25 @@ export async function getTraits(userId) {
     Key: { pk: `USER#${userId}`, sk: 'TRAITS' },
   }));
   return result.Item?.traits || {};
+}
+
+// Public-safe profile view. Never includes the email — callers that need
+// the email (admin operations) already have it as the lookup key.
+export async function getProfile(email) {
+  const traits = await getTraits(email);
+  return {
+    displayName: traits.displayName || DEFAULT_DISPLAY_NAME,
+    displayColor: traits.displayColor || null,
+  };
+}
+
+// Map of email -> profile. De-dupes the input list and parallels the lookups.
+export async function getProfiles(emails) {
+  const unique = [...new Set((emails || []).filter(e => typeof e === 'string' && e.length > 0))];
+  const profiles = await Promise.all(unique.map(getProfile));
+  const out = {};
+  for (let i = 0; i < unique.length; i++) out[unique[i]] = profiles[i];
+  return out;
 }
 
 export async function setTrait(userId, trait, value) {

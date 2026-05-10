@@ -7,7 +7,11 @@ const FEATURE_COMMAND_MAP = {
   'get_meal_entries':   16,
   'upsert_meal_entry':  17,
   'delete_meal_entry':  18,
+  'get_profiles':       20,
 };
+
+export const DISPLAY_COLORS = ['green', 'indigo', 'terracotta', 'ochre', 'sand', 'plum'];
+export const DEFAULT_DISPLAY_NAME = 'Operator';
 
 export function getTraitsMessage() {
   return {
@@ -41,5 +45,12 @@ export function deleteMealEntryMessage(date) {
   return {
     command: 'delete_meal_entry',
     payload: { content: { date }, num: FEATURE_COMMAND_MAP['delete_meal_entry'] },
+  };
+}
+
+export function getProfilesMessage(emails) {
+  return {
+    command: 'get_profiles',
+    payload: { content: { emails }, num: FEATURE_COMMAND_MAP['get_profiles'] },
   };
 }

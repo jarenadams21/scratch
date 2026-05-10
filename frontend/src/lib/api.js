@@ -19,6 +19,7 @@ import {
   getMealEntriesMessage,
   upsertMealEntryMessage,
   deleteMealEntryMessage,
+  getProfilesMessage,
 } from '../types/feature-messages.js';
 import { CONFIG, devLog } from '../config/flags-runtime.js';
 import { MOCK_USER, mockDB, mockAudioDB, mockFeatureDB } from '../data/mock-data.js';
@@ -51,6 +52,7 @@ const devVisitor = {
   get_meal_entries:   (msg) => mockFeatureDB.getMealEntries(msg.payload.content.startDate, msg.payload.content.endDate),
   upsert_meal_entry:  (msg) => mockFeatureDB.upsertMealEntry(MOCK_USER.email, msg.payload.content.date, msg.payload.content.text),
   delete_meal_entry:  (msg) => mockFeatureDB.deleteMealEntry(MOCK_USER.email, msg.payload.content.date),
+  get_profiles:       (msg) => mockFeatureDB.getProfiles(msg.payload.content.emails),
 };
 
 function visitMessage(message, visitor) {
@@ -175,6 +177,12 @@ export async function upsertMealEntry(date, text) {
 
 export async function deleteMealEntry(date) {
   return sendMessage(deleteMealEntryMessage(date));
+}
+
+// ─── Profiles (display name + color) ────────────────────────────────────────
+
+export async function getProfiles(emails) {
+  return sendMessage(getProfilesMessage(emails), false); // public read
 }
 
 // Returns the authenticated user's email if a token is present.

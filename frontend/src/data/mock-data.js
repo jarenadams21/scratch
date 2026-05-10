@@ -85,6 +85,13 @@ let mockAudioData = [...MOCK_AUDIO];
 let mockTraits = { calendar: true };
 let mockMealEntries = [];
 
+// In dev mode each "user" has their own traits document. Map email -> traits
+// so the mock can answer get_profiles realistically.
+const mockProfiles = {
+  [CONFIG.MOCK_USER]: { displayName: 'Operator', displayColor: 'green' },
+  'partner@example.com': { displayName: 'Partner', displayColor: 'indigo' },
+};
+
 // Mock database operations
 export const mockDB = {
   getPosts: () => {
@@ -171,10 +178,28 @@ export const mockFeatureDB = {
   getTraits: () => Promise.resolve({ traits: { ...mockTraits } }),
 
   setTrait: (trait, value) => {
-    // Mirror the backend's per-trait shape: boolean trait → bool, enum → string.
-    const next = trait === 'defaultVisibility' ? value : !!value;
+    // Mirror the backend's per-trait shape.
+    let next;
+    if (trait === 'calendar') next = !!value;
+    else if (trait === 'defaultVisibility' || trait === 'displayColor') next = value;
+    else if (trait === 'displayName') next = String(value).trim();
+    else next = value;
     mockTraits = { ...mockTraits, [trait]: next };
+    // Also keep the in-memory profile for the mock user in sync so calendar
+    // dots and post bylines reflect changes immediately in dev.
+    if (trait === 'displayName' || trait === 'displayColor') {
+      const me = MOCK_USER.email;
+      mockProfiles[me] = { ...mockProfiles[me], [trait]: next };
+    }
     return Promise.resolve({ traits: { ...mockTraits } });
+  },
+
+  getProfiles: (emails) => {
+    const out = {};
+    for (const e of (emails || [])) {
+      out[e] = mockProfiles[e] || { displayName: 'Operator', displayColor: null };
+    }
+    return Promise.resolve({ profiles: out });
   },
 
   getMealEntries: (startDate, endDate) => {

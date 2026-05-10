@@ -1,12 +1,28 @@
 import { createElement } from '../engine/main.js';
-import { setTrait } from '../lib/api.js';
+import { setTrait, currentUserEmail } from '../lib/api.js';
 import { AppState, updateState } from '../lib/state.js';
+import { DISPLAY_COLORS } from '../types/feature-messages.js';
 
 // Generic feature catalog — declare type and the row renderer is picked
 // automatically. Add new entries here and they appear in Settings.
 export const DEFAULT_VISIBILITY_FALLBACK = 'admins';
 
 const FEATURE_CATALOG = [
+  {
+    id: 'displayName',
+    name: 'DISPLAY NAME',
+    description: 'How you appear on shared surfaces. Public posts show this instead of your email.',
+    type: 'string',
+    placeholder: 'e.g. Jaren',
+    maxLength: 32,
+  },
+  {
+    id: 'displayColor',
+    name: 'DOT COLOR',
+    description: 'Your accent color for the calendar and any future shared views.',
+    type: 'swatch',
+    options: DISPLAY_COLORS,
+  },
   {
     id: 'calendar',
     name: 'MEAL CALENDAR',
@@ -64,33 +80,109 @@ function EnumRow({ feature, value, onChange, busy }) {
   );
 }
 
+function StringRow({ feature, value, onChange, busy }) {
+  // Save on blur or Enter — never auto-save mid-keystroke. Trims whitespace.
+  const commit = (e) => {
+    const next = (e.target.value || '').trim();
+    if (next === (value || '')) return;   // no-op if unchanged
+    if (next.length === 0) return;        // ignore empty (use placeholder)
+    onChange(next);
+  };
+  return createElement('div', { className: 'feature-row' },
+    createElement('div', { className: 'feature-text' },
+      createElement('div', { className: 'feature-name' }, feature.name),
+      createElement('div', { className: 'feature-desc' }, feature.description)
+    ),
+    createElement('input', {
+      key: `string-${feature.id}-${value || ''}`,
+      type: 'text',
+      className: 'feature-string-input',
+      defaultValue: value || '',
+      placeholder: feature.placeholder || '',
+      maxLength: feature.maxLength,
+      disabled: busy,
+      onBlur: commit,
+      onKeyDown: (e) => { if (e.key === 'Enter') { e.preventDefault(); e.target.blur(); } },
+    })
+  );
+}
+
+function SwatchRow({ feature, value, onChange, busy }) {
+  return createElement('div', { className: 'feature-row' },
+    createElement('div', { className: 'feature-text' },
+      createElement('div', { className: 'feature-name' }, feature.name),
+      createElement('div', { className: 'feature-desc' }, feature.description)
+    ),
+    createElement('div', { className: 'feature-swatches', role: 'radiogroup' },
+      ...feature.options.map(c =>
+        createElement('button', {
+          type: 'button',
+          className: value === c ? `feature-swatch active author-${c}` : `feature-swatch author-${c}`,
+          onClick: () => onChange(c),
+          disabled: busy,
+          title: c,
+          'aria-label': `Color ${c}`,
+          'aria-pressed': value === c ? 'true' : 'false',
+        })
+      )
+    )
+  );
+}
+
 export function SettingsView({ onChanged }) {
   const traits = AppState.traits || {};
 
-  // Single update path — handles both boolean and enum values. Reads fresh
-  // traits at click time so rapid clicks don't toggle off a stale snapshot.
+  // Single update path — handles boolean / enum / string / swatch values.
+  // Reads fresh traits at click time so rapid edits don't see a stale snapshot.
   const update = async (id, nextValue) => {
     const before = AppState.traits || {};
+    const beforeProfiles = AppState.profiles || {};
     updateState({ traits: { ...before, [id]: nextValue } });
+
+    // Mirror profile-affecting traits into the profile cache instantly so
+    // the calendar dot / post byline reflect the change before the network
+    // round-trip resolves.
+    const me = currentUserEmail();
+    if (me && (id === 'displayName' || id === 'displayColor')) {
+      const mine = beforeProfiles[me] || { displayName: 'Operator', displayColor: null };
+      updateState({ profiles: { ...beforeProfiles, [me]: { ...mine, [id]: nextValue } } });
+    }
+
     try {
       const result = await setTrait(id, nextValue);
       const finalTraits = result?.traits ?? { ...(AppState.traits || {}), [id]: nextValue };
       updateState({ traits: finalTraits });
       if (onChanged) onChanged(finalTraits);
     } catch (err) {
-      updateState({ traits: before });
+      updateState({ traits: before, profiles: beforeProfiles });
       alert('Could not save preference: ' + err.message);
     }
   };
 
   const renderRow = (feature) => {
+    const busy = AppState.traitsLoading;
     if (feature.type === 'enum') {
-      const current = traits[feature.id] ?? feature.fallback;
       return createElement(EnumRow, {
         feature,
-        value: current,
+        value: traits[feature.id] ?? feature.fallback,
         onChange: (v) => update(feature.id, v),
-        busy: AppState.traitsLoading,
+        busy,
+      });
+    }
+    if (feature.type === 'string') {
+      return createElement(StringRow, {
+        feature,
+        value: traits[feature.id] || '',
+        onChange: (v) => update(feature.id, v),
+        busy,
+      });
+    }
+    if (feature.type === 'swatch') {
+      return createElement(SwatchRow, {
+        feature,
+        value: traits[feature.id] || null,
+        onChange: (v) => update(feature.id, v),
+        busy,
       });
     }
     // boolean (default)
@@ -98,7 +190,7 @@ export function SettingsView({ onChanged }) {
       feature,
       enabled: !!traits[feature.id],
       onChange: (v) => update(feature.id, v),
-      busy: AppState.traitsLoading,
+      busy,
     });
   };
 

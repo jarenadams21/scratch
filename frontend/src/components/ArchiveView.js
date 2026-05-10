@@ -3,6 +3,7 @@ import { deletePost, updatePostVisibility, currentUserEmail, isLoggedIn } from '
 import { AppState, updateState } from '../lib/state.js';
 import { formatShortDate, formatLongDate } from '../lib/format.js';
 import { confirmDelete } from '../lib/actions.js';
+import { ensureProfilesFor, profileFor } from '../lib/loaders.js';
 import { ListView } from './ListView.js';
 
 // Existing entries may not carry a visibility field — treat them as public
@@ -12,13 +13,22 @@ function visibilityOf(entry) {
 }
 
 // Old entries may also be missing an `author`; the pk encodes it as
-// USER#<email>. Pull from there as a fallback.
+// USER#<email>. Pull from there as a fallback. Visitor responses don't
+// include either field — use the server-provided displayName instead.
 function authorOf(entry) {
   if (entry?.author) return entry.author;
   if (typeof entry?.pk === 'string' && entry.pk.startsWith('USER#')) {
     return entry.pk.slice(5);
   }
   return null;
+}
+
+// Public-safe display name. Prefers (a) server-scrubbed displayName, then
+// (b) the loaded profile, then (c) "Operator". Never returns the email.
+function displayNameFor(entry) {
+  if (entry?.displayName) return entry.displayName;
+  const author = authorOf(entry);
+  return profileFor(author).displayName;
 }
 
 function VisibilityTag({ visibility }) {
@@ -89,7 +99,7 @@ function ReadingPane({ entry, onDeleted, onVisibilityChanged }) {
       createElement('div', { className: 'reading-meta' },
         createElement('div', { className: 'reading-meta-left' },
           createElement('span', { className: 'reading-date' }, formatLongDate(entry.createdAt).toUpperCase()),
-          author ? createElement('span', { className: 'reading-author' }, '· ' + author) : null,
+          createElement('span', { className: 'reading-author' }, '· ' + displayNameFor(entry)),
           createElement(VisibilityTag, { visibility })
         ),
         createElement('div', { className: 'reading-meta-actions' },
@@ -113,6 +123,9 @@ function ReadingPane({ entry, onDeleted, onVisibilityChanged }) {
 
 export function ArchiveView({ entries, onDeleted }) {
   const isAdmin = isLoggedIn();
+  // Pre-fetch any author profiles we don't already know about so display
+  // names render on first paint instead of after a follow-up render.
+  ensureProfilesFor((entries || []).map(authorOf));
   return createElement(ListView, {
     title: 'ARCHIVES',
     entries,

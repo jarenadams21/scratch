@@ -1,7 +1,7 @@
 import { createElement } from '../engine/main.js';
 import { upsertMealEntry, deleteMealEntry, currentUserEmail } from '../lib/api.js';
 import { AppState, updateState } from '../lib/state.js';
-import { mealLoader } from '../lib/loaders.js';
+import { mealLoader, ensureProfilesFor, profileFor } from '../lib/loaders.js';
 
 const DAY_LABELS = ['SUN', 'MON', 'TUE', 'WED', 'THU', 'FRI', 'SAT'];
 const MONTH_NAMES = [
@@ -9,9 +9,10 @@ const MONTH_NAMES = [
   'JULY', 'AUGUST', 'SEPTEMBER', 'OCTOBER', 'NOVEMBER', 'DECEMBER',
 ];
 
-// Two earth-tone hues for distinguishing authors. Deterministic so each
-// admin keeps the same color across sessions. With more authors we'd hash.
-const AUTHOR_HUES = ['author-green', 'author-indigo', 'author-terracotta', 'author-ochre'];
+// Earth-tone hues for distinguishing authors. The first preference is the
+// admin's chosen displayColor (from their profile). Falls back to a stable
+// deterministic assignment when nobody has picked a color yet.
+const AUTHOR_HUES = ['author-green', 'author-indigo', 'author-terracotta', 'author-ochre', 'author-sand', 'author-plum'];
 
 function pad(n) { return String(n).padStart(2, '0'); }
 function todayKey() {
@@ -31,18 +32,25 @@ function shiftMonth(monthStr, delta) {
   return monthKey(d);
 }
 
-// Stable per-author color assignment for the lifetime of the page. Different
-// emails get different hues, the current user always gets index 0 (green).
+// Stable per-author color assignment for the lifetime of the page, used as a
+// fallback when an admin hasn't picked a displayColor yet. The current user
+// keeps index 0 (green) so their dot stays consistent across sessions.
 const _authorColorMap = {};
-function authorClass(email, currentEmail) {
+function fallbackAuthorClass(email, currentEmail) {
   if (!email) return AUTHOR_HUES[0];
   if (email === currentEmail) return AUTHOR_HUES[0];
   if (_authorColorMap[email]) return _authorColorMap[email];
-  // Fill from index 1 onward so the current user keeps green.
   const used = new Set(Object.values(_authorColorMap));
   const next = AUTHOR_HUES.slice(1).find(h => !used.has(h)) || AUTHOR_HUES[1];
   _authorColorMap[email] = next;
   return next;
+}
+
+// Resolve to a CSS class, preferring the explicit profile color when set.
+function authorClass(email, currentEmail) {
+  const p = profileFor(email);
+  if (p.displayColor) return `author-${p.displayColor}`;
+  return fallbackAuthorClass(email, currentEmail);
 }
 
 function buildGrid(monthStr) {
@@ -159,13 +167,14 @@ function DayEditor({ date, entries, currentEmail, onSaved, onClose }) {
     others.length
       ? createElement('div', { className: 'meal-others' },
           createElement('div', { className: 'meal-others-label' }, 'ALSO ON THIS DAY'),
-          ...others.map(e =>
-            createElement('div', { className: 'meal-other-entry' },
+          ...others.map(e => {
+            const profile = profileFor(e.author);
+            return createElement('div', { className: 'meal-other-entry' },
               createElement('span', { className: `cal-author-dot ${authorClass(e.author, currentEmail)}` }),
-              createElement('span', { className: 'meal-other-author' }, e.author),
+              createElement('span', { className: 'meal-other-author' }, profile.displayName),
               createElement('div', { className: 'meal-other-text' }, e.text || '—')
-            )
-          )
+            );
+          })
         )
       : null
   );
@@ -179,6 +188,9 @@ export function CalendarView() {
   const selected = AppState.selectedMealDate;
   const today = todayKey();
   const currentEmail = currentUserEmail();
+
+  // Make sure every author whose dot we're about to draw has a profile loaded.
+  ensureProfilesFor([currentEmail, ...entries.map(e => e.author)]);
 
   const monthDate = parseMonth(monthStr);
   const headerLabel = `${MONTH_NAMES[monthDate.getMonth()]} ${monthDate.getFullYear()}`;
@@ -224,11 +236,9 @@ export function CalendarView() {
 
       createElement('div', { className: 'cal-legend' },
         createElement('span', { className: 'cal-legend-item' },
-          createElement('span', { className: 'cal-author-dot author-green' }), ' YOU'
-        ),
-        currentEmail
-          ? createElement('span', { className: 'cal-legend-email' }, currentEmail)
-          : null
+          createElement('span', { className: `cal-author-dot ${authorClass(currentEmail, currentEmail)}` }),
+          ' ' + (profileFor(currentEmail).displayName || 'YOU')
+        )
       )
     ),
 
