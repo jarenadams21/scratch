@@ -144,7 +144,7 @@ function DayEditor({ date, entries, currentEmail, onSaved, onClose }) {
         key: `meal-text-${date}`,
         name: 'meal',
         className: 'meal-editor-text',
-        placeholder: 'A gentle log — no pressure, no judgement.',
+        placeholder: 'Update here :^1',
         defaultValue: ownEntry?.text || '',
         rows: 6,
       }),
