@@ -17,8 +17,8 @@ export function App() {
   const traits         = AppState.traits || {};
 
   postLoader.ensureLoaded();
-  audioLoader.ensureLoaded();
   if (isAdmin) {
+    audioLoader.ensureLoaded();
     traitsLoader.ensureLoaded();
     if (traits.calendar) mealLoader.ensureLoaded();
   }
@@ -44,6 +44,8 @@ export function App() {
       currentView: 'archive',
       selectedEntry: null,
       selectedAudio: null,
+      audioEntries: [],
+      audioLoaded: false,
       traits: {},
       traitsLoaded: false,
       mealEntries: [],
@@ -64,7 +66,9 @@ export function App() {
   console.log('[App] Rendering - Admin:', isAdmin, 'View:', AppState.currentView, 'Calendar:', calendarEnabled);
 
   let workspaceContent;
-  if (AppState.loading || AppState.audioLoading) {
+  // Only block on audioLoading when we're actually showing audio.
+  const isAudioView = AppState.currentView === 'recordings' || AppState.currentView === 'record';
+  if (AppState.loading || (isAudioView && AppState.audioLoading)) {
     workspaceContent = createElement('div', { className: 'loading-state', key: 'loading' }, 'LOADING...');
   } else if (AppState.currentView === 'record' && isAdmin) {
     workspaceContent = createElement('div', { className: 'view-wrapper', key: 'record-view' },
@@ -87,7 +91,7 @@ export function App() {
     workspaceContent = createElement('div', { className: 'view-wrapper view-wrapper-calendar', key: 'calendar-view' },
       createElement(CalendarView, {})
     );
-  } else if (AppState.currentView === 'recordings') {
+  } else if (AppState.currentView === 'recordings' && isAdmin) {
     workspaceContent = createElement('div', { className: 'view-wrapper', key: 'recordings-view' },
       createElement(RecordingsView, {
         entries: AppState.audioEntries,
@@ -119,10 +123,12 @@ export function App() {
     onClick: () => switchView('archive'),
     className: AppState.currentView === 'archive' ? 'tab active' : 'tab',
   }, 'ARCHIVE'));
-  navTabs.push(createElement('button', {
-    onClick: () => switchView('recordings'),
-    className: AppState.currentView === 'recordings' ? 'tab active' : 'tab',
-  }, 'RECORDINGS'));
+  if (isAdmin) {
+    navTabs.push(createElement('button', {
+      onClick: () => switchView('recordings'),
+      className: AppState.currentView === 'recordings' ? 'tab active' : 'tab',
+    }, 'RECORDINGS'));
+  }
   if (calendarEnabled) {
     navTabs.push(createElement('button', {
       onClick: () => switchView('calendar'),

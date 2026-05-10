@@ -2,7 +2,7 @@ import http from 'http';
 import { config } from './config/config.js';
 import { signup, login, extractUser } from './auth/auth.js';
 import { createEntry, getAllEntries, deleteEntry } from './db/db.js';
-import { generateUploadUrl, createAudioEntry, getAllAudioEntries, deleteAudioEntry } from './db/audio-db.js';
+import { generateUploadUrl, createAudioEntry, getUserAudioEntries, deleteAudioEntry } from './db/audio-db.js';
 import { getTraits, setTrait, upsertMealEntry, deleteMealEntry, getMealEntries } from './db/feature-db.js';
 
 // ─── CORS Helper ────────────────────────────────────────────────────────────
@@ -86,7 +86,9 @@ async function handleMessage(message, userId) {
       return await createAudioEntry(userId, content);
 
     case 'get_audio_posts':
-      return await getAllAudioEntries();
+      // Audio is private per-admin — only the owner sees their recordings.
+      if (!userId) throw new Error('Unauthorized');
+      return await getUserAudioEntries(userId);
 
     case 'delete_audio_post':
       if (!userId) throw new Error('Unauthorized');

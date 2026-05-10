@@ -1,5 +1,5 @@
 import { DynamoDBClient } from '@aws-sdk/client-dynamodb';
-import { DynamoDBDocumentClient, PutCommand, DeleteCommand, ScanCommand } from '@aws-sdk/lib-dynamodb';
+import { DynamoDBDocumentClient, PutCommand, QueryCommand, DeleteCommand } from '@aws-sdk/lib-dynamodb';
 import { S3Client, PutObjectCommand } from '@aws-sdk/client-s3';
 import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
 import { config } from '../config/config.js';
@@ -64,16 +64,21 @@ export async function createAudioEntry(userId, entry) {
 }
 
 /**
- * Scan all audio entries for the shared feed, newest first.
+ * Fetch the calling user's own audio entries, newest first.
+ * Audio is private per-admin — recordings are never returned across users.
  */
-export async function getAllAudioEntries(limit = 50) {
-  const result = await dynamo.send(new ScanCommand({
+export async function getUserAudioEntries(userId, limit = 50) {
+  const result = await dynamo.send(new QueryCommand({
     TableName: AUDIO_TABLE,
-    FilterExpression: 'begins_with(sk, :sk)',
-    ExpressionAttributeValues: { ':sk': 'ENTRY#' },
+    KeyConditionExpression: 'pk = :pk AND begins_with(sk, :sk)',
+    ExpressionAttributeValues: {
+      ':pk': `USER#${userId}`,
+      ':sk': 'ENTRY#',
+    },
+    ScanIndexForward: false,
     Limit: limit,
   }));
-  return (result.Items || []).sort((a, b) => b.createdAt.localeCompare(a.createdAt));
+  return result.Items || [];
 }
 
 /**
