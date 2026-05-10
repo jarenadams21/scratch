@@ -86,7 +86,7 @@ export function EditorView({ onPostCreated }) {
         createElement('button', {
           type: 'submit',
           className: 'publish-btn'
-        }, '▶  TRANSMIT')
+        }, '▶  SEND')
       )
     )
   );
