@@ -151,24 +151,41 @@ function MealItemRow({ value, onChange, onDelete }) {
 }
 
 function MealAddRow({ onAdd }) {
-  const handleKey = (e) => {
-    if (e.key !== 'Enter') return;
-    e.preventDefault();
-    const v = (e.target.value || '').trim();
-    if (!v) return;
+  // Hold the input element so the visible ADD button can read its current
+  // value without forcing controlled-input plumbing.
+  let inputEl = null;
+
+  const submit = () => {
+    if (!inputEl) return;
+    const v = (inputEl.value || '').trim();
+    if (!v) { inputEl.focus(); return; }
     onAdd(v);
-    e.target.value = '';
-    // Cursor stays in the field so rapid entry feels natural.
+    inputEl.value = '';
+    inputEl.focus(); // stay put for rapid entry
   };
+
   return createElement('div', { className: 'meal-item-row meal-item-row-add' },
     createElement('span', { className: 'meal-item-bullet meal-item-bullet-add' }, '+'),
     createElement('input', {
+      ref: (el) => { inputEl = el; },
       type: 'text',
       className: 'meal-item-input',
-      placeholder: 'add an item',
+      placeholder: 'log a meal or snack',
       maxLength: 200,
-      onKeyDown: handleKey,
-    })
+      // type=text + autocapitalize=sentences feels natural for meal logging.
+      autocapitalize: 'sentences',
+      autocomplete: 'off',
+      onKeyDown: (e) => {
+        if (e.key === 'Enter') { e.preventDefault(); submit(); }
+      },
+    }),
+    createElement('button', {
+      type: 'button',
+      className: 'meal-add-btn',
+      onClick: submit,
+      title: 'Add item',
+      'aria-label': 'Add item',
+    }, 'ADD')
   );
 }
 
@@ -218,7 +235,10 @@ function DayEditor({ date, entries, currentEmail, onSaved, onClose }) {
           onDelete: () => deleteItem(idx),
         })
       ),
-      createElement(MealAddRow, { key: `add-${date}-${items.length}`, onAdd: addItem })
+      // Stable key per date so the input element survives an add-and-reload.
+      // Without this, items.length changes on every add → MealAddRow remounts
+      // → focus and (on iOS) the keyboard get yanked away mid-entry.
+      createElement(MealAddRow, { key: `add-${date}`, onAdd: addItem })
     ),
 
     others.length

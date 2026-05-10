@@ -1481,6 +1481,14 @@ body {
   transition: border-color 0.12s;
 }
 
+/* iOS Safari auto-zooms when an input has font-size < 16px. Bumping the
+   meal-item-input on mobile prevents the zoom-and-scroll-out dance after
+   each entry — the price is slightly larger text on phones, which actually
+   reads better one-handed anyway. */
+@media (max-width: 640px) {
+  .meal-item-input { font-size: 16px; }
+}
+
 .meal-item-input::placeholder { color: #b8a888; font-style: italic; }
 .meal-item-input:focus       { border-bottom-color: #3d6b48; }
 .meal-item-row-add .meal-item-input::placeholder { color: #8c8366; font-style: normal; }
@@ -1506,6 +1514,41 @@ body {
 .meal-item-row:focus-within .meal-item-delete { opacity: 1; }
 .meal-item-delete:hover { color: #c87053; background: rgba(200, 112, 83, 0.1); }
 .meal-item-row-add .meal-item-delete { display: none; }
+
+/* Visible add button on the right of the add row. Removes the "is Enter
+   the only way?" doubt. Tappable target sized for thumbs. */
+.meal-add-btn {
+  flex-shrink: 0;
+  background: #3d6b48;
+  color: #f7efe2;
+  border: 1px solid #2f5238;
+  padding: 7px 14px;
+  font-family: 'Courier New', monospace;
+  font-size: 10px;
+  letter-spacing: 2px;
+  font-weight: bold;
+  cursor: pointer;
+  border-radius: 6px;
+  box-shadow: 0 2px 0 #2f5238;
+  transition: transform 0.1s, background 0.15s, box-shadow 0.1s;
+  min-height: 32px;
+}
+
+.meal-add-btn:hover  { background: #2f5238; }
+.meal-add-btn:active { transform: translateY(1px); box-shadow: 0 1px 0 #2f5238; }
+
+/* The add row has the green button to keep it discoverable; the empty add
+   row should never look like a deleteable item. */
+.meal-item-row-add { background: transparent; }
+.meal-item-row-add:hover,
+.meal-item-row-add:focus-within { background: #fffaf0; }
+
+/* Make the add row a bit taller on mobile so the ADD button is easy to hit
+   without the keyboard covering it. */
+@media (max-width: 640px) {
+  .meal-add-btn { padding: 9px 16px; font-size: 11px; min-height: 38px; }
+  .meal-item-row-add { padding: 6px; }
+}
 
 @media (max-width: 900px) {
   .meal-item-delete { opacity: 0.45; }   /* always visible on touch */
