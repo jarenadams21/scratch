@@ -65,6 +65,8 @@ export const MOCK_AUDIO = [
 
 let mockData = [...MOCK_POSTS];
 let mockAudioData = [...MOCK_AUDIO];
+let mockTraits = { calendar: true };
+let mockMealEntries = [];
 
 // Mock database operations
 export const mockDB = {
@@ -136,4 +138,31 @@ export const mockAudioDB = {
   reset: () => {
     mockAudioData = [...MOCK_AUDIO];
   }
+};
+
+export const mockFeatureDB = {
+  getTraits: () => Promise.resolve({ traits: { ...mockTraits } }),
+
+  setTrait: (trait, enabled) => {
+    mockTraits = { ...mockTraits, [trait]: !!enabled };
+    return Promise.resolve({ traits: { ...mockTraits } });
+  },
+
+  getMealEntries: (startDate, endDate) => {
+    const items = mockMealEntries.filter(e => e.date >= startDate && e.date <= endDate);
+    return Promise.resolve(items);
+  },
+
+  upsertMealEntry: (author, date, text) => {
+    const idx = mockMealEntries.findIndex(e => e.date === date && e.author === author);
+    const entry = { date, author, text: text || '', updatedAt: new Date().toISOString() };
+    if (idx >= 0) mockMealEntries[idx] = entry;
+    else mockMealEntries.push(entry);
+    return Promise.resolve(entry);
+  },
+
+  deleteMealEntry: (author, date) => {
+    mockMealEntries = mockMealEntries.filter(e => !(e.date === date && e.author === author));
+    return Promise.resolve({ message: 'Deleted' });
+  },
 };

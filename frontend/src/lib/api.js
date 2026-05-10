@@ -12,8 +12,15 @@ import {
   getAudioPostsMessage,
   deleteAudioPostMessage,
 } from '../types/audio-messages.js';
+import {
+  getTraitsMessage,
+  setTraitMessage,
+  getMealEntriesMessage,
+  upsertMealEntryMessage,
+  deleteMealEntryMessage,
+} from '../types/feature-messages.js';
 import { CONFIG, devLog } from '../config/flags-runtime.js';
-import { MOCK_USER, mockDB, mockAudioDB } from '../data/mock-data.js';
+import { MOCK_USER, mockDB, mockAudioDB, mockFeatureDB } from '../data/mock-data.js';
 
 const API_URL = CONFIG.API_URL;
 
@@ -37,6 +44,11 @@ const devVisitor = {
   create_audio_post:  (msg) => { const c = msg.payload.content; return mockAudioDB.createAudioPost(c.title, c.audioKey, c.audioUrl, c.duration, c.mimeType, c.fileSize); },
   get_audio_posts:    ()    => mockAudioDB.getAudioPosts(),
   delete_audio_post:  (msg) => mockAudioDB.deleteAudioPost(msg.payload.content.entryId),
+  get_traits:         ()    => mockFeatureDB.getTraits(),
+  set_trait:          (msg) => mockFeatureDB.setTrait(msg.payload.content.trait, msg.payload.content.enabled),
+  get_meal_entries:   (msg) => mockFeatureDB.getMealEntries(msg.payload.content.startDate, msg.payload.content.endDate),
+  upsert_meal_entry:  (msg) => mockFeatureDB.upsertMealEntry(MOCK_USER.email, msg.payload.content.date, msg.payload.content.text),
+  delete_meal_entry:  (msg) => mockFeatureDB.deleteMealEntry(MOCK_USER.email, msg.payload.content.date),
 };
 
 function visitMessage(message, visitor) {
@@ -133,4 +145,41 @@ export async function createAudioPost(title, audioKey, audioUrl, duration, mimeT
 
 export async function deleteAudioPost(entryId, createdAt) {
   return sendMessage(deleteAudioPostMessage(entryId, createdAt));
+}
+
+// ─── Feature Traits ─────────────────────────────────────────────────────────
+
+export async function getTraits() {
+  return sendMessage(getTraitsMessage());
+}
+
+export async function setTrait(trait, enabled) {
+  return sendMessage(setTraitMessage(trait, enabled));
+}
+
+// ─── Shared Meal Calendar ───────────────────────────────────────────────────
+
+export async function getMealEntries(startDate, endDate) {
+  return sendMessage(getMealEntriesMessage(startDate, endDate));
+}
+
+export async function upsertMealEntry(date, text) {
+  return sendMessage(upsertMealEntryMessage(date, text));
+}
+
+export async function deleteMealEntry(date) {
+  return sendMessage(deleteMealEntryMessage(date));
+}
+
+// Returns the authenticated user's email if a token is present.
+// Decodes the JWT payload — used to attribute meal entries client-side.
+export function currentUserEmail() {
+  const token = getToken();
+  if (!token) return null;
+  try {
+    const payload = JSON.parse(atob(token.split('.')[1]));
+    return payload.userId || null;
+  } catch {
+    return CONFIG.DEV ? MOCK_USER.email : null;
+  }
 }

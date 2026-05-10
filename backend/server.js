@@ -3,6 +3,7 @@ import { config } from './config/config.js';
 import { signup, login, extractUser } from './auth/auth.js';
 import { createEntry, getUserEntries, getAllEntries, deleteEntry } from './db/db.js';
 import { generateUploadUrl, createAudioEntry, getUserAudioEntries, getAllAudioEntries, deleteAudioEntry } from './db/audio-db.js';
+import { getTraits, setTrait, upsertMealEntry, deleteMealEntry, getMealEntries } from './db/feature-db.js';
 
 // ─── CORS Helper ────────────────────────────────────────────────────────────
 
@@ -92,6 +93,27 @@ async function handleMessage(message, userId) {
     case 'delete_audio_post':
       if (!userId) throw new Error('Unauthorized');
       await deleteAudioEntry(userId, content.entryId, content.createdAt);
+      return { message: 'Deleted' };
+
+    case 'get_traits':
+      if (!userId) throw new Error('Unauthorized');
+      return { traits: await getTraits(userId) };
+
+    case 'set_trait':
+      if (!userId) throw new Error('Unauthorized');
+      return { traits: await setTrait(userId, content.trait, content.enabled) };
+
+    case 'get_meal_entries':
+      if (!userId) throw new Error('Unauthorized');
+      return await getMealEntries(content.startDate, content.endDate);
+
+    case 'upsert_meal_entry':
+      if (!userId) throw new Error('Unauthorized');
+      return await upsertMealEntry(userId, content.date, content.text);
+
+    case 'delete_meal_entry':
+      if (!userId) throw new Error('Unauthorized');
+      await deleteMealEntry(userId, content.date);
       return { message: 'Deleted' };
 
     default:

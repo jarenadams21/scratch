@@ -15,6 +15,16 @@ export const AppState = {
   audioLoaded: false,
   audioLoading: false,
   selectedAudio: null,
+  // Feature traits — generic on/off flags per admin (e.g. { calendar: true })
+  traits: {},
+  traitsLoaded: false,
+  traitsLoading: false,
+  // Shared meal calendar
+  mealEntries: [],
+  mealLoaded: false,
+  mealLoading: false,
+  mealMonth: null,        // 'YYYY-MM' currently shown
+  selectedMealDate: null, // 'YYYY-MM-DD' currently being edited
 };
 
 // State update callbacks (to trigger re-render)
