@@ -7,7 +7,7 @@
 dist/
 build/
 node_modules/
-harbinger_backend.zip
+harbinger-backend.zip
 
 # Config (keep flags.yml for dev, flags.prod.yml is template)
 config/flags.json
