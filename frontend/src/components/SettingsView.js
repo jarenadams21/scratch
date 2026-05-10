@@ -34,17 +34,19 @@ export function SettingsView({ onChanged }) {
   const traits = AppState.traits || {};
 
   const toggle = async (id) => {
-    const next = !traits[id];
-    // Optimistic update so the UI feels responsive
-    updateState({ traits: { ...traits, [id]: next } });
+    // Read fresh traits at click time, not from closure — rapid taps would
+    // otherwise see a stale snapshot and toggle to the wrong value.
+    const before = AppState.traits || {};
+    const next = !before[id];
+    updateState({ traits: { ...before, [id]: next } });
     try {
       const result = await setTrait(id, next);
-      const finalTraits = result?.traits ?? { ...traits, [id]: next };
+      const finalTraits = result?.traits ?? { ...(AppState.traits || {}), [id]: next };
       updateState({ traits: finalTraits });
       if (onChanged) onChanged(finalTraits);
     } catch (err) {
-      // Roll back
-      updateState({ traits: { ...traits, [id]: !next } });
+      // Roll back to whatever traits looked like *before* this toggle.
+      updateState({ traits: before });
       alert('Could not save preference: ' + err.message);
     }
   };

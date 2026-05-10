@@ -87,6 +87,10 @@ const isProperty = key => key !== "children" && !isEvent(key) && key !== "ref" &
 const isNew      = (prev, next) => key => prev[key] !== next[key]  // value changed between renders
 const isGone     = (prev, next) => key => !(key in next)           // prop was removed entirely
 
+// Hyphenated keys (aria-*, data-*, custom elements) don't reflect when set
+// as JS properties — they need setAttribute to actually hit the DOM.
+const isAttribute = key => key.includes('-')
+
 // Syncs a real DOM node to match incoming props from a re-render.
 // Three passes, in order:
 //   1. Remove event listeners that changed or are no longer present.
@@ -102,19 +106,22 @@ function updateDom(dom, prevProps, nextProps) {
       dom.removeEventListener(eventType, prevProps[name])
     })
 
-  // Remove old or changed event listeners
+  // Clear gone props. setAttribute-managed keys go through removeAttribute,
+  // direct property keys get an empty string (existing behaviour).
   Object.keys(prevProps)
     .filter(isProperty)
     .filter(isGone(prevProps, nextProps))
     .forEach(name => {
-      dom[name] = ""
+      if (isAttribute(name)) dom.removeAttribute(name)
+      else dom[name] = ""
     })
 
   Object.keys(nextProps)
     .filter(isProperty)
     .filter(isNew(prevProps, nextProps))
     .forEach(name => {
-      dom[name] = nextProps[name]
+      if (isAttribute(name)) dom.setAttribute(name, nextProps[name])
+      else dom[name] = nextProps[name]
     })
 
   // Add event listeners
@@ -199,15 +206,23 @@ const scheduleWork: (cb: (deadline: { timeRemaining: () => number }) => void) =>
 
 function workLoop(deadline) {
   let shouldYield = false
-  while (nextUnitOfWork && !shouldYield) {
-    nextUnitOfWork = performUnitOfWork(nextUnitOfWork)
-    shouldYield = deadline.timeRemaining() < 1
+  try {
+    while (nextUnitOfWork && !shouldYield) {
+      nextUnitOfWork = performUnitOfWork(nextUnitOfWork)
+      shouldYield = deadline.timeRemaining() < 1
+    }
+    if (!nextUnitOfWork && wipRoot) {
+      commitRoot()
+    }
+  } catch (err) {
+    // Discard the in-progress tree but keep the loop alive so a single
+    // bad render can't freeze the whole UI. The previous committed tree
+    // stays on screen; the next state change triggers a fresh render.
+    console.error('[engine] render aborted:', err)
+    nextUnitOfWork = null
+    wipRoot = null
+    deletions = []
   }
-
-  if (!nextUnitOfWork && wipRoot) {
-    commitRoot()
-  }
-
   scheduleWork(workLoop)
 }
 

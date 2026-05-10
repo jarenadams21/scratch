@@ -123,50 +123,56 @@ async function handleMessage(message, userId) {
 
 // ─── Request Handler ────────────────────────────────────────────────────────
 
+// Errors thrown from validation should return 400, not 500. Anything that
+// looks like a client-input or auth problem is mapped to 400/401 here.
+const CLIENT_ERROR_PATTERNS = [
+  /^Invalid /i,
+  /^Unknown trait/i,
+  /^Meal entry/i,
+  /must be /i,
+  /^Date range /i,
+  /^Unauthorized/i,
+];
+
+function statusForError(err) {
+  if (/^Unauthorized/i.test(err.message)) return 401;
+  if (CLIENT_ERROR_PATTERNS.some(rx => rx.test(err.message))) return 400;
+  return 500;
+}
+
 async function handleRequest(req, res) {
   const origin = req.headers.origin;
   setCors(res, origin);
-  
-  // Handle preflight
+
   if (req.method === 'OPTIONS') {
     res.writeHead(204);
     res.end();
     return;
   }
-  
+
   const url = new URL(req.url, `http://${req.headers.host}`);
   const path = url.pathname;
-  
+
   try {
-    // Single message endpoint
     if (path === '/msg' && req.method === 'POST') {
       const message = await parseBody(req);
-      
-      // Validate message structure
+
       if (!message.command || !message.payload?.num) {
         return error(res, 'Invalid message format');
       }
-      
-      // Extract user if auth token present
+
       const userId = extractUser(req);
-      
-      // Handle the message
       const result = await handleMessage(message, userId);
-      
-      // Auth messages return tokens
-      if (message.command.startsWith('auth_')) {
-        return json(res, result);
-      }
-      
       return json(res, result);
     }
-    
-    // Not found
+
     return error(res, 'Not found', 404);
-    
   } catch (err) {
-    console.error('Request error:', err);
-    return error(res, err.message, 500);
+    const status = statusForError(err);
+    if (status >= 500) console.error('Request error:', err);
+    // Don't leak internal error messages on 500s.
+    const body = status >= 500 ? 'Internal error' : err.message;
+    return error(res, body, status);
   }
 }
 

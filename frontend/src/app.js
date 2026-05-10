@@ -29,10 +29,20 @@ function renderApp() {
   }
 }
 
-// Subscribe to state changes for re-renders
+// Coalesce state-change re-renders. Critical: render() resets wipRoot and
+// deletions globals, so calling it synchronously during another render
+// (e.g. from a loader's updateState fired inside App's reconciliation)
+// orphans the in-progress work. Deferring to a microtask guarantees we
+// never call render() while the workLoop is mid-tree.
+let renderScheduled = false;
 subscribeToState(() => {
-  console.log('[Harbinger] State changed, re-rendering...');
-  renderApp();
+  if (renderScheduled) return;
+  renderScheduled = true;
+  queueMicrotask(() => {
+    renderScheduled = false;
+    console.log('[Harbinger] State changed, re-rendering...');
+    renderApp();
+  });
 });
 
 // Initial render

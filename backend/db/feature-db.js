@@ -1,8 +1,8 @@
 import { DynamoDBClient } from '@aws-sdk/client-dynamodb';
 import {
   DynamoDBDocumentClient,
-  PutCommand,
   GetCommand,
+  PutCommand,
   QueryCommand,
   DeleteCommand,
 } from '@aws-sdk/lib-dynamodb';
@@ -13,8 +13,54 @@ const db = DynamoDBDocumentClient.from(client);
 
 const SHARED_BOARD = 'MEALBOARD#default';
 
+// Allowlist of trait keys clients may toggle. New traits MUST be added here
+// before they can be persisted — prevents arbitrary keys from being written
+// into a user's TRAITS document.
+export const ALLOWED_TRAITS = Object.freeze(['calendar']);
+
+const DATE_RX = /^\d{4}-(0[1-9]|1[0-2])-(0[1-9]|[12]\d|3[01])$/;
+const MEAL_TEXT_MAX = 2000;
+const MEAL_QUERY_MAX_DAYS = 366;
+
+// ─── Validation helpers ────────────────────────────────────────────────────
+
+function assertTrait(trait) {
+  if (!ALLOWED_TRAITS.includes(trait)) {
+    throw new Error(`Unknown trait: ${trait}`);
+  }
+}
+
+function assertDate(date, label = 'date') {
+  if (typeof date !== 'string' || !DATE_RX.test(date)) {
+    throw new Error(`Invalid ${label} (expected YYYY-MM-DD)`);
+  }
+}
+
+function assertDateRange(startDate, endDate) {
+  assertDate(startDate, 'startDate');
+  assertDate(endDate, 'endDate');
+  if (endDate < startDate) {
+    throw new Error('endDate must be on or after startDate');
+  }
+  const spanDays = (Date.parse(endDate) - Date.parse(startDate)) / 86_400_000;
+  if (spanDays > MEAL_QUERY_MAX_DAYS) {
+    throw new Error(`Date range too large (max ${MEAL_QUERY_MAX_DAYS} days)`);
+  }
+}
+
+function sanitizeMealText(text) {
+  if (text == null) return '';
+  if (typeof text !== 'string') {
+    throw new Error('Meal entry text must be a string');
+  }
+  if (text.length > MEAL_TEXT_MAX) {
+    throw new Error(`Meal entry too long (max ${MEAL_TEXT_MAX} chars)`);
+  }
+  return text;
+}
+
 // ─── Feature Traits ─────────────────────────────────────────────────────────
-// Stored as a single JSON blob per user so reads/writes are atomic.
+// Stored as a single map per user. Single GET, single atomic UPDATE per trait.
 // pk = USER#<email>, sk = TRAITS
 
 export async function getTraits(userId) {
@@ -26,6 +72,7 @@ export async function getTraits(userId) {
 }
 
 export async function setTrait(userId, trait, enabled) {
+  assertTrait(trait);
   const current = await getTraits(userId);
   const next = { ...current, [trait]: !!enabled };
   await db.send(new PutCommand({
@@ -50,13 +97,15 @@ function dayKey(date, userId) {
 }
 
 export async function upsertMealEntry(userId, date, text) {
+  assertDate(date);
+  const safeText = sanitizeMealText(text);
   const timestamp = new Date().toISOString();
   const item = {
     pk: SHARED_BOARD,
     sk: dayKey(date, userId),
     date,
     author: userId,
-    text: text || '',
+    text: safeText,
     updatedAt: timestamp,
   };
   await db.send(new PutCommand({ TableName: config.DYNAMODB_TABLE, Item: item }));
@@ -64,6 +113,7 @@ export async function upsertMealEntry(userId, date, text) {
 }
 
 export async function deleteMealEntry(userId, date) {
+  assertDate(date);
   await db.send(new DeleteCommand({
     TableName: config.DYNAMODB_TABLE,
     Key: { pk: SHARED_BOARD, sk: dayKey(date, userId) },
@@ -71,8 +121,11 @@ export async function deleteMealEntry(userId, date) {
 }
 
 export async function getMealEntries(startDate, endDate) {
-  // Range prefix on sk works because dates are zero-padded and sort lexically.
-  const params = {
+  assertDateRange(startDate, endDate);
+  // sk uses zero-padded ISO dates so lexical sort matches calendar order.
+  // The high bound `DAY#<endDate>#~` sits past any USER#<email> sk, since
+  // tilde (0x7e) outranks every char an email can contain.
+  const result = await db.send(new QueryCommand({
     TableName: config.DYNAMODB_TABLE,
     KeyConditionExpression: 'pk = :pk AND sk BETWEEN :lo AND :hi',
     ExpressionAttributeValues: {
@@ -80,7 +133,6 @@ export async function getMealEntries(startDate, endDate) {
       ':lo': `DAY#${startDate}`,
       ':hi': `DAY#${endDate}#~`,
     },
-  };
-  const result = await db.send(new QueryCommand(params));
+  }));
   return result.Items || [];
 }
