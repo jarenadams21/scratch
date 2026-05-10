@@ -12,6 +12,8 @@ export const MOCK_POSTS = [
     entryId: 'mock-1',
     title: 'First Transmission',
     content: 'The machines hum in the darkness. Words appear on paper, one character at a time. This is how we document the present - with deliberate keystrokes and careful thought.',
+    visibility: 'public',
+    author: CONFIG.MOCK_USER,
     createdAt: new Date(2026, 3, 15, 10, 30).toISOString(),
     updatedAt: new Date(2026, 3, 15, 10, 30).toISOString(),
   },
@@ -19,6 +21,8 @@ export const MOCK_POSTS = [
     entryId: 'mock-2',
     title: 'On Typography',
     content: 'Courier was designed in 1955 by Howard Kettler for IBM typewriters. Its monospaced glyphs ensure uniform horizontal spacing - a constraint that forces clarity in thought. Every letter carries equal weight.',
+    visibility: 'public',
+    author: CONFIG.MOCK_USER,
     createdAt: new Date(2026, 3, 20, 14, 15).toISOString(),
     updatedAt: new Date(2026, 3, 20, 14, 15).toISOString(),
   },
@@ -26,6 +30,8 @@ export const MOCK_POSTS = [
     entryId: 'mock-3',
     title: 'Editorial Standards',
     content: 'Remove what does not serve the message. Black text on white paper. No decoration. No distraction. The content must speak for itself.',
+    visibility: 'admins',
+    author: CONFIG.MOCK_USER,
     createdAt: new Date(2026, 4, 1, 9, 0).toISOString(),
     updatedAt: new Date(2026, 4, 1, 9, 0).toISOString(),
   },
@@ -33,8 +39,19 @@ export const MOCK_POSTS = [
     entryId: 'mock-4',
     title: 'Signal vs Noise',
     content: 'In an age of infinite feeds and constant updates, the journal represents a return to intentional broadcasting. One entry. One moment. One permanent record.',
+    visibility: 'public',
+    author: CONFIG.MOCK_USER,
     createdAt: new Date(2026, 4, 2, 11, 45).toISOString(),
     updatedAt: new Date(2026, 4, 2, 11, 45).toISOString(),
+  },
+  {
+    entryId: 'mock-5',
+    title: 'Quiet Sunday',
+    content: 'Slept in, made eggs. The light through the window was the soft kind that only comes after rain.',
+    visibility: 'public',  // legacy public — admin will flip this to private
+    author: 'partner@example.com',
+    createdAt: new Date(2026, 4, 4, 9, 30).toISOString(),
+    updatedAt: new Date(2026, 4, 4, 9, 30).toISOString(),
   }
 ];
 
@@ -76,22 +93,32 @@ export const mockDB = {
     ));
   },
   
-  createPost: (title, content, mood) => {
+  createPost: (title, content, mood, visibility = 'public') => {
     const newPost = {
       entryId: `mock-${Date.now()}`,
       title,
       content,
       mood,
+      visibility,
+      author: MOCK_USER.email,
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString(),
     };
     mockData.unshift(newPost);
     return Promise.resolve(newPost);
   },
-  
+
   deletePost: (postId) => {
     mockData = mockData.filter(post => post.entryId !== postId);
     return Promise.resolve({ message: 'Deleted' });
+  },
+
+  updateVisibility: (postId, visibility) => {
+    const post = mockData.find(p => p.entryId === postId);
+    if (!post) return Promise.reject(new Error('Not found'));
+    post.visibility = visibility;
+    post.updatedAt = new Date().toISOString();
+    return Promise.resolve({ entryId: postId, visibility });
   },
   
   reset: () => {

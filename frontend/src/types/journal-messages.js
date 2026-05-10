@@ -12,16 +12,31 @@ const REGISTERED_NUM_MAP = {
   "auth_login": 8,
   "auth_logout": 9,
   // Audio commands (10–13 reserved — see audio-messages.js)
+  // Feature commands (14–18 reserved — see feature-messages.js)
+  "update_post_visibility": 19,
 };
+
+export const VISIBILITY_PUBLIC = 'public';
+export const VISIBILITY_ADMINS = 'admins';
 
 // ─── Journal Message Creators ───────────────────────────────────────────────
 
-export function createPostMessage(title, content, mood) {
+export function createPostMessage(title, content, mood, visibility = VISIBILITY_PUBLIC) {
   return {
     command: "create_post",
     payload: {
-      content: { title, content, mood },
+      content: { title, content, mood, visibility },
       num: REGISTERED_NUM_MAP["create_post"]
+    }
+  };
+}
+
+export function updatePostVisibilityMessage(postId, timestamp, visibility, author) {
+  return {
+    command: "update_post_visibility",
+    payload: {
+      content: { postId, timestamp, visibility, author },
+      num: REGISTERED_NUM_MAP["update_post_visibility"]
     }
   };
 }

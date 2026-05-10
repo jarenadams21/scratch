@@ -2,6 +2,7 @@ import {
   createPostMessage,
   getPostsMessage,
   deletePostMessage,
+  updatePostVisibilityMessage,
   signupMessage,
   loginMessage,
   logoutMessage
@@ -38,8 +39,9 @@ const devVisitor = {
   auth_signup:        ()    => ({ token: MOCK_USER.token, user: { email: MOCK_USER.email } }),
   auth_login:         ()    => ({ token: MOCK_USER.token, user: { email: MOCK_USER.email } }),
   get_posts:          ()    => mockDB.getPosts(),
-  create_post:        (msg) => { const { title, content, mood } = msg.payload.content; return mockDB.createPost(title, content, mood); },
+  create_post:        (msg) => { const { title, content, mood, visibility } = msg.payload.content; return mockDB.createPost(title, content, mood, visibility); },
   delete_post:        (msg) => mockDB.deletePost(msg.payload.content.postId),
+  update_post_visibility: (msg) => { const { postId, visibility } = msg.payload.content; return mockDB.updateVisibility(postId, visibility); },
   request_upload_url: (msg) => { const { filename, contentType } = msg.payload.content; return mockAudioDB.requestUploadUrl(filename, contentType); },
   create_audio_post:  (msg) => { const c = msg.payload.content; return mockAudioDB.createAudioPost(c.title, c.audioKey, c.audioUrl, c.duration, c.mimeType, c.fileSize); },
   get_audio_posts:    ()    => mockAudioDB.getAudioPosts(),
@@ -109,14 +111,18 @@ export async function getPosts(email = null) {
   return sendMessage(getPostsMessage(email));
 }
 
-export async function createPost(title, content, mood = null) {
-  return sendMessage(createPostMessage(title, content, mood));
+export async function createPost(title, content, mood = null, visibility = 'public') {
+  return sendMessage(createPostMessage(title, content, mood, visibility));
 }
 
 export async function deletePost(postId, timestamp) {
   const message = deletePostMessage(postId);
   message.payload.content.timestamp = timestamp;
   return sendMessage(message);
+}
+
+export async function updatePostVisibility(postId, timestamp, visibility, author) {
+  return sendMessage(updatePostVisibilityMessage(postId, timestamp, visibility, author));
 }
 
 // ─── Audio API ───────────────────────────────────────────────────────────────

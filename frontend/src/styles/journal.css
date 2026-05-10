@@ -1474,3 +1474,105 @@ body {
   .settings-sheet  { padding: 28px 22px 48px; }
   .feature-row     { padding: 14px 14px; gap: 14px; }
 }
+
+/* ─── Visibility Tags + Toggle ─────────────────────────────────────────────── */
+
+.item-meta {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+}
+
+.item-meta .item-preview { flex: 1; min-width: 0; }
+
+.vis-tag {
+  flex-shrink: 0;
+  font-size: 8px;
+  letter-spacing: 2px;
+  font-family: 'Courier New', monospace;
+  padding: 2px 6px;
+  border: 1px solid currentColor;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+/* Public tag: muted, blends in. Admins tag: marked, stands out as restricted. */
+.vis-tag-public { color: #4a4a4a; border-color: #2a2a2a; }
+.vis-tag-admins { color: #c87053; border-color: #c87053; background: rgba(200, 112, 83, 0.08); }
+
+.reading-meta-left {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.reading-meta-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.reading-author {
+  font-size: 10px;
+  letter-spacing: 1px;
+  color: #888;
+}
+
+.visibility-flip-btn {
+  background: transparent;
+  border: 1px solid #ccc;
+  color: #666;
+  padding: 4px 12px;
+  font-family: 'Courier New', monospace;
+  font-size: 10px;
+  letter-spacing: 1px;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+
+.visibility-flip-btn:hover {
+  background: #000;
+  border-color: #000;
+  color: #fff;
+}
+
+/* Reading-pane: light surface — keep the public tag readable */
+.reading-pane .vis-tag-public { color: #5a5a5a; border-color: #b8b8b8; }
+.reading-pane .vis-tag-admins { color: #b85a3d; border-color: #b85a3d; background: rgba(200, 112, 83, 0.10); }
+
+/* ─── Editor: visibility selector ──────────────────────────────────────────── */
+
+.visibility-row {
+  display: flex;
+  align-items: center;
+  gap: 18px;
+  flex-wrap: wrap;
+  padding: 14px 0 4px;
+  border-top: 1px dashed #d8d5cc;
+  margin-top: 12px;
+}
+
+.visibility-label {
+  font-size: 9px;
+  letter-spacing: 3px;
+  color: #999;
+}
+
+.visibility-option {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 10px;
+  letter-spacing: 2px;
+  color: #444;
+  cursor: pointer;
+  user-select: none;
+}
+
+.visibility-option input[type="radio"] {
+  accent-color: #000;
+  cursor: pointer;
+  margin: 0;
+}

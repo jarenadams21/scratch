@@ -1,7 +1,7 @@
 import http from 'http';
 import { config } from './config/config.js';
 import { signup, login, extractUser } from './auth/auth.js';
-import { createEntry, getAllEntries, deleteEntry } from './db/db.js';
+import { createEntry, getAllEntries, deleteEntry, updateEntryVisibility, DEFAULT_VISIBILITY } from './db/db.js';
 import { generateUploadUrl, createAudioEntry, getUserAudioEntries, deleteAudioEntry } from './db/audio-db.js';
 import { getTraits, setTrait, upsertMealEntry, deleteMealEntry, getMealEntries } from './db/feature-db.js';
 
@@ -68,10 +68,21 @@ async function handleMessage(message, userId) {
     case 'create_post':
       if (!userId) throw new Error('Unauthorized');
       return await createEntry(userId, content);
-    
-    case 'get_posts':
-      return await getAllEntries();
-    
+
+    case 'get_posts': {
+      const all = await getAllEntries();
+      // Authed admins see everything. Visitors only see public entries
+      // (and treat missing visibility as public for back-compat).
+      if (userId) return all;
+      return all.filter(e => (e.visibility || DEFAULT_VISIBILITY) === 'public');
+    }
+
+    case 'update_post_visibility':
+      // Any logged-in admin may flip any entry. The owner's email tells us
+      // which pk to update; the auth check above ensures it's an admin doing it.
+      if (!userId) throw new Error('Unauthorized');
+      return await updateEntryVisibility(content.author, content.postId, content.timestamp, content.visibility);
+
     case 'delete_post':
       if (!userId) throw new Error('Unauthorized');
       await deleteEntry(userId, content.postId, content.timestamp);
