@@ -209,7 +209,11 @@ export function CalendarView() {
     mealLoader.reload();
   };
 
-  return createElement('div', { className: 'calendar-shell' },
+  // Marker class so mobile CSS knows when the day editor is filling the
+  // screen modally (calendar grid is hidden in that mode).
+  const shellClass = selected ? 'calendar-shell calendar-shell-detail' : 'calendar-shell';
+
+  return createElement('div', { className: shellClass },
     createElement('div', { className: 'calendar-board' },
       createElement('div', { className: 'cal-header' },
         createElement('button', { className: 'cal-nav-btn', onClick: goPrev, title: 'Previous month' }, '‹'),
@@ -254,7 +258,7 @@ export function CalendarView() {
       : createElement('div', { className: 'meal-editor-pane meal-editor-empty' },
           createElement('div', { className: 'meal-editor-empty-label' }, 'Choose a day to log'),
           createElement('div', { className: 'meal-editor-empty-blurb' },
-            'cheer each other on.'
+            'cheer each other on ok'
           )
         )
   );

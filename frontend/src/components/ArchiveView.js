@@ -83,7 +83,7 @@ function FeaturedEntry({ entry }) {
     createElement('div', { className: 'featured-preview' },
       preview + (truncated ? '…' : '')
     ),
-    createElement('div', { className: 'featured-cta' }, 'READ  →')
+    createElement('div', { className: 'featured-cta' }, '→')
   );
 }
 

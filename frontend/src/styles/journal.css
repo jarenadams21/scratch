@@ -875,6 +875,14 @@ body {
 
 /* ─── Responsive ─────────────────────────────────────────────────────────── */
 
+/* Subtle slide-in for any pane that takes over the screen modally on phones.
+   Used by the archive reading-pane, recordings audio-reading-pane, and the
+   meal calendar's day editor. */
+@keyframes harbinger-modal-in {
+  from { transform: translateX(16px); opacity: 0.55; }
+  to   { transform: translateX(0);    opacity: 1;    }
+}
+
 @media (max-width: 640px) {
   .masthead-row-title {
     height: 42px;
@@ -896,17 +904,13 @@ body {
     letter-spacing: 1.5px;
   }
 
-  /* Stack archive panes vertically on mobile */
-  .archive-split-view {
-    flex-direction: column;
-  }
-
-  .archive-split-view .archive-list-pane {
-    width: 100%;
-    flex-shrink: 0;
-    border-right: none;
-    border-bottom: 1px solid #1e1e1e;
-    max-height: 38vh;
+  /* Modal-on-mobile: when an entry is selected the list pane gives way to
+     the reading pane, which fills the entire workspace. The X close button
+     in the reading-pane header takes you back to the list. */
+  .archive-split-view .archive-list-pane { display: none; }
+  .archive-split-view .reading-pane,
+  .archive-split-view .audio-reading-pane {
+    animation: harbinger-modal-in 0.18s ease-out;
   }
 
   .reading-pane {
@@ -1542,7 +1546,7 @@ body {
   white-space: pre-wrap;
 }
 
-/* Stack the calendar editor under the board on narrow screens */
+/* Tablet: stack the calendar editor under the board so both fit on screen. */
 @media (max-width: 900px) {
   .calendar-shell {
     flex-direction: column;
@@ -1565,6 +1569,24 @@ body {
   .cal-weekday-row { gap: 5px; }
   .settings-sheet  { padding: 28px 22px 48px; }
   .feature-row     { padding: 14px 14px; gap: 14px; }
+}
+
+/* Phone: modal-on-mobile. The calendar grid and the day editor never share
+   the screen — picking a day takes you into a full-screen editor with the X
+   close button serving as the back gesture. */
+@media (max-width: 640px) {
+  /* Empty-state placeholder is wasted space on a phone. */
+  .calendar-shell:not(.calendar-shell-detail) .meal-editor-empty {
+    display: none;
+  }
+  /* Day-editor open: hide the grid, fill the workspace with the editor. */
+  .calendar-shell-detail .calendar-board { display: none; }
+  .calendar-shell-detail .meal-editor-pane {
+    flex: 1;
+    border-top: none;
+    padding: 24px 20px 40px;
+    animation: harbinger-modal-in 0.18s ease-out;
+  }
 }
 
 /* ─── Featured (most recent) entry — pinned to top of archive ─────────────── */
