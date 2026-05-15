@@ -2,13 +2,33 @@ export let AppState = {
   currentView: 'home',
 };
 
+// Listeners that will be called whenever the AppState is updated.
 let stateListeners = [];
 
+// Updates the global state and notifies listeners.
+// - `updates` is an object with the properties to update in AppState.
+// - We use Object.assign to merge the updates into the existing AppState.
+// - After updating, we call each listener callback with the new AppState.
+// Example usage:
+// updateState({ currentView: 'settings' });
+// Example of listener being notified:
+// subscribeToState((newState) => {
+//  console.log('State updated:', newState);
+// });
 export function updateState(updates) {
   Object.assign(AppState, updates);
   stateListeners.forEach(cb => cb(AppState));
 }
 
+// Allows components to subscribe to changes in the AppState.
+// - `callback` is a function that will be called with the new AppState whenever it changes.
+// - Returns a function that can be called to unsubscribe the listener.
+// Example usage:
+// const unsubscribe = subscribeToState((newState) => {
+//   console.log('State updated:', newState);
+// });
+// To unsubscribe later:
+// unsubscribe();
 export function subscribeToState(callback) {
   stateListeners.push(callback);
   return () => { stateListeners = stateListeners.filter(cb => cb !== callback); };
