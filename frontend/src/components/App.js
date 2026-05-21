@@ -149,7 +149,8 @@ export function App() {
   return createElement('div', { className: 'harbinger' },
     createElement('header', { className: 'masthead-bar' },
       createElement('div', { className: 'masthead-row masthead-row-title' },
-        createElement('h1', { className: 'title-mark' }, 'HARBINGER')
+        createElement('h1', { className: 'title-mark' }, 'HARBINGER'),
+        createElement('p', { className: 'title-description' }, 'The views expressed in this website are my own, and for them I accept full responsibility')
       ),
       createElement('div', { className: 'masthead-row masthead-row-nav' },
         createElement('nav', { className: 'nav-tabs' }, ...navTabs)

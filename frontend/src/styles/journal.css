@@ -75,6 +75,14 @@ body {
   flex-shrink: 0;
 }
 
+.title-description {
+  font-size: 12px;
+  letter-spacing: 2px;
+  font-weight: normal;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
 .nav-tabs {
   display: flex;
   align-items: stretch;
@@ -892,6 +900,11 @@ body {
   .title-mark {
     font-size: 14px;
     letter-spacing: 4px;
+  }
+
+  .title-description {
+    font-size: 10px;
+    letter-spacing: 2px;
   }
 
   .nav-tabs {
