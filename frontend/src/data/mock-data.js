@@ -284,3 +284,218 @@ export const mockFeatureDB = {
     return Promise.resolve({ removed: 1 });
   },
 };
+
+// ─── Inspiration board mock ───────────────────────────────────────────────────
+// Curated image boards + cross-cutting facets. Seed images are inline SVG data
+// URLs so the grid renders fully offline (no network, no S3). Uploaded images
+// arrive as real data URLs from the FileReader path in api.js.
+
+function _swatch(label, bg, fg) {
+  const svg =
+    `<svg xmlns="http://www.w3.org/2000/svg" width="400" height="520">` +
+    `<rect width="400" height="520" fill="${bg}"/>` +
+    `<rect x="14" y="14" width="372" height="492" fill="none" stroke="${fg}" stroke-width="2"/>` +
+    `<text x="200" y="270" font-family="Courier New, monospace" font-size="26" letter-spacing="3" ` +
+    `fill="${fg}" text-anchor="middle">${label}</text></svg>`;
+  return `data:image/svg+xml,${encodeURIComponent(svg)}`;
+}
+
+let _inspoSeq = 100;
+function _inspoId() { return `inspo-${++_inspoSeq}`; }
+function _boardId() { return `board-${++_inspoSeq}`; }
+
+let mockInspoBoards = [
+  { id: 'board-1', name: 'Summer 2026', visibility: 'public',  createdAt: new Date(2026, 4, 1).toISOString() },
+  { id: 'board-2', name: 'Wedding guest', visibility: 'admins', createdAt: new Date(2026, 4, 3).toISOString() },
+  { id: 'board-3', name: 'Workwear', visibility: 'public',     createdAt: new Date(2026, 4, 6).toISOString() },
+];
+
+let mockInspos = [
+  {
+    id: 'inspo-1', imageKey: 'inspo/seed-1.svg', imageUrl: _swatch('LINEN SET', '#c9bfa8', '#3a3527'),
+    mimeType: 'image/svg+xml', size: null, title: 'Linen co-ord', note: 'For the garden venue.',
+    boards: ['board-1', 'board-2'], scenarios: ['wedding guest', 'brunch'], seasons: ['hot', 'summer'],
+    colors: ['neutrals', 'earth tones'], tags: ['old money', 'relaxed'],
+    createdAt: new Date(2026, 4, 4).toISOString(), updatedAt: new Date(2026, 4, 4).toISOString(),
+  },
+  {
+    id: 'inspo-2', imageKey: 'inspo/seed-2.svg', imageUrl: _swatch('SLIP DRESS', '#3b2f3a', '#d8c7d2'),
+    mimeType: 'image/svg+xml', size: null, title: 'Black slip', note: '',
+    boards: ['board-2'], scenarios: ['night out', 'date night'], seasons: ['warm', 'summer'],
+    colors: ['black', 'monochrome'], tags: ['minimal', 'sleek'],
+    createdAt: new Date(2026, 4, 5).toISOString(), updatedAt: new Date(2026, 4, 5).toISOString(),
+  },
+  {
+    id: 'inspo-3', imageKey: 'inspo/seed-3.svg', imageUrl: _swatch('TRENCH', '#a89878', '#2c2418'),
+    mimeType: 'image/svg+xml', size: null, title: 'Classic trench', note: 'Layer over knit.',
+    boards: ['board-3'], scenarios: ['work', 'travel'], seasons: ['cool', 'rainy', 'fall', 'layering'],
+    colors: ['neutrals', 'earth tones'], tags: ['timeless'],
+    createdAt: new Date(2026, 4, 7).toISOString(), updatedAt: new Date(2026, 4, 7).toISOString(),
+  },
+  {
+    id: 'inspo-4', imageKey: 'inspo/seed-4.svg', imageUrl: _swatch('DENIM + TEE', '#4a6076', '#e8eef2'),
+    mimeType: 'image/svg+xml', size: null, title: 'Off-duty denim', note: '',
+    boards: ['board-1'], scenarios: ['errands', 'lounge'], seasons: ['warm', 'spring'],
+    colors: ['denim', 'neutrals'], tags: ['easy', 'casual'],
+    createdAt: new Date(2026, 4, 8).toISOString(), updatedAt: new Date(2026, 4, 8).toISOString(),
+  },
+  {
+    id: 'inspo-5', imageKey: 'inspo/seed-5.svg', imageUrl: _swatch('BOLD SUIT', '#8a2f2f', '#f2e3d0'),
+    mimeType: 'image/svg+xml', size: null, title: 'Red power suit', note: 'Statement for pitches.',
+    boards: ['board-3'], scenarios: ['work', 'night out'], seasons: ['cool', 'fall'],
+    colors: ['bold'], tags: ['power', 'tailored'],
+    createdAt: new Date(2026, 4, 9).toISOString(), updatedAt: new Date(2026, 4, 9).toISOString(),
+  },
+  {
+    id: 'inspo-6', imageKey: 'inspo/seed-6.svg', imageUrl: _swatch('PASTEL KNIT', '#cdb4d6', '#3a2c40'),
+    mimeType: 'image/svg+xml', size: null, title: 'Lilac knit', note: '',
+    boards: ['board-1', 'board-3'], scenarios: ['work', 'brunch'], seasons: ['cool', 'spring', 'layering'],
+    colors: ['pastel'], tags: ['soft', 'romantic'],
+    createdAt: new Date(2026, 4, 10).toISOString(), updatedAt: new Date(2026, 4, 10).toISOString(),
+  },
+];
+
+export const mockInspoDB = {
+  getBoards: () => Promise.resolve(
+    [...mockInspoBoards].sort((a, b) => new Date(a.createdAt) - new Date(b.createdAt))
+  ),
+
+  createBoard: (name) => {
+    const clean = String(name || '').trim();
+    if (!clean) return Promise.reject(new Error('Board name required'));
+    // New galleries start private; the owner opts them into public.
+    const board = { id: _boardId(), name: clean, visibility: 'admins', createdAt: new Date().toISOString() };
+    mockInspoBoards.push(board);
+    return Promise.resolve(board);
+  },
+
+  updateBoard: (id, patch = {}) => {
+    const idx = mockInspoBoards.findIndex(b => b.id === id);
+    if (idx < 0) return Promise.reject(new Error('Not found'));
+    const next = { ...mockInspoBoards[idx] };
+    if (typeof patch.name === 'string' && patch.name.trim()) next.name = patch.name.trim();
+    if (patch.visibility === 'public' || patch.visibility === 'admins') next.visibility = patch.visibility;
+    mockInspoBoards[idx] = next;
+    return Promise.resolve(next);
+  },
+
+  deleteBoard: (id) => {
+    mockInspoBoards = mockInspoBoards.filter(b => b.id !== id);
+    // Detach the board from any items that referenced it (items survive).
+    mockInspos = mockInspos.map(it =>
+      (it.boards || []).includes(id)
+        ? { ...it, boards: it.boards.filter(b => b !== id) }
+        : it
+    );
+    return Promise.resolve({ message: 'Deleted' });
+  },
+
+  getInspos: () => Promise.resolve(
+    [...mockInspos].sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt))
+  ),
+
+  createInspo: (image, meta = {}) => {
+    const item = {
+      id: _inspoId(),
+      imageKey: image.imageKey,
+      imageUrl: image.imageUrl,
+      mimeType: image.mimeType || null,
+      size: typeof image.size === 'number' ? image.size : null,
+      title: meta.title || '',
+      note: meta.note || '',
+      boards: Array.isArray(meta.boards) ? meta.boards : [],
+      scenarios: Array.isArray(meta.scenarios) ? meta.scenarios : [],
+      seasons: Array.isArray(meta.seasons) ? meta.seasons : [],
+      colors: Array.isArray(meta.colors) ? meta.colors : [],
+      tags: Array.isArray(meta.tags) ? meta.tags : [],
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+    };
+    mockInspos.unshift(item);
+    return Promise.resolve(item);
+  },
+
+  updateInspo: (id, patch = {}) => {
+    const idx = mockInspos.findIndex(it => it.id === id);
+    if (idx < 0) return Promise.reject(new Error('Not found'));
+    mockInspos[idx] = { ...mockInspos[idx], ...patch, updatedAt: new Date().toISOString() };
+    return Promise.resolve(mockInspos[idx]);
+  },
+
+  deleteInspo: (id) => {
+    mockInspos = mockInspos.filter(it => it.id !== id);
+    return Promise.resolve({ message: 'Deleted' });
+  },
+};
+
+// ─── Outfit builder mock ──────────────────────────────────────────────────────
+// Outfits reference inspo images by slot. Refs snapshot {imageId, imageUrl,
+// title} so a saved outfit still renders even if the source image is later
+// retagged or removed.
+
+function _refOf(id) {
+  const it = mockInspos.find(x => x.id === id);
+  return it ? { imageId: it.id, imageUrl: it.imageUrl, title: it.title || '' } : null;
+}
+
+let _outfitSeq = 200;
+function _outfitId() { return `outfit-${++_outfitSeq}`; }
+
+function _cloneSlots(slots = {}) {
+  const out = { accessories: [...(slots.accessories || [])] };
+  for (const k of Object.keys(slots)) {
+    if (k !== 'accessories') out[k] = slots[k] || null;
+  }
+  return out;
+}
+
+let mockOutfits = [
+  {
+    id: 'outfit-1',
+    name: 'Garden party',
+    visibility: 'public',
+    slots: {
+      head: null, eyewear: _refOf('inspo-2'), outerwear: null,
+      top: _refOf('inspo-1'), belt: null, bottom: _refOf('inspo-4'),
+      sock: null, shoe: _refOf('inspo-3'),
+      accessories: [_refOf('inspo-6')].filter(Boolean),
+    },
+    createdAt: new Date(2026, 4, 12).toISOString(),
+    updatedAt: new Date(2026, 4, 12).toISOString(),
+  },
+];
+
+export const mockOutfitDB = {
+  getOutfits: () => Promise.resolve(
+    [...mockOutfits].sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt))
+  ),
+
+  createOutfit: (name, slots) => {
+    const outfit = {
+      id: _outfitId(),
+      name: String(name || '').trim() || 'Untitled outfit',
+      visibility: 'admins',          // new outfits start private
+      slots: _cloneSlots(slots),
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+    };
+    mockOutfits.unshift(outfit);
+    return Promise.resolve(outfit);
+  },
+
+  updateOutfit: (id, patch = {}) => {
+    const idx = mockOutfits.findIndex(o => o.id === id);
+    if (idx < 0) return Promise.reject(new Error('Not found'));
+    const next = { ...mockOutfits[idx], updatedAt: new Date().toISOString() };
+    if (typeof patch.name === 'string') next.name = patch.name.trim() || next.name;
+    if (patch.visibility === 'public' || patch.visibility === 'admins') next.visibility = patch.visibility;
+    if (patch.slots) next.slots = _cloneSlots(patch.slots);
+    mockOutfits[idx] = next;
+    return Promise.resolve(next);
+  },
+
+  deleteOutfit: (id) => {
+    mockOutfits = mockOutfits.filter(o => o.id !== id);
+    return Promise.resolve({ message: 'Deleted' });
+  },
+};

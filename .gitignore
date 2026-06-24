@@ -9,7 +9,9 @@ build/
 node_modules/
 harbinger-backend.zip
 
-# Config (keep flags.yml for dev, flags.prod.yml is template)
+# Generated runtime flags (written by scripts/gen-flags.mjs; Amplify writes its
+# own at deploy). Never commit — keeps DEV:true out of production.
+frontend/src/config/flags-runtime.js
 config/flags.json
 types/flags-runtime.ts
 

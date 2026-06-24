@@ -54,6 +54,7 @@ export const DISPLAY_COLORS = Object.freeze(['green', 'indigo', 'terracotta', 'o
 
 export const TRAIT_SCHEMA = Object.freeze({
   calendar:          { type: 'boolean' },
+  inspo:             { type: 'boolean' },
   defaultVisibility: { type: 'enum', values: ['public', 'admins'] },
   displayName:       { type: 'string', minLength: 1, maxLength: 32 },
   displayColor:      { type: 'enum', values: DISPLAY_COLORS },

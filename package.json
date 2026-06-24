@@ -4,23 +4,25 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "dev": "npm run load-config && concurrently \"npm run dev:frontend\" \"npm run dev:backend\"",
+    "dev": "node scripts/gen-flags.mjs dev && npm run dev:frontend",
+    "dev:local": "node scripts/gen-flags.mjs local && npm run dev:frontend",
+    "dev:full": "node scripts/gen-flags.mjs local && concurrently \"npm run dev:frontend\" \"npm run dev:backend\"",
     "dev:frontend": "cd frontend && npm run dev",
     "dev:backend": "cd backend && npm run dev",
-    "load-config": "node scripts/load-config.js",
-    "build": "npm run load-config && npm run build:frontend",
-    "build:lambda": "rm -f harbinger-backend.zip && (cd backend && npm ci --omit=dev) && zip -r harbinger-backend.zip backend/ config/flags.json -x '*.DS_Store' -x 'backend/.env*' -x 'backend/README.md' -x 'backend/node_modules/.cache/*' && echo 'Built: harbinger-backend.zip'",
+    "flags:dev": "node scripts/gen-flags.mjs dev",
+    "flags:local": "node scripts/gen-flags.mjs local",
+    "flags:prod": "node scripts/gen-flags.mjs prod",
+    "load-config": "node scripts/gen-flags.mjs prod",
+    "build": "npm run flags:prod && npm run build:frontend",
+    "build:lambda": "rm -f harbinger-backend.zip && (cd backend && npm ci --omit=dev) && zip -r harbinger-backend.zip backend/ -x '*.DS_Store' -x 'backend/.env*' -x 'backend/README.md' -x 'backend/node_modules/.cache/*' && echo 'Built: harbinger-backend.zip'",
     "build:frontend": "cd frontend && npm run build",
     "build:prod": "cd frontend && npm run build:prod",
     "preview": "cd frontend && npm run preview",
-    "start": "concurrently \"npm run start:frontend\" \"npm run start:backend\"",
-    "start:frontend": "cd frontend && npm run dev",
     "start:backend": "cd backend && npm start"
   },
   "devDependencies": {
     "@types/node": "^25.6.0",
     "concurrently": "^8.2.2",
-    "undici-types": "^8.2.0",
-    "yaml": "^2.3.4"
+    "undici-types": "^8.2.0"
   }
 }

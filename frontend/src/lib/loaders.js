@@ -1,5 +1,5 @@
 import { AppState, updateState } from './state.js';
-import { getPosts, getAudioPosts, getTraits, getMealEntries, getProfiles } from './api.js';
+import { getPosts, getAudioPosts, getTraits, getMealEntries, getProfiles, getInspoBoards, getInspos, getOutfits } from './api.js';
 
 export function makeLoader({ fetchFn, stateKey, loadingKey, loadedKey, errorKey }) {
   function load() {
@@ -74,6 +74,27 @@ export const mealLoader = makeLoader({
   stateKey: 'mealEntries',
   loadingKey: 'mealLoading',
   loadedKey: 'mealLoaded',
+});
+
+export const inspoBoardsLoader = makeLoader({
+  fetchFn: getInspoBoards,
+  stateKey: 'inspoBoards',
+  loadingKey: 'inspoBoardsLoading',
+  loadedKey: 'inspoBoardsLoaded',
+});
+
+export const inspoItemsLoader = makeLoader({
+  fetchFn: getInspos,
+  stateKey: 'inspoItems',
+  loadingKey: 'inspoItemsLoading',
+  loadedKey: 'inspoItemsLoaded',
+});
+
+export const outfitsLoader = makeLoader({
+  fetchFn: getOutfits,
+  stateKey: 'savedOutfits',
+  loadingKey: 'outfitsLoading',
+  loadedKey: 'outfitsLoaded',
 });
 
 // Profiles loader: on-demand. Given a list of emails, fetch any we don't

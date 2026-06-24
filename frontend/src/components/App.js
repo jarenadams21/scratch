@@ -8,21 +8,40 @@ import { AudioRecorder } from './AudioRecorder.js';
 import { RecordingsView } from './RecordingsView.js';
 import { SettingsView } from './SettingsView.js';
 import { CalendarView } from './CalendarView.js';
+import { InspoView } from './InspoView.js';
 import { Lightbox } from './Lightbox.js';
 import { AppState, updateState } from '../lib/state.js';
-import { postLoader, audioLoader, traitsLoader, mealLoader } from '../lib/loaders.js';
+import { postLoader, audioLoader, traitsLoader, mealLoader, inspoBoardsLoader, inspoItemsLoader, outfitsLoader } from '../lib/loaders.js';
 
 export function App() {
   const isAdmin        = isLoggedIn();
   const showAdminPanel = AppState.showAdminPanel || false;
   const traits         = AppState.traits || {};
 
+  // Inspiration space (boards + outfits). The owner unlocks editing via the
+  // `inspo` trait (or the DEV flag locally); public boards/outfits are visible
+  // to anyone — logged out included — exactly like public posts. The server is
+  // the real authority: it returns only public collections to non-admins and
+  // rejects every write that isn't from a logged-in admin.
+  const inspoOwnerOn = isAdmin && ((CONFIG.DEV && CONFIG.INSPO) || !!traits.inspo);
+
   postLoader.ensureLoaded();
+  // Always load the (cheap, public-filtered) collection lists so public
+  // boards/outfits can surface for visitors too — not gated on the trait.
+  inspoBoardsLoader.ensureLoaded();
+  inspoItemsLoader.ensureLoaded();
+  outfitsLoader.ensureLoaded();
   if (isAdmin) {
     audioLoader.ensureLoaded();
     traitsLoader.ensureLoaded();
     if (traits.calendar) mealLoader.ensureLoaded();
   }
+
+  // Anyone sees the tab when public collections exist; the owner also sees it
+  // (to curate) whenever they've enabled the feature.
+  const hasPublic = (AppState.inspoBoards || []).some(b => b.visibility === 'public')
+    || (AppState.savedOutfits || []).some(o => o.visibility === 'public');
+  const inspoEnabled = inspoOwnerOn || hasPublic;
 
   const toggleAdminPanel = () => updateState({ showAdminPanel: !showAdminPanel });
 
@@ -52,6 +71,17 @@ export function App() {
       mealEntries: [],
       mealLoaded: false,
       selectedMealDate: null,
+      inspoBoards: [],
+      inspoItems: [],
+      inspoBoardsLoaded: false,
+      inspoItemsLoaded: false,
+      inspoActiveBoard: 'all',
+      inspoActiveOutfitId: null,
+      inspoFilters: { scenarios: [], seasons: [], colors: [], q: '' },
+      inspoEditingId: null,
+      savedOutfits: [],
+      outfitsLoaded: false,
+      outfitAssignSlot: null,
     });
   };
 
@@ -60,6 +90,8 @@ export function App() {
     selectedEntry: null,
     selectedAudio: null,
     selectedMealDate: null,
+    inspoEditingId: null,
+    outfitAssignSlot: null,
   });
 
   const calendarEnabled = isAdmin && !!traits.calendar;
@@ -91,6 +123,10 @@ export function App() {
   } else if (AppState.currentView === 'calendar' && calendarEnabled) {
     workspaceContent = createElement('div', { className: 'view-wrapper view-wrapper-calendar', key: 'calendar-view' },
       createElement(CalendarView, {})
+    );
+  } else if (AppState.currentView === 'inspo' && inspoEnabled) {
+    workspaceContent = createElement('div', { className: 'view-wrapper view-wrapper-inspo', key: 'inspo-view' },
+      createElement(InspoView, { readOnly: !isAdmin })
     );
   } else if (AppState.currentView === 'recordings' && isAdmin) {
     workspaceContent = createElement('div', { className: 'view-wrapper', key: 'recordings-view' },
@@ -135,6 +171,12 @@ export function App() {
       onClick: () => switchView('calendar'),
       className: AppState.currentView === 'calendar' ? 'tab active tab-calendar' : 'tab tab-calendar',
     }, 'CALENDAR'));
+  }
+  if (inspoEnabled) {
+    navTabs.push(createElement('button', {
+      onClick: () => switchView('inspo'),
+      className: AppState.currentView === 'inspo' ? 'tab active tab-inspo' : 'tab tab-inspo',
+    }, 'INSPO'));
   }
   if (isAdmin) {
     navTabs.push(createElement('button', {

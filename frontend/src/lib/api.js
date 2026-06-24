@@ -26,8 +26,24 @@ import {
   ALLOWED_IMAGE_TYPES,
   MAX_IMAGE_SIZE,
 } from '../types/feature-messages.js';
+import {
+  getInspoBoardsMessage,
+  createInspoBoardMessage,
+  deleteInspoBoardMessage,
+  updateInspoBoardMessage,
+  getInsposMessage,
+  createInspoMessage,
+  updateInspoMessage,
+  deleteInspoMessage,
+} from '../types/inspo-messages.js';
+import {
+  getOutfitsMessage,
+  createOutfitMessage,
+  updateOutfitMessage,
+  deleteOutfitMessage,
+} from '../types/outfit-messages.js';
 import { CONFIG, devLog } from '../config/flags-runtime.js';
-import { MOCK_USER, mockDB, mockAudioDB, mockFeatureDB } from '../data/mock-data.js';
+import { MOCK_USER, mockDB, mockAudioDB, mockFeatureDB, mockInspoDB, mockOutfitDB } from '../data/mock-data.js';
 
 const API_URL = CONFIG.API_URL;
 
@@ -36,6 +52,15 @@ const API_URL = CONFIG.API_URL;
 function getToken() { return localStorage.getItem('authToken'); }
 function setToken(token) { localStorage.setItem('authToken', token); }
 function clearToken() { localStorage.removeItem('authToken'); }
+
+// In DEV mock mode, auto-authenticate on load so owner-only views (inspo,
+// calendar, compose…) are immediately visible for fast design iteration —
+// no manual ADMIN login needed. Guarded on localStorage so importing this
+// module under Node (tests/build) stays safe; never runs in production (DEV
+// is false there).
+if (CONFIG.DEV && CONFIG.MOCK_TOKEN && typeof localStorage !== 'undefined' && !getToken()) {
+  setToken(CONFIG.MOCK_TOKEN);
+}
 
 // ─── Visitor ─────────────────────────────────────────────────────────────────
 // Plain object mapping command strings to handler functions.
@@ -61,6 +86,18 @@ const devVisitor = {
   request_image_upload_url: (msg) => { const c = msg.payload.content; return mockFeatureDB.requestImageUploadUrl(c.filename, c.contentType); },
   attach_meal_image:  (msg) => { const c = msg.payload.content; return mockFeatureDB.attachMealImage(MOCK_USER.email, c.date, c.image); },
   detach_meal_image:  (msg) => { const c = msg.payload.content; return mockFeatureDB.detachMealImage(MOCK_USER.email, c.date, c.imageKey); },
+  get_inspo_boards:   ()    => mockInspoDB.getBoards(),
+  create_inspo_board: (msg) => mockInspoDB.createBoard(msg.payload.content.name),
+  delete_inspo_board: (msg) => mockInspoDB.deleteBoard(msg.payload.content.id),
+  update_inspo_board: (msg) => { const c = msg.payload.content; return mockInspoDB.updateBoard(c.id, c.patch); },
+  get_inspos:         ()    => mockInspoDB.getInspos(),
+  create_inspo:       (msg) => { const c = msg.payload.content; return mockInspoDB.createInspo(c.image, c.meta); },
+  update_inspo:       (msg) => { const c = msg.payload.content; return mockInspoDB.updateInspo(c.id, c.patch); },
+  delete_inspo:       (msg) => mockInspoDB.deleteInspo(msg.payload.content.id),
+  get_outfits:        ()    => mockOutfitDB.getOutfits(),
+  create_outfit:      (msg) => { const c = msg.payload.content; return mockOutfitDB.createOutfit(c.name, c.slots); },
+  update_outfit:      (msg) => { const c = msg.payload.content; return mockOutfitDB.updateOutfit(c.id, c.patch); },
+  delete_outfit:      (msg) => mockOutfitDB.deleteOutfit(msg.payload.content.id),
 };
 
 function visitMessage(message, visitor) {
@@ -249,6 +286,99 @@ export async function uploadMealImage(date, file) {
     mimeType: type,
     size: file.size,
   });
+}
+
+// ─── Inspiration Board ────────────────────────────────────────────────────────
+
+export async function getInspoBoards() {
+  return sendMessage(getInspoBoardsMessage());
+}
+
+export async function createInspoBoard(name) {
+  return sendMessage(createInspoBoardMessage(name));
+}
+
+export async function deleteInspoBoard(id) {
+  return sendMessage(deleteInspoBoardMessage(id));
+}
+
+export async function updateInspoBoard(id, patch) {
+  return sendMessage(updateInspoBoardMessage(id, patch));
+}
+
+export async function getInspos() {
+  return sendMessage(getInsposMessage());
+}
+
+export async function createInspo(image, meta) {
+  return sendMessage(createInspoMessage(image, meta));
+}
+
+export async function updateInspo(id, patch) {
+  return sendMessage(updateInspoMessage(id, patch));
+}
+
+export async function deleteInspo(id) {
+  return sendMessage(deleteInspoMessage(id));
+}
+
+// ─── Outfits ──────────────────────────────────────────────────────────────────
+
+export async function getOutfits() {
+  return sendMessage(getOutfitsMessage());
+}
+
+export async function createOutfit(name, slots) {
+  return sendMessage(createOutfitMessage(name, slots));
+}
+
+export async function updateOutfit(id, patch) {
+  return sendMessage(updateOutfitMessage(id, patch));
+}
+
+export async function deleteOutfit(id) {
+  return sendMessage(deleteOutfitMessage(id));
+}
+
+// Composes the full add flow for one inspiration image: validate → presign →
+// upload (or data-URL in dev) → persist with its facet metadata. Mirrors
+// uploadMealImage and reuses the same request_image_upload_url command, so the
+// backend only needs the create_inspo handler — not a separate upload route.
+// Caller refreshes the grid (inspoItemsLoader.reload()) on success.
+export async function uploadInspo(file, meta = {}) {
+  if (!(file instanceof Blob)) throw new Error('Invalid file');
+  const type = (file.type || '').toLowerCase();
+  if (!ALLOWED_IMAGE_TYPES.includes(type)) {
+    throw new Error('Invalid file type — pick a JPEG, PNG, WebP, GIF, or HEIC');
+  }
+  if (file.size > MAX_IMAGE_SIZE) {
+    throw new Error(`File too large (max ${Math.floor(MAX_IMAGE_SIZE / 1024 / 1024)}MB)`);
+  }
+
+  const filename = (file.name || `inspo-${Date.now()}.jpg`);
+  const presigned = await requestImageUploadUrl(filename, type);
+
+  let finalImageUrl = presigned.imageUrl;
+  if (presigned.uploadUrl === 'mock://upload') {
+    finalImageUrl = await new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload  = () => resolve(reader.result);
+      reader.onerror = () => reject(new Error('Could not read file'));
+      reader.readAsDataURL(file);
+    });
+  } else {
+    const res = await fetch(presigned.uploadUrl, {
+      method: 'PUT',
+      body: file,
+      headers: { 'Content-Type': type },
+    });
+    if (!res.ok) throw new Error(`Upload failed (${res.status})`);
+  }
+
+  return await createInspo(
+    { imageKey: presigned.imageKey, imageUrl: finalImageUrl, mimeType: type, size: file.size },
+    meta,
+  );
 }
 
 // Returns the authenticated user's email if a token is present.

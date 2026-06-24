@@ -4,6 +4,11 @@ import { signup, login, extractUser } from './auth/auth.js';
 import { createEntry, getAllEntries, deleteEntry, updateEntryVisibility, DEFAULT_VISIBILITY } from './db/db.js';
 import { generateUploadUrl, createAudioEntry, getUserAudioEntries, deleteAudioEntry } from './db/audio-db.js';
 import { getTraits, setTrait, upsertMealEntry, deleteMealEntry, getMealEntries, getProfiles, DEFAULT_DISPLAY_NAME, generateImageUploadUrl, attachMealImage, detachMealImage } from './db/feature-db.js';
+import {
+  getInspoBoards, createInspoBoard, updateInspoBoard, deleteInspoBoard,
+  getInspos, createInspo, updateInspo, deleteInspo,
+  getOutfits, createOutfit, updateOutfit, deleteOutfit,
+} from './db/inspo-db.js';
 
 // ─── CORS Helper ────────────────────────────────────────────────────────────
 
@@ -158,6 +163,58 @@ async function handleMessage(message, userId) {
     case 'detach_meal_image':
       if (!userId) throw new Error('Unauthorized');
       return await detachMealImage(userId, content.date, content.imageKey);
+
+    // ─── Inspiration boards + images ──────────────────────────────────────
+    // Reads are public-aware (visitors get only public collections); every
+    // write requires a logged-in admin. This is the real authorization
+    // boundary — the frontend's read-only mode is presentation only.
+
+    case 'get_inspo_boards':
+      return await getInspoBoards(!!userId);
+
+    case 'create_inspo_board':
+      if (!userId) throw new Error('Unauthorized');
+      return await createInspoBoard(content.name);
+
+    case 'update_inspo_board':
+      if (!userId) throw new Error('Unauthorized');
+      return await updateInspoBoard(content.id, content.patch);
+
+    case 'delete_inspo_board':
+      if (!userId) throw new Error('Unauthorized');
+      return await deleteInspoBoard(content.id);
+
+    case 'get_inspos':
+      return await getInspos(!!userId);
+
+    case 'create_inspo':
+      if (!userId) throw new Error('Unauthorized');
+      return await createInspo(content.image, content.meta);
+
+    case 'update_inspo':
+      if (!userId) throw new Error('Unauthorized');
+      return await updateInspo(content.id, content.patch);
+
+    case 'delete_inspo':
+      if (!userId) throw new Error('Unauthorized');
+      return await deleteInspo(content.id);
+
+    // ─── Outfits (peer collections, same auth model) ──────────────────────
+
+    case 'get_outfits':
+      return await getOutfits(!!userId);
+
+    case 'create_outfit':
+      if (!userId) throw new Error('Unauthorized');
+      return await createOutfit(content.name, content.slots);
+
+    case 'update_outfit':
+      if (!userId) throw new Error('Unauthorized');
+      return await updateOutfit(content.id, content.patch);
+
+    case 'delete_outfit':
+      if (!userId) throw new Error('Unauthorized');
+      return await deleteOutfit(content.id);
 
     default:
       throw new Error(`Unknown command: ${command}`);

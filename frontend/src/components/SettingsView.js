@@ -30,6 +30,12 @@ const FEATURE_CATALOG = [
     type: 'boolean',
   },
   {
+    id: 'inspo',
+    name: 'INSPO + OUTFITS',
+    description: 'Curate image boards & build outfits; mark any board or outfit public to share it',
+    type: 'boolean',
+  },
+  {
     id: 'defaultVisibility',
     name: 'DEFAULT AUDIENCE',
     description: 'Where new posts go by default; you can still override per-entry in the editor',
