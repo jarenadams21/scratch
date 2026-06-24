@@ -6,6 +6,9 @@ frontend:
         - npm ci
         - cd frontend && npm ci
         - cd ..
+        # flags-runtime.js is generated (git-ignored), so its directory may not
+        # exist in a fresh checkout — create it before writing the prod config.
+        - mkdir -p frontend/src/config
         - |
           cat > frontend/src/config/flags-runtime.js << TEMPLATE
           export const CONFIG = {
