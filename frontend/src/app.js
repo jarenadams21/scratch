@@ -7,9 +7,16 @@ console.log('[Harbinger] Loading app...');
 
 import { render, createElement } from './engine/main.js';
 import { App } from './components/App.js';
-import { subscribeToState } from './lib/state.js';
+import { subscribeToState, updateState } from './lib/state.js';
 
 console.log('[Harbinger] Imports successful');
+
+function syncAdminLoginRoute() {
+  updateState({ showAdminPanel: window.location.hash === '#admin' });
+}
+
+window.addEventListener('hashchange', syncAdminLoginRoute);
+syncAdminLoginRoute();
 
 // Main render function
 function renderApp() {

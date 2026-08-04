@@ -43,9 +43,13 @@ export function App() {
     || (AppState.savedOutfits || []).some(o => o.visibility === 'public');
   const inspoEnabled = inspoOwnerOn || hasPublic;
 
-  const toggleAdminPanel = () => updateState({ showAdminPanel: !showAdminPanel });
+  const closeAdminPanel = () => {
+    history.replaceState(null, '', `${location.pathname}${location.search}`);
+    updateState({ showAdminPanel: false });
+  };
 
   const handleLoginSuccess = () => {
+    history.replaceState(null, '', `${location.pathname}${location.search}`);
     updateState({
       showAdminPanel: false,
       currentView: 'archive',
@@ -184,8 +188,6 @@ export function App() {
       className: AppState.currentView === 'settings' ? 'tab active' : 'tab',
     }, 'SETTINGS'));
     navTabs.push(createElement('button', { onClick: handleLogout, className: 'tab logout' }, 'EXIT'));
-  } else {
-    navTabs.push(createElement('button', { onClick: toggleAdminPanel, className: 'tab admin-btn' }, 'ADMIN'));
   }
 
   return createElement('div', { className: 'harbinger' },
@@ -202,7 +204,7 @@ export function App() {
     showAdminPanel && !isAdmin
       ? createElement('div', { className: 'admin-panel-overlay', key: 'admin-overlay' },
           createElement('div', { className: 'admin-panel' },
-            createElement('button', { onClick: toggleAdminPanel, className: 'close-btn' }, '✕'),
+            createElement('button', { onClick: closeAdminPanel, className: 'close-btn' }, '✕'),
             createElement(LoginForm, { onAuthSuccess: handleLoginSuccess, hideSignup: true })
           )
         )

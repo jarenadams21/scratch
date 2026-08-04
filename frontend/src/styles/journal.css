@@ -144,16 +144,6 @@ body {
   background: #1a1a1a;
 }
 
-.tab.admin-btn {
-  color: #888;
-  letter-spacing: 1px;
-}
-
-.tab.admin-btn:hover {
-  color: #fff;
-  background: #1a1a1a;
-}
-
 /* ─── Workspace ──────────────────────────────────────────────────────────── */
 
 .workspace {
