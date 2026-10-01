@@ -8,8 +8,18 @@ console.log('[Harbinger] Loading app...');
 import { render, createElement } from './engine/main.js';
 import { App } from './components/App.js';
 import { subscribeToState, updateState } from './lib/state.js';
+import {
+  applyAppearance, DEFAULT_APPEARANCE, readLocalAppearance,
+} from './lib/appearance.js';
 
 console.log('[Harbinger] Imports successful');
+const localAppearance = readLocalAppearance();
+const initialAppearance = localAppearance || DEFAULT_APPEARANCE;
+applyAppearance(initialAppearance, false);
+updateState({
+  appearance: initialAppearance,
+  appearanceIsPersonal: !!localAppearance,
+});
 
 function syncAdminLoginRoute() {
   updateState({ showAdminPanel: window.location.hash === '#admin' });

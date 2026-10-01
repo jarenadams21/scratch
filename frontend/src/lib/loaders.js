@@ -1,5 +1,10 @@
 import { AppState, updateState } from './state.js';
-import { getPosts, getAudioPosts, getTraits, getMealEntries, getProfiles, getInspoBoards, getInspos, getOutfits } from './api.js';
+import {
+  getPosts, getAudioPosts, getTraits, getMealEntries, getProfiles,
+  getInspoBoards, getInspos, getOutfits, getShelves, getAppearance,
+  getSources,
+} from './api.js';
+import { applyAppearance, normalizedAppearance } from './appearance.js';
 
 export function makeLoader({ fetchFn, stateKey, loadingKey, loadedKey, errorKey }) {
   function load() {
@@ -50,6 +55,49 @@ export const traitsLoader = makeLoader({
   loadingKey: 'traitsLoading',
   loadedKey: 'traitsLoaded',
 });
+
+export const shelvesLoader = makeLoader({
+  fetchFn: getShelves,
+  stateKey: 'shelves',
+  loadingKey: 'shelvesLoading',
+  loadedKey: 'shelvesLoaded',
+});
+
+export const sourcesLoader = makeLoader({
+  fetchFn: getSources,
+  stateKey: 'sources',
+  loadingKey: 'sourcesLoading',
+  loadedKey: 'sourcesLoaded',
+});
+
+function loadAppearance() {
+  updateState({ appearanceLoading: true });
+  getAppearance()
+    .then(value => {
+      const siteAppearance = normalizedAppearance(value);
+      const appearance = AppState.appearanceIsPersonal
+        ? AppState.appearance
+        : siteAppearance;
+      applyAppearance(appearance, false);
+      updateState({
+        appearance,
+        siteAppearance,
+        appearanceLoading: false,
+        appearanceLoaded: true,
+      });
+    })
+    .catch(() => updateState({
+      appearanceLoading: false,
+      appearanceLoaded: true,
+    }));
+}
+
+export const appearanceLoader = {
+  ensureLoaded() {
+    if (!AppState.appearanceLoaded && !AppState.appearanceLoading) loadAppearance();
+  },
+  reload: loadAppearance,
+};
 
 // Loads meal entries for the month currently in AppState.mealMonth ('YYYY-MM').
 // Falls back to the current month if not set.

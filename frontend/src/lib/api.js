@@ -1,11 +1,18 @@
 import {
   createPostMessage,
+  upsertPostMessage,
   getPostsMessage,
   deletePostMessage,
   updatePostVisibilityMessage,
   signupMessage,
   loginMessage,
-  logoutMessage
+  logoutMessage,
+  getShelvesMessage,
+  createShelfMessage,
+  updateShelfMessage,
+  deleteShelfMessage,
+  getAppearanceMessage,
+  setAppearanceMessage,
 } from '../types/journal-messages.js';
 import {
   requestUploadUrlMessage,
@@ -42,6 +49,13 @@ import {
   updateOutfitMessage,
   deleteOutfitMessage,
 } from '../types/outfit-messages.js';
+import {
+  getSourcesMessage,
+  createSourceMessage,
+  updateSourceMessage,
+  deleteSourceMessage,
+  requestSourceUploadUrlMessage,
+} from '../types/source-messages.js';
 import { CONFIG, devLog } from '../config/flags-runtime.js';
 import { MOCK_USER, mockDB, mockAudioDB, mockFeatureDB, mockInspoDB, mockOutfitDB } from '../data/mock-data.js';
 
@@ -71,8 +85,23 @@ const devVisitor = {
   auth_login:         ()    => ({ token: MOCK_USER.token, user: { email: MOCK_USER.email } }),
   get_posts:          ()    => mockDB.getPosts(),
   create_post:        (msg) => { const { title, content, mood, visibility } = msg.payload.content; return mockDB.createPost(title, content, mood, visibility); },
+  upsert_post:        (msg) => mockDB.upsertPost(msg.payload.content),
   delete_post:        (msg) => mockDB.deletePost(msg.payload.content.postId),
   update_post_visibility: (msg) => { const { postId, visibility } = msg.payload.content; return mockDB.updateVisibility(postId, visibility); },
+  get_shelves:        () => mockDB.getShelves(),
+  create_shelf:       (msg) => mockDB.createShelf(msg.payload.content.name, msg.payload.content.color, msg.payload.content.description),
+  update_shelf:       (msg) => mockDB.updateShelf(msg.payload.content.id, msg.payload.content.patch),
+  delete_shelf:       (msg) => mockDB.deleteShelf(msg.payload.content.id),
+  get_appearance:     () => mockDB.getAppearance(),
+  set_appearance:     (msg) => mockDB.setAppearance(msg.payload.content.theme, msg.payload.content.palette),
+  get_sources:        () => mockDB.getSources(),
+  create_source:      (msg) => mockDB.createSource(msg.payload.content),
+  update_source:      (msg) => mockDB.updateSource(msg.payload.content.id, msg.payload.content.patch),
+  delete_source:      (msg) => mockDB.deleteSource(msg.payload.content.id),
+  request_source_upload_url: (msg) => {
+    const c = msg.payload.content;
+    return mockDB.requestSourceUploadUrl(c.filename, c.contentType, c.fileSize);
+  },
   request_upload_url: (msg) => { const { filename, contentType } = msg.payload.content; return mockAudioDB.requestUploadUrl(filename, contentType); },
   create_audio_post:  (msg) => { const c = msg.payload.content; return mockAudioDB.createAudioPost(c.title, c.audioKey, c.audioUrl, c.duration, c.mimeType, c.fileSize); },
   get_audio_posts:    ()    => mockAudioDB.getAudioPosts(),
@@ -162,6 +191,10 @@ export async function createPost(title, content, mood = null, visibility = 'publ
   return sendMessage(createPostMessage(title, content, mood, visibility));
 }
 
+export async function upsertPost(entry) {
+  return sendMessage(upsertPostMessage(entry));
+}
+
 export async function deletePost(postId, timestamp) {
   const message = deletePostMessage(postId);
   message.payload.content.timestamp = timestamp;
@@ -170,6 +203,79 @@ export async function deletePost(postId, timestamp) {
 
 export async function updatePostVisibility(postId, timestamp, visibility, author) {
   return sendMessage(updatePostVisibilityMessage(postId, timestamp, visibility, author));
+}
+
+export async function getShelves() {
+  return sendMessage(getShelvesMessage(), false);
+}
+
+export async function createShelf(name, color, description = '') {
+  return sendMessage(createShelfMessage(name, color, description));
+}
+
+export async function updateShelf(id, patch) {
+  return sendMessage(updateShelfMessage(id, patch));
+}
+
+export async function deleteShelf(id) {
+  return sendMessage(deleteShelfMessage(id));
+}
+
+export async function getAppearance() {
+  return sendMessage(getAppearanceMessage(), false);
+}
+
+export async function setAppearance(theme, palette) {
+  return sendMessage(setAppearanceMessage(theme, palette));
+}
+
+// ─── Source Library ─────────────────────────────────────────────────────────
+
+export async function getSources() {
+  return sendMessage(getSourcesMessage(), false);
+}
+
+export async function createSource(source) {
+  return sendMessage(createSourceMessage(source));
+}
+
+export async function updateSource(id, patch) {
+  return sendMessage(updateSourceMessage(id, patch));
+}
+
+export async function deleteSource(id) {
+  return sendMessage(deleteSourceMessage(id));
+}
+
+export async function uploadSourcePdf(file) {
+  if (!(file instanceof Blob)) throw new Error('Select a PDF file');
+  if ((file.type || '').toLowerCase() !== 'application/pdf') {
+    throw new Error('Only PDF files can be uploaded');
+  }
+  if (file.size < 1 || file.size > 25 * 1024 * 1024) {
+    throw new Error('PDF must be 25MB or smaller');
+  }
+  const filename = file.name || `source-${Date.now()}.pdf`;
+  const upload = await sendMessage(
+    requestSourceUploadUrlMessage(filename, 'application/pdf', file.size),
+  );
+  let documentUrl = null;
+  if (upload.uploadUrl === 'mock://upload') {
+    documentUrl = await new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => resolve(reader.result);
+      reader.onerror = () => reject(new Error('Could not read PDF'));
+      reader.readAsDataURL(file);
+    });
+  } else {
+    const response = await fetch(upload.uploadUrl, {
+      method: 'PUT',
+      body: file,
+      headers: { 'Content-Type': 'application/pdf' },
+    });
+    if (!response.ok) throw new Error(`PDF upload failed (${response.status})`);
+  }
+  return { ...upload, documentUrl };
 }
 
 // ─── Audio API ───────────────────────────────────────────────────────────────

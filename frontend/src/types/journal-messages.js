@@ -14,6 +14,13 @@ const REGISTERED_NUM_MAP = {
   // Audio commands (10–13 reserved — see audio-messages.js)
   // Feature commands (14–18 reserved — see feature-messages.js)
   "update_post_visibility": 19,
+  "upsert_post": 20,
+  "get_shelves": 21,
+  "create_shelf": 22,
+  "update_shelf": 23,
+  "delete_shelf": 24,
+  "get_appearance": 25,
+  "set_appearance": 26,
 };
 
 export const VISIBILITY_PUBLIC = 'public';
@@ -28,6 +35,58 @@ export function createPostMessage(title, content, mood, visibility = VISIBILITY_
       content: { title, content, mood, visibility },
       num: REGISTERED_NUM_MAP["create_post"]
     }
+  };
+}
+
+export function upsertPostMessage(entry) {
+  return {
+    command: "upsert_post",
+    payload: {
+      content: entry,
+      num: REGISTERED_NUM_MAP["upsert_post"]
+    }
+  };
+}
+
+export function getShelvesMessage() {
+  return {
+    command: "get_shelves",
+    payload: { content: {}, num: REGISTERED_NUM_MAP["get_shelves"] }
+  };
+}
+
+export function createShelfMessage(name, color, description = '') {
+  return {
+    command: "create_shelf",
+    payload: { content: { name, color, description }, num: REGISTERED_NUM_MAP["create_shelf"] }
+  };
+}
+
+export function updateShelfMessage(id, patch) {
+  return {
+    command: "update_shelf",
+    payload: { content: { id, patch }, num: REGISTERED_NUM_MAP["update_shelf"] }
+  };
+}
+
+export function deleteShelfMessage(id) {
+  return {
+    command: "delete_shelf",
+    payload: { content: { id }, num: REGISTERED_NUM_MAP["delete_shelf"] }
+  };
+}
+
+export function getAppearanceMessage() {
+  return {
+    command: "get_appearance",
+    payload: { content: {}, num: REGISTERED_NUM_MAP["get_appearance"] }
+  };
+}
+
+export function setAppearanceMessage(theme, palette) {
+  return {
+    command: "set_appearance",
+    payload: { content: { theme, palette }, num: REGISTERED_NUM_MAP["set_appearance"] }
   };
 }
 

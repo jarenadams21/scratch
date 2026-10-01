@@ -13,6 +13,7 @@ export const MOCK_POSTS = [
     title: 'First Transmission',
     content: 'The machines hum in the darkness. Words appear on paper, one character at a time. This is how we document the present - with deliberate keystrokes and careful thought.',
     visibility: 'public',
+    sourceIds: ['source-writing'],
     author: CONFIG.MOCK_USER,
     createdAt: new Date(2026, 3, 15, 10, 30).toISOString(),
     updatedAt: new Date(2026, 3, 15, 10, 30).toISOString(),
@@ -82,8 +83,37 @@ export const MOCK_AUDIO = [
 
 let mockData = [...MOCK_POSTS];
 let mockAudioData = [...MOCK_AUDIO];
-let mockTraits = { calendar: true };
+let mockTraits = { calendar: true, inspo: false };
 let mockMealEntries = [];
+let mockShelves = [
+  {
+    id: 'serious-papers',
+    name: 'Serious Papers',
+    color: '#c85232',
+    description: 'Research, essays, and application-ready work.',
+  },
+  {
+    id: 'miscellaneous',
+    name: 'Miscellaneous',
+    color: '#547f9e',
+    description: 'Notes, observations, and informal writing.',
+  },
+];
+let mockAppearance = { theme: 'dark', palette: 'ember' };
+let mockSources = [
+  {
+    id: 'source-writing',
+    type: 'website',
+    title: 'Building a Second Brain',
+    creator: 'Tiago Forte',
+    publication: 'Forte Labs',
+    publishedAt: '2022',
+    description: 'A reference on organizing knowledge for creative work.',
+    url: 'https://fortelabs.com/blog/basboverview/',
+    createdAt: new Date(2026, 2, 10).toISOString(),
+    updatedAt: new Date(2026, 2, 10).toISOString(),
+  },
+];
 
 // In dev mode each "user" has their own traits document. Map email -> traits
 // so the mock can answer get_profiles realistically.
@@ -107,12 +137,36 @@ export const mockDB = {
       content,
       mood,
       visibility,
+      status: 'published',
+      shelfId: null,
       author: MOCK_USER.email,
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString(),
     };
     mockData.unshift(newPost);
     return Promise.resolve(newPost);
+  },
+
+  upsertPost: (entry) => {
+    const now = new Date().toISOString();
+    const existingIndex = mockData.findIndex(post => post.entryId === entry.entryId);
+    const saved = {
+      ...(existingIndex >= 0 ? mockData[existingIndex] : {}),
+      entryId: entry.entryId || `mock-${Date.now()}`,
+      title: entry.title || '',
+      content: entry.content || '',
+      mood: entry.mood || null,
+      visibility: entry.visibility || 'public',
+      status: entry.status || 'draft',
+      shelfId: entry.shelfId || null,
+      sourceIds: Array.isArray(entry.sourceIds) ? [...entry.sourceIds] : [],
+      author: MOCK_USER.email,
+      createdAt: entry.createdAt || now,
+      updatedAt: now,
+    };
+    if (existingIndex >= 0) mockData[existingIndex] = saved;
+    else mockData.unshift(saved);
+    return Promise.resolve(saved);
   },
 
   deletePost: (postId) => {
@@ -127,6 +181,86 @@ export const mockDB = {
     post.updatedAt = new Date().toISOString();
     return Promise.resolve({ entryId: postId, visibility });
   },
+
+  getShelves: () => Promise.resolve(mockShelves.map(shelf => ({ ...shelf }))),
+
+  createShelf: (name, color, description = '') => {
+    const shelf = {
+      id: `shelf-${Date.now()}`,
+      name,
+      color,
+      description,
+      createdAt: new Date().toISOString(),
+    };
+    mockShelves.push(shelf);
+    return Promise.resolve({ ...shelf });
+  },
+
+  updateShelf: (id, patch) => {
+    const shelf = mockShelves.find(item => item.id === id);
+    if (!shelf) return Promise.reject(new Error('Invalid shelf (not found)'));
+    Object.assign(shelf, patch, { updatedAt: new Date().toISOString() });
+    return Promise.resolve({ ...shelf });
+  },
+
+  deleteShelf: (id) => {
+    mockShelves = mockShelves.filter(item => item.id !== id);
+    let entriesUncategorized = 0;
+    mockData = mockData.map(post => {
+      if (post.shelfId !== id) return post;
+      entriesUncategorized += 1;
+      return { ...post, shelfId: null, updatedAt: new Date().toISOString() };
+    });
+    return Promise.resolve({ message: 'Deleted', entriesUncategorized });
+  },
+
+  getAppearance: () => Promise.resolve({ ...mockAppearance }),
+
+  setAppearance: (theme, palette) => {
+    mockAppearance = { theme, palette };
+    return Promise.resolve({ ...mockAppearance });
+  },
+
+  getSources: () => Promise.resolve(mockSources.map(source => ({ ...source }))),
+
+  createSource: (source) => {
+    const now = new Date().toISOString();
+    const saved = {
+      ...source,
+      url: source.type === 'pdf' ? source.documentUrl : source.url,
+      id: `source-${Date.now()}`,
+      createdAt: now,
+      updatedAt: now,
+    };
+    mockSources.push(saved);
+    return Promise.resolve({ ...saved });
+  },
+
+  updateSource: (id, patch) => {
+    const source = mockSources.find(item => item.id === id);
+    if (!source) return Promise.reject(new Error('Invalid source (not found)'));
+    Object.assign(source, patch, { updatedAt: new Date().toISOString() });
+    return Promise.resolve({ ...source });
+  },
+
+  deleteSource: (id) => {
+    mockSources = mockSources.filter(source => source.id !== id);
+    let entriesUnlinked = 0;
+    mockData = mockData.map(post => {
+      if (!(post.sourceIds || []).includes(id)) return post;
+      entriesUnlinked += 1;
+      return { ...post, sourceIds: post.sourceIds.filter(sourceId => sourceId !== id) };
+    });
+    return Promise.resolve({ message: 'Deleted', entriesUnlinked });
+  },
+
+  requestSourceUploadUrl: (filename, contentType, fileSize) => Promise.resolve({
+    uploadUrl: 'mock://upload',
+    documentKey: `sources/mock-${Date.now()}.pdf`,
+    filename,
+    mimeType: contentType,
+    fileSize,
+  }),
   
   reset: () => {
     mockData = [...MOCK_POSTS];

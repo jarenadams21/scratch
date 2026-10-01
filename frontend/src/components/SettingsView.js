@@ -31,8 +31,8 @@ const FEATURE_CATALOG = [
   },
   {
     id: 'inspo',
-    name: 'INSPO + OUTFITS',
-    description: 'Curate image boards & build outfits; mark any board or outfit public to share it',
+    name: 'EXPERIMENTAL INSPO + OUTFITS',
+    description: 'Owner-only unfinished workspace; hidden from visitors and disabled by default',
     type: 'boolean',
   },
   {

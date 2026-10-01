@@ -2,100 +2,122 @@ import { createElement } from '../engine/main.js';
 import { deletePost, updatePostVisibility, currentUserEmail, isLoggedIn } from '../lib/api.js';
 import { AppState, updateState } from '../lib/state.js';
 import { formatShortDate, formatLongDate } from '../lib/format.js';
+import { plainText, renderMarkdown } from '../lib/markdown.js';
 import { confirmDelete } from '../lib/actions.js';
 import { ensureProfilesFor, profileFor } from '../lib/loaders.js';
 import { ListView } from './ListView.js';
 
-// Existing entries may not carry a visibility field — treat them as public
-// so we never accidentally hide content that was created before this feature.
 function visibilityOf(entry) {
   return entry?.visibility === 'admins' ? 'admins' : 'public';
 }
 
-// Old entries may also be missing an `author`; the pk encodes it as
-// USER#<email>. Pull from there as a fallback. Visitor responses don't
-// include either field — use the server-provided displayName instead.
 function authorOf(entry) {
   if (entry?.author) return entry.author;
-  if (typeof entry?.pk === 'string' && entry.pk.startsWith('USER#')) {
-    return entry.pk.slice(5);
-  }
+  if (typeof entry?.pk === 'string' && entry.pk.startsWith('USER#')) return entry.pk.slice(5);
   return null;
 }
 
-// Public-safe display name. Prefers (a) server-scrubbed displayName, then
-// (b) the loaded profile, then (c) "Operator". Never returns the email.
 function displayNameFor(entry) {
   if (entry?.displayName) return entry.displayName;
-  const author = authorOf(entry);
-  return profileFor(author).displayName;
+  return profileFor(authorOf(entry)).displayName;
+}
+
+function shelfFor(entry) {
+  return (AppState.shelves || []).find(shelf => shelf.id === entry?.shelfId) || null;
 }
 
 function VisibilityTag({ visibility }) {
   const isAdmins = visibility === 'admins';
   return createElement('span', {
     className: isAdmins ? 'vis-tag vis-tag-admins' : 'vis-tag vis-tag-public',
-    title: isAdmins ? 'Visible to admins only' : 'Visible to everyone',
   }, isAdmins ? 'ADMINS' : 'PUBLIC');
 }
 
+function ShelfTag({ entry }) {
+  const shelf = shelfFor(entry);
+  if (!shelf) return null;
+  return createElement('span', {
+    className: 'shelf-tag',
+    style: `--shelf-color:${shelf.color}`,
+    title: shelf.description || shelf.name,
+  }, shelf.name.toUpperCase());
+}
+
+function SourcesUsed({ entry }) {
+  const ids = Array.isArray(entry?.sourceIds) ? entry.sourceIds : [];
+  const sources = ids
+    .map(id => (AppState.sources || []).find(source => source.id === id))
+    .filter(Boolean);
+  if (!sources.length) return null;
+  return createElement('section', { className: 'reading-sources' },
+    createElement('div', { className: 'reading-sources-rule' }),
+    createElement('span', { className: 'reading-sources-kicker' }, 'SOURCES USED'),
+    createElement('ol', null,
+      ...sources.map(source => createElement('li', { key: source.id },
+        createElement('a', {
+          href: source.url,
+          target: '_blank',
+          rel: 'noopener noreferrer',
+        },
+          createElement('strong', null, source.title),
+          createElement('span', null,
+            [source.creator, source.publication, source.publishedAt, source.type.toUpperCase()]
+              .filter(Boolean).join(' · ')
+          )
+        )
+      ))
+    )
+  );
+}
+
 function ArchiveListItem({ entry, isSelected }) {
+  const preview = plainText(entry.content);
   return createElement('div', {
     className: isSelected ? 'archive-list-item selected' : 'archive-list-item',
     onClick: () => updateState({ selectedEntry: entry }),
   },
     createElement('div', { className: 'item-header' },
-      createElement('div', { className: 'item-title' }, entry.title.toUpperCase()),
+      createElement('div', { className: 'item-title' }, (entry.title || 'Untitled').toUpperCase()),
       createElement('div', { className: 'item-date' }, formatShortDate(entry.createdAt).toUpperCase())
     ),
     createElement('div', { className: 'item-meta' },
-      createElement(VisibilityTag, { visibility: visibilityOf(entry) }),
-      createElement('div', { className: 'item-preview' },
-        entry.content.substring(0, 100) + (entry.content.length > 100 ? '...' : '')
-      )
+      entry.status === 'draft'
+        ? createElement('span', { className: 'vis-tag vis-tag-draft' }, 'DRAFT')
+        : createElement(VisibilityTag, { visibility: visibilityOf(entry) }),
+      createElement(ShelfTag, { entry }),
+      createElement('div', { className: 'item-preview' }, preview.slice(0, 100) + (preview.length > 100 ? '…' : ''))
     )
   );
 }
 
-// Big tappable card pinned to the top of the archive — admins land on the
-// most-recent entry they should see (theirs or hers); visitors land on the
-// most-recent PUBLIC entry (admins-only entries are already filtered out
-// server-side, so there's no leak risk).
 function FeaturedEntry({ entry }) {
   if (!entry) return null;
-  const visibility = visibilityOf(entry);
-  const author = displayNameFor(entry);
-  const preview = (entry.content || '').slice(0, 240);
-  const truncated = (entry.content || '').length > 240;
+  const preview = plainText(entry.content);
   return createElement('button', {
     className: 'featured-entry',
     onClick: () => updateState({ selectedEntry: entry }),
-    'aria-label': 'Open the most recent entry',
   },
     createElement('div', { className: 'featured-tag-row' },
       createElement('span', { className: 'featured-tag' }, 'LATEST'),
       createElement('span', { className: 'featured-meta' },
-        formatShortDate(entry.createdAt).toUpperCase() + ' · ' + author.toUpperCase()
+        formatShortDate(entry.createdAt).toUpperCase() + ' · ' + displayNameFor(entry).toUpperCase()
       ),
-      createElement(VisibilityTag, { visibility })
+      createElement(ShelfTag, { entry }),
+      createElement(VisibilityTag, { visibility: visibilityOf(entry) })
     ),
-    createElement('div', { className: 'featured-title' }, entry.title.toUpperCase()),
-    createElement('div', { className: 'featured-preview' },
-      preview + (truncated ? '…' : '')
-    ),
+    createElement('div', { className: 'featured-title' }, (entry.title || 'Untitled').toUpperCase()),
+    createElement('div', { className: 'featured-preview' }, preview.slice(0, 240) + (preview.length > 240 ? '…' : '')),
     createElement('div', { className: 'featured-cta' }, '→')
   );
 }
 
 function ReadingPane({ entry, onDeleted, onVisibilityChanged }) {
   if (!entry) return null;
-
   const visibility = visibilityOf(entry);
-  const author     = authorOf(entry);
-  const me         = currentUserEmail();
-  const isAdmin    = isLoggedIn();
-  const isOwner    = !!author && author === me;
-  const canFlip    = isAdmin && !!author;     // any admin, given we know the owner pk
+  const author = authorOf(entry);
+  const isAdmin = isLoggedIn();
+  const isOwner = !!author && author === currentUserEmail();
+  const canFlip = isAdmin && !!author && entry.status !== 'draft';
   const nextVisibility = visibility === 'public' ? 'admins' : 'public';
 
   const handleDelete = confirmDelete(
@@ -105,19 +127,9 @@ function ReadingPane({ entry, onDeleted, onVisibilityChanged }) {
   );
 
   const handleVisibilityFlip = async () => {
-    // Acknowledgement gate when going public — only on the riskier direction.
-    if (nextVisibility === 'public') {
-      const ok = confirm(
-        'Make this post visible on the PUBLIC web?\n\n' +
-        'Unauthenticated visitors will see the title, body, and the author\'s display name. ' +
-        'Personal details and admin emails are never exposed.'
-      );
-      if (!ok) return;
-    }
+    if (nextVisibility === 'public' && !confirm('Make this post visible on the PUBLIC web?')) return;
     try {
       await updatePostVisibility(entry.entryId, entry.createdAt, nextVisibility, author);
-      // Patch in-memory entry so the chip updates instantly; reload syncs
-      // the list with any other admin's concurrent changes.
       updateState({ selectedEntry: { ...entry, visibility: nextVisibility } });
       if (onVisibilityChanged) onVisibilityChanged();
     } catch (err) {
@@ -125,10 +137,16 @@ function ReadingPane({ entry, onDeleted, onVisibilityChanged }) {
     }
   };
 
+  const editDraft = () => updateState({
+    editingEntry: entry,
+    currentView: 'compose',
+    selectedEntry: null,
+  });
+
   return createElement('div', { className: 'reading-pane' },
     createElement('div', { className: 'reading-header' },
       createElement('div', { className: 'reading-title-row' },
-        createElement('h1', { className: 'reading-title' }, entry.title.toUpperCase()),
+        createElement('h1', { className: 'reading-title' }, (entry.title || 'Untitled').toUpperCase()),
         createElement('button', {
           onClick: () => updateState({ selectedEntry: null }),
           className: 'close-btn',
@@ -139,53 +157,91 @@ function ReadingPane({ entry, onDeleted, onVisibilityChanged }) {
         createElement('div', { className: 'reading-meta-left' },
           createElement('span', { className: 'reading-date' }, formatLongDate(entry.createdAt).toUpperCase()),
           createElement('span', { className: 'reading-author' }, '· ' + displayNameFor(entry)),
-          createElement(VisibilityTag, { visibility })
+          createElement(ShelfTag, { entry }),
+          entry.status === 'draft'
+            ? createElement('span', { className: 'vis-tag vis-tag-draft' }, 'DRAFT')
+            : createElement(VisibilityTag, { visibility })
         ),
         createElement('div', { className: 'reading-meta-actions' },
-          canFlip
-            ? createElement('button', {
-                onClick: handleVisibilityFlip,
-                className: 'visibility-flip-btn',
-                title: visibility === 'public' ? 'Make admins-only' : 'Make public',
-              }, visibility === 'public' ? 'MAKE PRIVATE' : 'MAKE PUBLIC')
+          entry.status === 'draft' && isOwner
+            ? createElement('button', { onClick: editDraft, className: 'visibility-flip-btn' }, 'CONTINUE WRITING')
             : null,
-          isOwner
-            ? createElement('button', { onClick: handleDelete, className: 'delete-btn' }, 'DELETE')
-            : null
+          canFlip
+            ? createElement('button', { onClick: handleVisibilityFlip, className: 'visibility-flip-btn' },
+                visibility === 'public' ? 'MAKE PRIVATE' : 'MAKE PUBLIC')
+            : null,
+          isOwner ? createElement('button', { onClick: handleDelete, className: 'delete-btn' }, 'DELETE') : null
         )
       )
     ),
     createElement('div', { className: 'reading-divider' }),
-    createElement('div', { className: 'reading-content' }, entry.content)
+    createElement('div', { className: 'reading-content' }, ...renderMarkdown(entry.content)),
+    createElement(SourcesUsed, { entry })
+  );
+}
+
+function ArchiveFilters({ isAdmin }) {
+  const shelves = AppState.shelves || [];
+  const setMode = (mode, shelfId = null) => updateState({
+    archiveMode: mode,
+    archiveShelfId: shelfId,
+    selectedEntry: null,
+  });
+  return createElement('div', { className: 'archive-filters' },
+    createElement('button', {
+      className: AppState.archiveMode === 'published' && !AppState.archiveShelfId ? 'active' : '',
+      onClick: () => setMode('published'),
+    }, 'ALL'),
+    ...shelves.map(shelf => createElement('button', {
+      className: AppState.archiveShelfId === shelf.id ? 'active' : '',
+      style: `--shelf-color:${shelf.color}`,
+      onClick: () => setMode('published', shelf.id),
+      title: shelf.description || shelf.name,
+    }, shelf.name.toUpperCase())),
+    isAdmin ? createElement('button', {
+      className: AppState.archiveMode === 'drafts' ? 'active' : '',
+      onClick: () => setMode('drafts'),
+    }, 'DRAFTS') : null,
+    isAdmin ? createElement('button', {
+      className: 'archive-manage-shelves',
+      onClick: () => updateState({
+        shelfManagerOpen: true,
+        shelfEditingId: AppState.archiveShelfId || null,
+      }),
+    }, 'MANAGE SHELVES') : null
   );
 }
 
 export function ArchiveView({ entries, onDeleted }) {
   const isAdmin = isLoggedIn();
+  const me = currentUserEmail();
   ensureProfilesFor((entries || []).map(authorOf));
-
-  // Featured = newest entry (entries are already sorted newest-first by the
-  // backend). Show it as a big card only when nothing is selected — in the
-  // narrow split-view, the card would crowd the reading pane.
-  const featured = (!AppState.selectedEntry && (entries || []).length > 0) ? entries[0] : null;
-  // Don't show the featured entry duplicated as a list row directly below.
-  const listEntries = featured ? entries.slice(1) : entries;
-
-  return createElement(ListView, {
-    title: 'ARCHIVES',
-    entries: listEntries,
-    emptyLabel: featured ? 'NO OTHER RECORDS' : 'NO RECORDS FOUND',
-    renderItem: (entry) => createElement(ArchiveListItem, {
-      entry,
-      isSelected: AppState.selectedEntry?.entryId === entry.entryId,
-    }),
-    topSlot: featured ? createElement(FeaturedEntry, { entry: featured }) : null,
-    detailPane: AppState.selectedEntry
-      ? createElement(ReadingPane, {
-          entry: AppState.selectedEntry,
-          onDeleted: isAdmin ? onDeleted : null,
-          onVisibilityChanged: isAdmin ? onDeleted : null,
-        })
-      : null,
+  let visible = (entries || []).filter(entry => {
+    const status = entry.status || 'published';
+    if (AppState.archiveMode === 'drafts') return isAdmin && status === 'draft' && (!entry.author || entry.author === me);
+    return status === 'published' && (!AppState.archiveShelfId || entry.shelfId === AppState.archiveShelfId);
   });
+  const featured = (!AppState.selectedEntry && AppState.archiveMode !== 'drafts' && visible.length) ? visible[0] : null;
+  if (featured) visible = visible.slice(1);
+
+  return createElement('div', { className: 'archive-with-filters' },
+    createElement(ArchiveFilters, { isAdmin }),
+    createElement(ListView, {
+      title: AppState.archiveMode === 'drafts' ? 'DRAFTS' : 'ARCHIVES',
+      entries: visible,
+      emptyLabel: featured ? 'NO OTHER RECORDS' : AppState.archiveMode === 'drafts' ? 'NO SAVED DRAFTS' : 'NO RECORDS FOUND',
+      renderItem: entry => createElement(ArchiveListItem, {
+        entry,
+        isSelected: AppState.selectedEntry?.entryId === entry.entryId,
+      }),
+      topSlot: featured ? createElement(FeaturedEntry, { entry: featured }) : null,
+      detailPane: AppState.selectedEntry
+        ? createElement(ReadingPane, {
+            entry: AppState.selectedEntry,
+            onDeleted: isAdmin ? onDeleted : null,
+            onVisibilityChanged: isAdmin ? onDeleted : null,
+          })
+        : null,
+    })
+  );
 }

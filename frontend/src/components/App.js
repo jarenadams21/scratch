@@ -1,47 +1,50 @@
 import { createElement } from '../engine/main.js';
-import { isLoggedIn, logout } from '../lib/api.js';
-import { CONFIG, devLog } from '../config/flags-runtime.js';
+import { isLoggedIn, logout, setAppearance } from '../lib/api.js';
 import { LoginForm } from './LoginForm.js';
 import { EditorView } from './EditorView.js';
 import { ArchiveView } from './ArchiveView.js';
 import { AudioRecorder } from './AudioRecorder.js';
 import { RecordingsView } from './RecordingsView.js';
 import { SettingsView } from './SettingsView.js';
+import { ShelfManager } from './ShelfManager.js';
+import { SourcesView } from './SourcesView.js';
 import { CalendarView } from './CalendarView.js';
 import { InspoView } from './InspoView.js';
 import { Lightbox } from './Lightbox.js';
 import { AppState, updateState } from '../lib/state.js';
-import { postLoader, audioLoader, traitsLoader, mealLoader, inspoBoardsLoader, inspoItemsLoader, outfitsLoader } from '../lib/loaders.js';
+import {
+  postLoader, audioLoader, traitsLoader, mealLoader, inspoBoardsLoader,
+  inspoItemsLoader, outfitsLoader, shelvesLoader, appearanceLoader,
+  sourcesLoader,
+} from '../lib/loaders.js';
+import {
+  applyAppearance, PALETTE_LABELS, PALETTES,
+} from '../lib/appearance.js';
 
 export function App() {
   const isAdmin        = isLoggedIn();
   const showAdminPanel = AppState.showAdminPanel || false;
   const traits         = AppState.traits || {};
 
-  // Inspiration space (boards + outfits). The owner unlocks editing via the
-  // `inspo` trait (or the DEV flag locally); public boards/outfits are visible
-  // to anyone — logged out included — exactly like public posts. The server is
-  // the real authority: it returns only public collections to non-admins and
-  // rejects every write that isn't from a logged-in admin.
-  const inspoOwnerOn = isAdmin && ((CONFIG.DEV && CONFIG.INSPO) || !!traits.inspo);
+  // Inspiration is experimental, owner-only, and off unless explicitly
+  // enabled in Settings. Public visitors only receive Archive and Sources.
+  const inspoEnabled = isAdmin && !!traits.inspo;
 
   postLoader.ensureLoaded();
-  // Always load the (cheap, public-filtered) collection lists so public
-  // boards/outfits can surface for visitors too — not gated on the trait.
-  inspoBoardsLoader.ensureLoaded();
-  inspoItemsLoader.ensureLoaded();
-  outfitsLoader.ensureLoaded();
+  shelvesLoader.ensureLoaded();
+  sourcesLoader.ensureLoaded();
+  appearanceLoader.ensureLoaded();
+  applyAppearance(AppState.appearance, false);
   if (isAdmin) {
     audioLoader.ensureLoaded();
     traitsLoader.ensureLoaded();
     if (traits.calendar) mealLoader.ensureLoaded();
+    if (inspoEnabled) {
+      inspoBoardsLoader.ensureLoaded();
+      inspoItemsLoader.ensureLoaded();
+      outfitsLoader.ensureLoaded();
+    }
   }
-
-  // Anyone sees the tab when public collections exist; the owner also sees it
-  // (to curate) whenever they've enabled the feature.
-  const hasPublic = (AppState.inspoBoards || []).some(b => b.visibility === 'public')
-    || (AppState.savedOutfits || []).some(o => o.visibility === 'public');
-  const inspoEnabled = inspoOwnerOn || hasPublic;
 
   const closeAdminPanel = () => {
     history.replaceState(null, '', `${location.pathname}${location.search}`);
@@ -53,6 +56,7 @@ export function App() {
     updateState({
       showAdminPanel: false,
       currentView: 'archive',
+      editingEntry: null,
       traitsLoaded: false,
       mealLoaded: false,
     });
@@ -75,6 +79,7 @@ export function App() {
       mealEntries: [],
       mealLoaded: false,
       selectedMealDate: null,
+      sourceEditorOpen: false,
       inspoBoards: [],
       inspoItems: [],
       inspoBoardsLoaded: false,
@@ -86,6 +91,8 @@ export function App() {
       savedOutfits: [],
       outfitsLoaded: false,
       outfitAssignSlot: null,
+      shelves: [],
+      shelvesLoaded: false,
     });
   };
 
@@ -96,6 +103,30 @@ export function App() {
     selectedMealDate: null,
     inspoEditingId: null,
     outfitAssignSlot: null,
+    sourceEditorOpen: view === 'sources' ? AppState.sourceEditorOpen : false,
+    editingEntry: view === 'compose' ? AppState.editingEntry : null,
+  });
+
+  const updateAppearance = async (next) => {
+    const appearance = applyAppearance(next);
+    updateState({ appearance, appearanceIsPersonal: true });
+    if (!isAdmin) return;
+    try {
+      await setAppearance(appearance.theme, appearance.palette);
+      updateState({ siteAppearance: appearance });
+    } catch (err) {
+      alert('Your appearance was saved in this browser, but the site default could not be updated: ' + err.message);
+    }
+  };
+
+  const toggleTheme = () => updateAppearance({
+    ...AppState.appearance,
+    theme: AppState.appearance?.theme === 'dark' ? 'light' : 'dark',
+  });
+
+  const selectPalette = (palette) => updateAppearance({
+    ...AppState.appearance,
+    palette,
   });
 
   const calendarEnabled = isAdmin && !!traits.calendar;
@@ -139,6 +170,10 @@ export function App() {
         onDeleted: () => audioLoader.reload(),
       })
     );
+  } else if (AppState.currentView === 'sources') {
+    workspaceContent = createElement('div', { className: 'view-wrapper', key: 'sources-view' },
+      createElement(SourcesView, {})
+    );
   } else {
     workspaceContent = createElement('div', { className: 'view-wrapper', key: 'archive-view' },
       createElement(ArchiveView, {
@@ -164,6 +199,10 @@ export function App() {
     onClick: () => switchView('archive'),
     className: AppState.currentView === 'archive' ? 'tab active' : 'tab',
   }, 'ARCHIVE'));
+  navTabs.push(createElement('button', {
+    onClick: () => switchView('sources'),
+    className: AppState.currentView === 'sources' ? 'tab active' : 'tab',
+  }, 'SOURCES'));
   if (isAdmin) {
     navTabs.push(createElement('button', {
       onClick: () => switchView('recordings'),
@@ -197,7 +236,34 @@ export function App() {
         createElement('p', { className: 'title-description' }, 'The views expressed in this website are my own, and for them I accept full responsibility')
       ),
       createElement('div', { className: 'masthead-row masthead-row-nav' },
-        createElement('nav', { className: 'nav-tabs' }, ...navTabs)
+        createElement('nav', {
+          className: 'nav-tabs',
+          'aria-label': 'Primary navigation',
+          tabIndex: 0,
+        }, ...navTabs),
+        createElement('div', {
+          className: 'appearance-controls',
+          'aria-label': 'Website appearance',
+        },
+          createElement('button', {
+            type: 'button',
+            onClick: toggleTheme,
+            className: 'theme-toggle',
+            title: 'Toggle light and dark theme',
+            'aria-label': 'Toggle light and dark theme',
+          }, AppState.appearance?.theme === 'dark' ? '☼' : '◐'),
+          ...PALETTES.map(palette => createElement('button', {
+            type: 'button',
+            key: palette,
+            onClick: () => selectPalette(palette),
+            className: AppState.appearance?.palette === palette
+              ? `palette-swatch palette-${palette} active`
+              : `palette-swatch palette-${palette}`,
+            title: `Use ${PALETTE_LABELS[palette]} colors`,
+            'aria-label': `Use ${PALETTE_LABELS[palette]} colors`,
+            'aria-pressed': AppState.appearance?.palette === palette,
+          }, createElement('span', { 'aria-hidden': 'true' })))
+        )
       )
     ),
 
@@ -214,6 +280,10 @@ export function App() {
 
     AppState.lightboxImage
       ? createElement(Lightbox, { key: 'lightbox', image: AppState.lightboxImage })
+      : null,
+
+    isAdmin && AppState.shelfManagerOpen
+      ? createElement(ShelfManager, { key: 'shelf-manager' })
       : null
   );
 }

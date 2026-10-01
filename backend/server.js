@@ -1,7 +1,7 @@
 import http from 'http';
 import { config } from './config/config.js';
 import { signup, login, extractUser } from './auth/auth.js';
-import { createEntry, getAllEntries, deleteEntry, updateEntryVisibility, DEFAULT_VISIBILITY } from './db/db.js';
+import { createEntry, upsertEntry, getAllEntries, clearShelfFromEntries, clearSourceFromEntries, deleteEntry, updateEntryVisibility, DEFAULT_VISIBILITY, DEFAULT_ENTRY_STATUS } from './db/db.js';
 import { generateUploadUrl, createAudioEntry, getUserAudioEntries, deleteAudioEntry } from './db/audio-db.js';
 import { getTraits, setTrait, upsertMealEntry, deleteMealEntry, getMealEntries, getProfiles, DEFAULT_DISPLAY_NAME, generateImageUploadUrl, attachMealImage, detachMealImage } from './db/feature-db.js';
 import {
@@ -9,6 +9,12 @@ import {
   getInspos, createInspo, updateInspo, deleteInspo,
   getOutfits, createOutfit, updateOutfit, deleteOutfit,
 } from './db/inspo-db.js';
+import {
+  getShelves, createShelf, updateShelf, deleteShelf, getAppearance, setAppearance,
+} from './db/content-db.js';
+import {
+  getSources, createSource, updateSource, deleteSource, generateSourceUploadUrl,
+} from './db/source-db.js';
 
 // ─── CORS Helper ────────────────────────────────────────────────────────────
 
@@ -74,14 +80,24 @@ async function handleMessage(message, userId) {
       if (!userId) throw new Error('Unauthorized');
       return await createEntry(userId, content);
 
+    case 'upsert_post':
+      if (!userId) throw new Error('Unauthorized');
+      return await upsertEntry(userId, content);
+
     case 'get_posts': {
       const all = await getAllEntries();
       // Authed admins see everything verbatim — they have legitimate need
       // for the raw author email (it's the pk for delete/visibility ops).
-      if (userId) return all;
+      if (userId) return all.map(entry => ({
+        ...entry,
+        status: entry.status || DEFAULT_ENTRY_STATUS,
+      }));
       // Visitors see only public entries, with author emails scrubbed and
       // replaced by the author's chosen displayName (Operator if unset).
-      const publicEntries = all.filter(e => (e.visibility || DEFAULT_VISIBILITY) === 'public');
+      const publicEntries = all.filter(e =>
+        (e.status || DEFAULT_ENTRY_STATUS) === 'published'
+        && (e.visibility || DEFAULT_VISIBILITY) === 'public'
+      );
       const profiles = await getProfiles(publicEntries.map(e => e.author).filter(Boolean));
       return publicEntries.map(e => ({
         entryId:    e.entryId,
@@ -89,12 +105,66 @@ async function handleMessage(message, userId) {
         content:    e.content,
         mood:       e.mood ?? null,
         visibility: e.visibility || DEFAULT_VISIBILITY,
+        status:      e.status || DEFAULT_ENTRY_STATUS,
+        shelfId:     e.shelfId || null,
+        sourceIds:   Array.isArray(e.sourceIds) ? e.sourceIds : [],
         createdAt:  e.createdAt,
         updatedAt:  e.updatedAt,
         displayName: profiles[e.author]?.displayName || DEFAULT_DISPLAY_NAME,
         // pk and author are intentionally omitted.
       }));
     }
+
+    case 'get_shelves': {
+      const shelves = await getShelves();
+      return shelves.map(({ author, ...publicShelf }) => publicShelf);
+    }
+
+    case 'create_shelf':
+      if (!userId) throw new Error('Unauthorized');
+      return await createShelf(userId, content.name, content.color, content.description);
+
+    case 'update_shelf':
+      if (!userId) throw new Error('Unauthorized');
+      return await updateShelf(content.id, content.patch || {});
+
+    case 'delete_shelf':
+      if (!userId) throw new Error('Unauthorized');
+      await deleteShelf(content.id);
+      return {
+        message: 'Deleted',
+        entriesUncategorized: await clearShelfFromEntries(content.id),
+      };
+
+    case 'get_appearance':
+      return await getAppearance();
+
+    case 'set_appearance':
+      if (!userId) throw new Error('Unauthorized');
+      return await setAppearance(content.theme, content.palette);
+
+    case 'get_sources':
+      return await getSources();
+
+    case 'create_source':
+      if (!userId) throw new Error('Unauthorized');
+      return await createSource(userId, content);
+
+    case 'update_source':
+      if (!userId) throw new Error('Unauthorized');
+      return await updateSource(content.id, content.patch || {});
+
+    case 'delete_source':
+      if (!userId) throw new Error('Unauthorized');
+      await deleteSource(content.id);
+      return {
+        message: 'Deleted',
+        entriesUnlinked: await clearSourceFromEntries(content.id),
+      };
+
+    case 'request_source_upload_url':
+      if (!userId) throw new Error('Unauthorized');
+      return await generateSourceUploadUrl(content.filename, content.contentType, content.fileSize);
 
     case 'get_profiles':
       // Public — anyone can ask for display info. Returns display name /
@@ -165,12 +235,12 @@ async function handleMessage(message, userId) {
       return await detachMealImage(userId, content.date, content.imageKey);
 
     // ─── Inspiration boards + images ──────────────────────────────────────
-    // Reads are public-aware (visitors get only public collections); every
-    // write requires a logged-in admin. This is the real authorization
-    // boundary — the frontend's read-only mode is presentation only.
+    // Experimental and owner-only. Public visitors receive no inspiration
+    // data even if older records were previously marked public.
 
     case 'get_inspo_boards':
-      return await getInspoBoards(!!userId);
+      if (!userId) return [];
+      return await getInspoBoards(true);
 
     case 'create_inspo_board':
       if (!userId) throw new Error('Unauthorized');
@@ -185,7 +255,8 @@ async function handleMessage(message, userId) {
       return await deleteInspoBoard(content.id);
 
     case 'get_inspos':
-      return await getInspos(!!userId);
+      if (!userId) return [];
+      return await getInspos(true);
 
     case 'create_inspo':
       if (!userId) throw new Error('Unauthorized');
@@ -202,7 +273,8 @@ async function handleMessage(message, userId) {
     // ─── Outfits (peer collections, same auth model) ──────────────────────
 
     case 'get_outfits':
-      return await getOutfits(!!userId);
+      if (!userId) return [];
+      return await getOutfits(true);
 
     case 'create_outfit':
       if (!userId) throw new Error('Unauthorized');
@@ -227,6 +299,7 @@ async function handleMessage(message, userId) {
 // looks like a client-input or auth problem is mapped to 400/401 here.
 const CLIENT_ERROR_PATTERNS = [
   /^Invalid /i,
+  /^Published entries /i,
   /^Unknown trait/i,
   /^Meal entry/i,
   /must be /i,
