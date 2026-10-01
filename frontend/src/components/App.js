@@ -57,6 +57,8 @@ export function App() {
       showAdminPanel: false,
       currentView: 'archive',
       editingEntry: null,
+      editorMode: 'write',
+      editorBuffer: null,
       traitsLoaded: false,
       mealLoaded: false,
     });
@@ -71,6 +73,9 @@ export function App() {
       showAdminPanel: false,
       currentView: 'archive',
       selectedEntry: null,
+      editingEntry: null,
+      editorMode: 'write',
+      editorBuffer: null,
       selectedAudio: null,
       audioEntries: [],
       audioLoaded: false,
@@ -105,6 +110,7 @@ export function App() {
     outfitAssignSlot: null,
     sourceEditorOpen: view === 'sources' ? AppState.sourceEditorOpen : false,
     editingEntry: view === 'compose' ? AppState.editingEntry : null,
+    editorMode: view === 'compose' ? 'write' : AppState.editorMode,
   });
 
   const updateAppearance = async (next) => {

@@ -139,6 +139,7 @@ function ReadingPane({ entry, onDeleted, onVisibilityChanged }) {
 
   const editDraft = () => updateState({
     editingEntry: entry,
+    editorMode: 'write',
     currentView: 'compose',
     selectedEntry: null,
   });

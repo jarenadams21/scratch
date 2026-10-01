@@ -1,6 +1,7 @@
 import { createElement } from '../engine/main.js';
 import { currentUserEmail, upsertPost } from '../lib/api.js';
 import { installFormatter } from '../lib/formatter.js';
+import { renderMarkdown } from '../lib/markdown.js';
 import { AppState, updateState } from '../lib/state.js';
 import { DEFAULT_VISIBILITY_FALLBACK } from './SettingsView.js';
 
@@ -37,12 +38,88 @@ function DraftPicker({ drafts }) {
       ...drafts.map(draft => createElement('button', {
         type: 'button',
         className: AppState.editingEntry?.entryId === draft.entryId ? 'draft-chip active' : 'draft-chip',
-        onClick: () => updateState({ editingEntry: draft }),
+        onClick: () => updateState({
+          editingEntry: draft,
+          editorMode: 'write',
+          editorBuffer: null,
+        }),
       },
         createElement('strong', null, draft.title || 'UNTITLED'),
         createElement('span', null, new Date(draft.updatedAt || draft.createdAt).toLocaleDateString('en-US'))
       ))
     )
+  );
+}
+
+function PreviewSources({ sourceIds }) {
+  const sources = (sourceIds || [])
+    .map(id => (AppState.sources || []).find(source => source.id === id))
+    .filter(Boolean);
+  if (!sources.length) return null;
+  return createElement('section', { className: 'reading-sources' },
+    createElement('div', { className: 'reading-sources-rule' }),
+    createElement('span', { className: 'reading-sources-kicker' }, 'SOURCES USED'),
+    createElement('ol', null,
+      ...sources.map(source => createElement('li', { key: source.id },
+        createElement('a', {
+          href: source.url,
+          target: '_blank',
+          rel: 'noopener noreferrer',
+        },
+          createElement('strong', null, source.title),
+          createElement('span', null,
+            [source.creator, source.publication, source.publishedAt, source.type?.toUpperCase()]
+              .filter(Boolean).join(' · ')
+          )
+        )
+      ))
+    )
+  );
+}
+
+function EditorPreview({ draft }) {
+  const shelf = (AppState.shelves || []).find(item => item.id === draft?.shelfId);
+  const isPublic = draft?.visibility !== 'admins';
+  const date = new Date(draft?.createdAt || Date.now()).toLocaleDateString('en-US', {
+    year: 'numeric', month: 'long', day: 'numeric'
+  });
+  const content = draft?.content?.trim();
+
+  return createElement('article', {
+    className: 'editor-reader-preview',
+    'aria-label': 'Signed-out reader preview',
+  },
+    createElement('div', { className: 'editor-preview-notice' },
+      createElement('strong', null, isPublic ? 'SIGNED-OUT READER PREVIEW' : 'FORMATTING PREVIEW'),
+      createElement('span', null,
+        isPublic
+          ? 'This matches the public reading surface. Nothing has been published.'
+          : 'Admins-only pieces are not visible to signed-out readers. Nothing has been published.'
+      )
+    ),
+    createElement('header', { className: 'reading-header' },
+      createElement('h1', { className: 'reading-title' }, (draft?.title || 'Untitled').toUpperCase()),
+      createElement('div', { className: 'reading-meta' },
+        createElement('div', { className: 'reading-meta-left' },
+          createElement('span', { className: 'reading-date' }, date.toUpperCase()),
+          shelf
+            ? createElement('span', {
+                className: 'shelf-tag',
+                style: `--shelf-color:${shelf.color}`,
+                title: shelf.description || shelf.name,
+              }, shelf.name.toUpperCase())
+            : null,
+          createElement('span', {
+            className: isPublic ? 'vis-tag vis-tag-public' : 'vis-tag vis-tag-admins',
+          }, isPublic ? 'PUBLIC' : 'ADMINS')
+        )
+      )
+    ),
+    createElement('div', { className: 'reading-divider' }),
+    content
+      ? createElement('div', { className: 'reading-content' }, ...renderMarkdown(draft.content))
+      : createElement('p', { className: 'editor-preview-empty' }, 'Begin writing to preview the formatted piece.'),
+    createElement(PreviewSources, { sourceIds: draft?.sourceIds })
   );
 }
 
@@ -52,8 +129,23 @@ export function EditorView({ onPostCreated, onDraftSaved }) {
   const ownDrafts = (AppState.entries || []).filter(entry =>
     entry.status === 'draft' && (!entry.author || entry.author === me)
   );
-  const recovered = AppState.editingEntry ? null : readRecoveryDraft();
-  let currentEntry = AppState.editingEntry || recovered || null;
+  const recovered = readRecoveryDraft();
+  const recoveryMatches = recovered && (
+    AppState.editingEntry
+      ? recovered.entryId === AppState.editingEntry.entryId
+      : true
+  );
+  const recoveredEntry = recoveryMatches
+    ? { ...(AppState.editingEntry || {}), ...recovered }
+    : AppState.editingEntry || null;
+  const bufferMatches = AppState.editorBuffer && (
+    AppState.editingEntry
+      ? AppState.editorBuffer.entryId === AppState.editingEntry.entryId
+      : true
+  );
+  let currentEntry = bufferMatches
+    ? { ...(recoveredEntry || {}), ...AppState.editorBuffer }
+    : recoveredEntry;
   let formNode;
   let bodyNode;
   let menuNode;
@@ -163,7 +255,7 @@ export function EditorView({ onPostCreated, onDraftSaved }) {
     try {
       await save('published');
       clearRecoveryDraft();
-      updateState({ editingEntry: null });
+      updateState({ editingEntry: null, editorBuffer: null, editorMode: 'write' });
       if (onPostCreated) onPostCreated();
     } catch (err) {
       if (err.message === 'Headline and body required') alert(err.message);
@@ -177,7 +269,7 @@ export function EditorView({ onPostCreated, onDraftSaved }) {
       const saved = await save('draft');
       if (saved) {
         clearRecoveryDraft();
-        updateState({ editingEntry: saved });
+        updateState({ editingEntry: saved, editorBuffer: null });
         if (onDraftSaved) onDraftSaved(saved);
       }
     } catch (err) {
@@ -188,7 +280,15 @@ export function EditorView({ onPostCreated, onDraftSaved }) {
   const handleNewDraft = () => {
     clearTimeout(autosaveTimer);
     clearRecoveryDraft();
-    updateState({ editingEntry: null });
+    updateState({ editingEntry: null, editorMode: 'write', editorBuffer: null });
+  };
+
+  const showPreview = () => {
+    clearTimeout(autosaveTimer);
+    const draft = fields();
+    if (!draft) return;
+    writeRecoveryDraft({ ...draft, status: 'draft' });
+    updateState({ editorMode: 'preview', editorBuffer: draft });
   };
 
   const bindFormatter = () => {
@@ -203,6 +303,7 @@ export function EditorView({ onPostCreated, onDraftSaved }) {
   const initialVisibility = currentEntry?.visibility || defaultVis;
   const initialSourceIds = currentEntry?.sourceIds || [];
   const sources = AppState.sources || [];
+  const editorMode = AppState.editorMode === 'preview' ? 'preview' : 'write';
 
   return createElement('div', { className: 'editor-sheet' },
     createElement('div', { className: 'sheet-header' },
@@ -210,7 +311,29 @@ export function EditorView({ onPostCreated, onDraftSaved }) {
       createElement('span', { className: 'date-stamp' }, currentEntry?.entryId ? 'EDIT' : 'COMPOSE')
     ),
     createElement(DraftPicker, { drafts: ownDrafts }),
-    createElement('form', {
+    createElement('div', {
+      className: 'editor-mode-tabs',
+      role: 'tablist',
+      'aria-label': 'Compose mode',
+    },
+      createElement('button', {
+        type: 'button',
+        role: 'tab',
+        className: editorMode === 'write' ? 'active' : '',
+        'aria-selected': editorMode === 'write' ? 'true' : 'false',
+        onClick: () => updateState({ editorMode: 'write' }),
+      }, 'WRITE'),
+      createElement('button', {
+        type: 'button',
+        role: 'tab',
+        className: editorMode === 'preview' ? 'active' : '',
+        'aria-selected': editorMode === 'preview' ? 'true' : 'false',
+        onClick: showPreview,
+      }, 'PREVIEW')
+    ),
+    editorMode === 'preview'
+      ? createElement(EditorPreview, { draft: currentEntry || {} })
+      : createElement('form', {
       className: 'typewriter-form',
       onSubmit: handleSubmit,
       onInput: scheduleAutosave,
@@ -244,26 +367,31 @@ export function EditorView({ onPostCreated, onDraftSaved }) {
         })
       ),
       createElement('div', { className: 'editor-options' },
-        createElement('label', { className: 'shelf-field' },
-          createElement('span', { className: 'visibility-label' }, 'SHELF'),
-          createElement('select', {
-            name: 'shelfId',
-            className: 'shelf-select',
-            defaultValue: initialShelf,
-            ref: node => { shelfNode = node; },
-          },
-            createElement('option', { value: '' }, 'UNCATEGORIZED'),
-            ...shelves.map(shelf => createElement('option', { value: shelf.id }, shelf.name.toUpperCase()))
-          )
+        createElement('div', { className: 'editor-shelf-control' },
+          createElement('label', { className: 'shelf-field' },
+            createElement('span', { className: 'visibility-label' }, 'SHELF'),
+            createElement('select', {
+              name: 'shelfId',
+              className: 'shelf-select',
+              defaultValue: initialShelf,
+              ref: node => { shelfNode = node; },
+            },
+              createElement('option', { value: '' }, 'UNCATEGORIZED'),
+              ...shelves.map(shelf => createElement('option', { value: shelf.id }, shelf.name.toUpperCase()))
+            )
+          ),
+          createElement('button', {
+            type: 'button',
+            className: 'shelf-create-btn',
+            onClick: () => updateState({
+              shelfManagerOpen: true,
+              shelfEditingId: null,
+            }),
+          }, 'MANAGE SHELVES')
         ),
-        createElement('button', {
-          type: 'button',
-          className: 'shelf-create-btn',
-          onClick: () => updateState({
-            shelfManagerOpen: true,
-            shelfEditingId: null,
-          }),
-        }, 'MANAGE SHELVES')
+        createElement('p', { className: 'editor-options-note' },
+          'Organization controls are separated from the writing canvas.'
+        )
       ),
       createElement('div', { className: 'visibility-row' },
         createElement('span', { className: 'visibility-label' }, 'AUDIENCE'),

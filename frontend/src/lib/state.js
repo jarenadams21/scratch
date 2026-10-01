@@ -10,6 +10,8 @@ export const AppState = {
   currentView: 'archive',
   selectedEntry: null,
   editingEntry: null,
+  editorMode: 'write',
+  editorBuffer: null,
   archiveMode: 'published',
   archiveShelfId: null,
   showAdminPanel: false,
