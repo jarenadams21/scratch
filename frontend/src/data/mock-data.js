@@ -81,7 +81,12 @@ export const MOCK_AUDIO = [
   },
 ];
 
-let mockData = [...MOCK_POSTS];
+const freshMockPosts = () => MOCK_POSTS.map(post => ({
+  ...post,
+  sourceIds: Array.isArray(post.sourceIds) ? [...post.sourceIds] : [],
+}));
+
+let mockData = freshMockPosts();
 let mockAudioData = [...MOCK_AUDIO];
 let mockTraits = { calendar: true, inspo: false };
 let mockMealEntries = [];
@@ -100,6 +105,7 @@ let mockShelves = [
   },
 ];
 let mockAppearance = { theme: 'dark', palette: 'ember' };
+let mockAbout = { title: '', content: '', sections: [], updatedAt: null };
 let mockSources = [
   {
     id: 'source-writing',
@@ -150,6 +156,9 @@ export const mockDB = {
   upsertPost: (entry) => {
     const now = new Date().toISOString();
     const existingIndex = mockData.findIndex(post => post.entryId === entry.entryId);
+    if (existingIndex >= 0 && (mockData[existingIndex].status || 'published') === 'published') {
+      return Promise.reject(new Error('Published entries are immutable; update organization metadata instead'));
+    }
     const saved = {
       ...(existingIndex >= 0 ? mockData[existingIndex] : {}),
       entryId: entry.entryId || `mock-${Date.now()}`,
@@ -180,6 +189,31 @@ export const mockDB = {
     post.visibility = visibility;
     post.updatedAt = new Date().toISOString();
     return Promise.resolve({ entryId: postId, visibility });
+  },
+
+  updateOrganization: (postId, timestamp, shelfId, sourceIds) => {
+    const post = mockData.find(item => item.entryId === postId && item.createdAt === timestamp);
+    if (!post || (post.status || 'published') !== 'published') {
+      return Promise.reject(new Error('Invalid published entry (not found)'));
+    }
+    const cleanShelfId = typeof shelfId === 'string' ? shelfId.trim() : '';
+    const cleanSourceIds = Array.isArray(sourceIds)
+      ? [...new Set(sourceIds.filter(id => typeof id === 'string').map(id => id.trim()).filter(Boolean))]
+      : [];
+    if (cleanShelfId.length > 120) return Promise.reject(new Error('Invalid shelf'));
+    if (cleanSourceIds.length > 100 || cleanSourceIds.some(id => id.length > 120)) {
+      return Promise.reject(new Error('Invalid sources'));
+    }
+    post.shelfId = cleanShelfId || null;
+    post.sourceIds = cleanSourceIds;
+    post.updatedAt = new Date().toISOString();
+    return Promise.resolve({
+      entryId: post.entryId,
+      createdAt: post.createdAt,
+      shelfId: post.shelfId,
+      sourceIds: [...post.sourceIds],
+      updatedAt: post.updatedAt,
+    });
   },
 
   getShelves: () => Promise.resolve(mockShelves.map(shelf => ({ ...shelf }))),
@@ -219,6 +253,73 @@ export const mockDB = {
   setAppearance: (theme, palette) => {
     mockAppearance = { theme, palette };
     return Promise.resolve({ ...mockAppearance });
+  },
+
+  getAbout: () => Promise.resolve({
+    ...mockAbout,
+    sections: (mockAbout.sections || []).map(section => ({ ...section })),
+  }),
+
+  setAbout: (title, sectionsOrContent) => {
+    if (typeof title !== 'string' || title.trim().length > 160) {
+      return Promise.reject(new Error('Invalid About title (max 160 characters)'));
+    }
+    const input = typeof sectionsOrContent === 'string'
+      ? sectionsOrContent.trim()
+        ? [{
+            id: 'about-legacy',
+            title: title.trim() || 'About',
+            descriptor: '',
+            classification: '',
+            content: sectionsOrContent,
+          }]
+        : []
+      : sectionsOrContent;
+    if (!Array.isArray(input) || input.length > 12) {
+      return Promise.reject(new Error('Invalid About sections (max 12)'));
+    }
+    const ids = new Set();
+    const sections = [];
+    for (let index = 0; index < input.length; index += 1) {
+      const section = input[index] || {};
+      const id = typeof section.id === 'string' ? section.id.trim() : '';
+      const sectionTitle = typeof section.title === 'string' ? section.title.trim() : '';
+      const descriptor = typeof section.descriptor === 'string' ? section.descriptor.trim() : '';
+      const classification = typeof section.classification === 'string' ? section.classification.trim() : '';
+      if (!id || id.length > 80 || ids.has(id)) {
+        return Promise.reject(new Error('Invalid About section id'));
+      }
+      if (!sectionTitle || sectionTitle.length > 120) {
+        return Promise.reject(new Error('Invalid About section title (max 120 characters)'));
+      }
+      if (descriptor.length > 240 || classification.length > 160) {
+        return Promise.reject(new Error('Invalid About section metadata'));
+      }
+      if (typeof section.content !== 'string' || section.content.length > 50000) {
+        return Promise.reject(new Error('Invalid About section content (max 50000 characters)'));
+      }
+      ids.add(id);
+      sections.push({ id, title: sectionTitle, descriptor, classification, content: section.content });
+    }
+    if (sections.reduce((total, section) => total + section.content.length, 0) > 100000) {
+      return Promise.reject(new Error('Invalid About content (max 100000 characters)'));
+    }
+    const content = sections.map(section => [
+      `## ${section.title}`,
+      section.descriptor ? `*${section.descriptor}*` : '',
+      section.classification ? `Filed under: ${section.classification}` : '',
+      section.content,
+    ].filter(Boolean).join('\n\n')).join('\n\n---\n\n');
+    mockAbout = {
+      title: title.trim(),
+      content,
+      sections,
+      updatedAt: new Date().toISOString(),
+    };
+    return Promise.resolve({
+      ...mockAbout,
+      sections: sections.map(section => ({ ...section })),
+    });
   },
 
   getSources: () => Promise.resolve(mockSources.map(source => ({ ...source }))),
@@ -263,7 +364,8 @@ export const mockDB = {
   }),
   
   reset: () => {
-    mockData = [...MOCK_POSTS];
+    mockData = freshMockPosts();
+    mockAbout = { title: '', content: '', sections: [], updatedAt: null };
   }
 };
 

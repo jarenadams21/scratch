@@ -79,6 +79,18 @@ function validatedEntry(entry, { publishing = false } = {}) {
   return { title, content, status, visibility, shelfId: shelfId || null, sourceIds };
 }
 
+function validatedEntryOrganization(entry) {
+  const shelfId = typeof entry.shelfId === 'string' ? entry.shelfId.trim() : '';
+  const sourceIds = Array.isArray(entry.sourceIds)
+    ? [...new Set(entry.sourceIds.filter(id => typeof id === 'string').map(id => id.trim()).filter(Boolean))]
+    : [];
+  if (shelfId.length > 120) throw new Error('Invalid shelf');
+  if (sourceIds.length > 100 || sourceIds.some(id => id.length > 120)) {
+    throw new Error('Invalid sources');
+  }
+  return { shelfId: shelfId || null, sourceIds };
+}
+
 export async function createEntry(userId, entry) {
   const timestamp = new Date().toISOString();
   const entryId = `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
@@ -131,14 +143,24 @@ export async function upsertEntry(userId, entry) {
     return item;
   }
 
+  const key = {
+    pk: `USER#${userId}`,
+    sk: `ENTRY#${entry.createdAt}#${entry.entryId}`,
+  };
+  const current = (await db.send(new GetCommand({
+    TableName: config.DYNAMODB_TABLE,
+    Key: key,
+  }))).Item;
+  if (!current) throw new Error('Invalid entry (not found)');
+  if ((current.status || DEFAULT_ENTRY_STATUS) === 'published') {
+    throw new Error('Published entries are immutable; update organization metadata instead');
+  }
+
   const updatedAt = new Date().toISOString();
   try {
     await db.send(new UpdateCommand({
       TableName: config.DYNAMODB_TABLE,
-      Key: {
-        pk: `USER#${userId}`,
-        sk: `ENTRY#${entry.createdAt}#${entry.entryId}`,
-      },
+      Key: key,
       UpdateExpression: 'SET title = :title, content = :content, mood = :mood, visibility = :visibility, #status = :status, shelfId = :shelfId, sourceIds = :sourceIds, updatedAt = :updatedAt',
       ExpressionAttributeNames: { '#status': 'status' },
       ExpressionAttributeValues: {
@@ -147,15 +169,16 @@ export async function upsertEntry(userId, entry) {
         ':mood': entry.mood || null,
         ':visibility': validated.visibility,
         ':status': validated.status,
+        ':draft': 'draft',
         ':shelfId': validated.shelfId,
         ':sourceIds': validated.sourceIds,
         ':updatedAt': updatedAt,
       },
-      ConditionExpression: 'attribute_exists(pk)',
+      ConditionExpression: 'attribute_exists(pk) AND #status = :draft',
     }));
   } catch (err) {
     if (err?.name === 'ConditionalCheckFailedException') {
-      throw new Error('Invalid entry (not found)');
+      throw new Error('Invalid draft (changed or no longer exists)');
     }
     throw err;
   }
@@ -170,6 +193,46 @@ export async function upsertEntry(userId, entry) {
     shelfId: validated.shelfId,
     sourceIds: validated.sourceIds,
     createdAt: entry.createdAt,
+    updatedAt,
+  };
+}
+
+export async function updateEntryOrganization(userId, entryId, timestamp, organization) {
+  if (!userId || typeof userId !== 'string') throw new Error('Unauthorized');
+  if (!entryId || typeof entryId !== 'string' || !timestamp || typeof timestamp !== 'string') {
+    throw new Error('Invalid entry');
+  }
+  const validated = validatedEntryOrganization(organization || {});
+  const updatedAt = new Date().toISOString();
+  try {
+    await db.send(new UpdateCommand({
+      TableName: config.DYNAMODB_TABLE,
+      Key: {
+        pk: `USER#${userId}`,
+        sk: `ENTRY#${timestamp}#${entryId}`,
+      },
+      UpdateExpression: 'SET shelfId = :shelfId, sourceIds = :sourceIds, updatedAt = :updatedAt',
+      ConditionExpression: 'attribute_exists(pk) AND (#status = :published OR attribute_not_exists(#status))',
+      ExpressionAttributeNames: { '#status': 'status' },
+      ExpressionAttributeValues: {
+        ':shelfId': validated.shelfId,
+        ':sourceIds': validated.sourceIds,
+        ':updatedAt': updatedAt,
+        ':published': 'published',
+      },
+    }));
+  } catch (err) {
+    if (err?.name === 'ConditionalCheckFailedException') {
+      throw new Error('Invalid published entry (not found)');
+    }
+    throw err;
+  }
+  return {
+    entryId,
+    author: userId,
+    createdAt: timestamp,
+    shelfId: validated.shelfId,
+    sourceIds: validated.sourceIds,
     updatedAt,
   };
 }

@@ -8,6 +8,7 @@ import { RecordingsView } from './RecordingsView.js';
 import { SettingsView } from './SettingsView.js';
 import { ShelfManager } from './ShelfManager.js';
 import { SourcesView } from './SourcesView.js';
+import { AboutView } from './AboutView.js';
 import { CalendarView } from './CalendarView.js';
 import { InspoView } from './InspoView.js';
 import { Lightbox } from './Lightbox.js';
@@ -16,12 +17,138 @@ import {
   postLoader, audioLoader, traitsLoader, mealLoader, inspoBoardsLoader,
   inspoItemsLoader, outfitsLoader, shelvesLoader, appearanceLoader,
   sourcesLoader,
+  aboutLoader,
 } from '../lib/loaders.js';
 import {
-  applyAppearance, PALETTE_LABELS, PALETTES,
+  applyAppearance, PALETTE_OPTIONS,
 } from '../lib/appearance.js';
 
+let paletteLabelHideTimer = null;
+let paletteSelectionTimer = null;
+let paletteViewportHandlerInstalled = false;
+let hoveredPalette = null;
+let focusedPalette = null;
+const paletteNodes = new Map();
+
+function paletteOverlayPosition(node, estimatedHeight = 52) {
+  const rect = node.getBoundingClientRect();
+  const halfWidth = 74;
+  const left = Math.min(
+    window.innerWidth - halfWidth - 8,
+    Math.max(halfWidth + 8, rect.left + (rect.width / 2)),
+  );
+  const below = rect.bottom + estimatedHeight + 8 <= window.innerHeight;
+  return {
+    left,
+    top: below ? rect.bottom + 6 : rect.top - 6,
+    placement: below ? 'below' : 'above',
+  };
+}
+
+function showPaletteLabel(option, node, mode = 'preview', replaceSelected = false) {
+  clearTimeout(paletteLabelHideTimer);
+  if (
+    mode === 'preview'
+    && AppState.paletteLabel?.mode === 'selected'
+    && AppState.paletteLabel.palette === option.id
+    && !replaceSelected
+  ) return;
+  if (mode === 'preview') clearTimeout(paletteSelectionTimer);
+  const position = paletteOverlayPosition(node);
+  const current = AppState.paletteLabel;
+  if (
+    current?.visible
+    && current.palette === option.id
+    && current.mode === mode
+    && current.left === position.left
+    && current.top === position.top
+  ) return;
+  updateState({
+    paletteLabel: {
+      palette: option.id,
+      name: option.name,
+      hex: option.hex,
+      mode,
+      visible: true,
+      ...position,
+    },
+  });
+}
+
+function hidePaletteLabel(palette, force = false) {
+  if (
+    AppState.paletteLabel?.palette === palette
+    && (force || AppState.paletteLabel.mode !== 'selected')
+  ) {
+    updateState({
+      paletteLabel: { ...AppState.paletteLabel, visible: false },
+    });
+    clearTimeout(paletteLabelHideTimer);
+    paletteLabelHideTimer = setTimeout(() => {
+      if (
+        AppState.paletteLabel?.palette === palette
+        && !AppState.paletteLabel.visible
+      ) {
+        updateState({ paletteLabel: null });
+      }
+    }, 150);
+  }
+}
+
+function dismissPaletteLabel() {
+  clearTimeout(paletteLabelHideTimer);
+  clearTimeout(paletteSelectionTimer);
+  if (AppState.paletteLabel) updateState({ paletteLabel: null });
+}
+
+function showPaletteSelection(option, node) {
+  clearTimeout(paletteSelectionTimer);
+  showPaletteLabel(option, node, 'selected');
+  paletteSelectionTimer = setTimeout(() => {
+    if (
+      AppState.paletteLabel?.palette !== option.id
+      || AppState.paletteLabel.mode !== 'selected'
+    ) return;
+    const activeNode = paletteNodes.get(option.id);
+    if (
+      activeNode?.isConnected
+      && (hoveredPalette === option.id || focusedPalette === option.id)
+    ) {
+      showPaletteLabel(option, activeNode, 'preview', true);
+    } else {
+      hidePaletteLabel(option.id, true);
+    }
+  }, 900);
+}
+
+function handlePaletteEnter(option, node) {
+  hoveredPalette = option.id;
+  showPaletteLabel(option, node);
+}
+
+function handlePaletteLeave(option) {
+  if (hoveredPalette === option.id) hoveredPalette = null;
+  if (focusedPalette !== option.id) hidePaletteLabel(option.id);
+}
+
+function handlePaletteFocus(option, node) {
+  focusedPalette = node.matches(':focus-visible') ? option.id : null;
+  if (focusedPalette) showPaletteLabel(option, node);
+}
+
+function handlePaletteBlur(option) {
+  if (focusedPalette === option.id) focusedPalette = null;
+  if (hoveredPalette !== option.id) hidePaletteLabel(option.id);
+}
+
+function installPaletteViewportHandler() {
+  if (paletteViewportHandlerInstalled || typeof window === 'undefined') return;
+  paletteViewportHandlerInstalled = true;
+  window.addEventListener('resize', dismissPaletteLabel);
+}
+
 export function App() {
+  installPaletteViewportHandler();
   const isAdmin        = isLoggedIn();
   const showAdminPanel = AppState.showAdminPanel || false;
   const traits         = AppState.traits || {};
@@ -33,6 +160,7 @@ export function App() {
   postLoader.ensureLoaded();
   shelvesLoader.ensureLoaded();
   sourcesLoader.ensureLoaded();
+  aboutLoader.ensureLoaded();
   appearanceLoader.ensureLoaded();
   applyAppearance(AppState.appearance, false);
   if (isAdmin) {
@@ -59,6 +187,11 @@ export function App() {
       editingEntry: null,
       editorMode: 'write',
       editorBuffer: null,
+      entryOrganizerOpen: false,
+      aboutEditing: false,
+      aboutEditorMode: 'write',
+      aboutBuffer: null,
+      aboutActiveSectionId: null,
       traitsLoaded: false,
       mealLoaded: false,
     });
@@ -85,6 +218,11 @@ export function App() {
       mealLoaded: false,
       selectedMealDate: null,
       sourceEditorOpen: false,
+      entryOrganizerOpen: false,
+      aboutEditing: false,
+      aboutEditorMode: 'write',
+      aboutBuffer: null,
+      aboutActiveSectionId: null,
       inspoBoards: [],
       inspoItems: [],
       inspoBoardsLoaded: false,
@@ -109,6 +247,11 @@ export function App() {
     inspoEditingId: null,
     outfitAssignSlot: null,
     sourceEditorOpen: view === 'sources' ? AppState.sourceEditorOpen : false,
+    entryOrganizerOpen: false,
+    aboutEditing: view === 'about' ? AppState.aboutEditing : false,
+    aboutEditorMode: view === 'about' ? AppState.aboutEditorMode : 'write',
+    aboutBuffer: view === 'about' ? AppState.aboutBuffer : null,
+    aboutActiveSectionId: view === 'about' ? AppState.aboutActiveSectionId : null,
     editingEntry: view === 'compose' ? AppState.editingEntry : null,
     editorMode: view === 'compose' ? 'write' : AppState.editorMode,
   });
@@ -130,10 +273,31 @@ export function App() {
     theme: AppState.appearance?.theme === 'dark' ? 'light' : 'dark',
   });
 
-  const selectPalette = (palette) => updateAppearance({
-    ...AppState.appearance,
-    palette,
-  });
+  const selectPalette = (option, node) => {
+    updateAppearance({
+      ...AppState.appearance,
+      palette: option.id,
+    });
+    showPaletteSelection(option, node);
+  };
+
+  const handlePaletteKeyDown = (event, index) => {
+    const keys = ['ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown', 'Home', 'End'];
+    if (!keys.includes(event.key)) return;
+    event.preventDefault();
+    let nextIndex = index;
+    if (event.key === 'Home') nextIndex = 0;
+    else if (event.key === 'End') nextIndex = PALETTE_OPTIONS.length - 1;
+    else {
+      const direction = event.key === 'ArrowLeft' || event.key === 'ArrowUp' ? -1 : 1;
+      nextIndex = (index + direction + PALETTE_OPTIONS.length) % PALETTE_OPTIONS.length;
+    }
+    const option = PALETTE_OPTIONS[nextIndex];
+    const node = paletteNodes.get(option.id);
+    if (!node) return;
+    node.focus();
+    selectPalette(option, node);
+  };
 
   const calendarEnabled = isAdmin && !!traits.calendar;
 
@@ -142,7 +306,8 @@ export function App() {
   let workspaceContent;
   // Only block on audioLoading when we're actually showing audio.
   const isAudioView = AppState.currentView === 'recordings' || AppState.currentView === 'record';
-  if (AppState.loading || (isAudioView && AppState.audioLoading)) {
+  const isAboutView = AppState.currentView === 'about';
+  if (AppState.loading || (isAudioView && AppState.audioLoading) || (isAboutView && AppState.aboutLoading)) {
     workspaceContent = createElement('div', { className: 'loading-state', key: 'loading' }, 'LOADING...');
   } else if (AppState.currentView === 'record' && isAdmin) {
     workspaceContent = createElement('div', { className: 'view-wrapper', key: 'record-view' },
@@ -180,6 +345,10 @@ export function App() {
     workspaceContent = createElement('div', { className: 'view-wrapper', key: 'sources-view' },
       createElement(SourcesView, {})
     );
+  } else if (AppState.currentView === 'about') {
+    workspaceContent = createElement('div', { className: 'view-wrapper', key: 'about-view' },
+      createElement(AboutView, {})
+    );
   } else {
     workspaceContent = createElement('div', { className: 'view-wrapper', key: 'archive-view' },
       createElement(ArchiveView, {
@@ -191,6 +360,18 @@ export function App() {
 
   // Build nav tabs as an array so they can wrap into the scrollable second row.
   const navTabs = [];
+  navTabs.push(createElement('button', {
+    onClick: () => switchView('archive'),
+    className: AppState.currentView === 'archive' ? 'tab active' : 'tab',
+  }, 'ARCHIVE'));
+  navTabs.push(createElement('button', {
+    onClick: () => switchView('sources'),
+    className: AppState.currentView === 'sources' ? 'tab active' : 'tab',
+  }, 'SOURCES'));
+  navTabs.push(createElement('button', {
+    onClick: () => switchView('about'),
+    className: AppState.currentView === 'about' ? 'tab active' : 'tab',
+  }, 'ABOUT'));
   if (isAdmin) {
     navTabs.push(createElement('button', {
       onClick: () => switchView('compose'),
@@ -201,14 +382,6 @@ export function App() {
       className: AppState.currentView === 'record' ? 'tab active' : 'tab',
     }, 'RECORD'));
   }
-  navTabs.push(createElement('button', {
-    onClick: () => switchView('archive'),
-    className: AppState.currentView === 'archive' ? 'tab active' : 'tab',
-  }, 'ARCHIVE'));
-  navTabs.push(createElement('button', {
-    onClick: () => switchView('sources'),
-    className: AppState.currentView === 'sources' ? 'tab active' : 'tab',
-  }, 'SOURCES'));
   if (isAdmin) {
     navTabs.push(createElement('button', {
       onClick: () => switchView('recordings'),
@@ -258,17 +431,40 @@ export function App() {
             title: 'Toggle light and dark theme',
             'aria-label': 'Toggle light and dark theme',
           }, AppState.appearance?.theme === 'dark' ? '☼' : '◐'),
-          ...PALETTES.map(palette => createElement('button', {
-            type: 'button',
-            key: palette,
-            onClick: () => selectPalette(palette),
-            className: AppState.appearance?.palette === palette
-              ? `palette-swatch palette-${palette} active`
-              : `palette-swatch palette-${palette}`,
-            title: `Use ${PALETTE_LABELS[palette]} colors`,
-            'aria-label': `Use ${PALETTE_LABELS[palette]} colors`,
-            'aria-pressed': AppState.appearance?.palette === palette,
-          }, createElement('span', { 'aria-hidden': 'true' })))
+          createElement('div', {
+            className: 'palette-swatches',
+            role: 'radiogroup',
+            'aria-label': 'Accent color',
+            onScroll: dismissPaletteLabel,
+          },
+            ...PALETTE_OPTIONS.map((option, index) => {
+              const selected = AppState.appearance?.palette === option.id;
+              const described = AppState.paletteLabel?.palette === option.id
+                && AppState.paletteLabel.visible
+                && AppState.paletteLabel.mode === 'preview';
+              return createElement('button', {
+                type: 'button',
+                key: option.id,
+                role: 'radio',
+                className: selected ? 'palette-swatch active' : 'palette-swatch',
+                style: `--swatch-color:${option.hex};--swatch-check:${option.check};`,
+                onClick: event => selectPalette(option, event.currentTarget),
+                onMouseEnter: event => handlePaletteEnter(option, event.currentTarget),
+                onMouseLeave: () => handlePaletteLeave(option),
+                onFocus: event => handlePaletteFocus(option, event.currentTarget),
+                onBlur: () => handlePaletteBlur(option),
+                onKeyDown: event => handlePaletteKeyDown(event, index),
+                'aria-label': option.name,
+                'aria-checked': selected ? 'true' : 'false',
+                ...(described ? { 'aria-describedby': 'palette-label' } : {}),
+                ref: node => { paletteNodes.set(option.id, node); },
+              },
+                createElement('span', { className: 'palette-swatch-chip', 'aria-hidden': 'true' },
+                  createElement('span', { className: 'palette-swatch-check' }, '✓')
+                )
+              );
+            })
+          )
         )
       )
     ),
@@ -290,6 +486,26 @@ export function App() {
 
     isAdmin && AppState.shelfManagerOpen
       ? createElement(ShelfManager, { key: 'shelf-manager' })
+      : null,
+
+    AppState.paletteLabel
+      ? createElement('div', {
+          id: 'palette-label',
+          role: AppState.paletteLabel.mode === 'selected' ? 'status' : 'tooltip',
+          className: [
+            'palette-label',
+            AppState.paletteLabel.mode === 'selected' ? 'is-selected' : '',
+            AppState.paletteLabel.visible ? '' : 'is-leaving',
+          ].filter(Boolean).join(' '),
+          'aria-live': AppState.paletteLabel.mode === 'selected' ? 'polite' : 'off',
+          'data-placement': AppState.paletteLabel.placement,
+          style: `left:${AppState.paletteLabel.left}px;top:${AppState.paletteLabel.top}px;`,
+        },
+          createElement('strong', null, AppState.paletteLabel.name),
+          createElement('span', null,
+            AppState.paletteLabel.mode === 'selected' ? 'SELECTED' : AppState.paletteLabel.hex
+          )
+        )
       : null
   );
 }

@@ -1,7 +1,7 @@
 import http from 'http';
 import { config } from './config/config.js';
 import { signup, login, extractUser } from './auth/auth.js';
-import { createEntry, upsertEntry, getAllEntries, clearShelfFromEntries, clearSourceFromEntries, deleteEntry, updateEntryVisibility, DEFAULT_VISIBILITY, DEFAULT_ENTRY_STATUS } from './db/db.js';
+import { createEntry, upsertEntry, getAllEntries, clearShelfFromEntries, clearSourceFromEntries, deleteEntry, updateEntryVisibility, updateEntryOrganization, DEFAULT_VISIBILITY, DEFAULT_ENTRY_STATUS } from './db/db.js';
 import { generateUploadUrl, createAudioEntry, getUserAudioEntries, deleteAudioEntry } from './db/audio-db.js';
 import { getTraits, setTrait, upsertMealEntry, deleteMealEntry, getMealEntries, getProfiles, DEFAULT_DISPLAY_NAME, generateImageUploadUrl, attachMealImage, detachMealImage } from './db/feature-db.js';
 import {
@@ -11,6 +11,7 @@ import {
 } from './db/inspo-db.js';
 import {
   getShelves, createShelf, updateShelf, deleteShelf, getAppearance, setAppearance,
+  getAbout, setAbout,
 } from './db/content-db.js';
 import {
   getSources, createSource, updateSource, deleteSource, generateSourceUploadUrl,
@@ -177,6 +178,22 @@ async function handleMessage(message, userId) {
       if (!userId) throw new Error('Unauthorized');
       return await updateEntryVisibility(content.author, content.postId, content.timestamp, content.visibility);
 
+    case 'update_post_organization':
+      if (!userId) throw new Error('Unauthorized');
+      return await updateEntryOrganization(
+        userId,
+        content.postId,
+        content.timestamp,
+        { shelfId: content.shelfId, sourceIds: content.sourceIds },
+      );
+
+    case 'get_about':
+      return await getAbout();
+
+    case 'set_about':
+      if (!userId) throw new Error('Unauthorized');
+      return await setAbout(content.title, content.sections ?? content.content);
+
     case 'delete_post':
       if (!userId) throw new Error('Unauthorized');
       await deleteEntry(userId, content.postId, content.timestamp);
@@ -300,6 +317,8 @@ async function handleMessage(message, userId) {
 const CLIENT_ERROR_PATTERNS = [
   /^Invalid /i,
   /^Published entries /i,
+  /^Invalid About /i,
+  /^Invalid published entry/i,
   /^Unknown trait/i,
   /^Meal entry/i,
   /must be /i,

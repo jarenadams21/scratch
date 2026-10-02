@@ -6,6 +6,7 @@ import { plainText, renderMarkdown } from '../lib/markdown.js';
 import { confirmDelete } from '../lib/actions.js';
 import { ensureProfilesFor, profileFor } from '../lib/loaders.js';
 import { ListView } from './ListView.js';
+import { EntryOrganizer } from './EntryOrganizer.js';
 
 function visibilityOf(entry) {
   return entry?.visibility === 'admins' ? 'admins' : 'public';
@@ -171,13 +172,23 @@ function ReadingPane({ entry, onDeleted, onVisibilityChanged }) {
             ? createElement('button', { onClick: handleVisibilityFlip, className: 'visibility-flip-btn' },
                 visibility === 'public' ? 'MAKE PRIVATE' : 'MAKE PUBLIC')
             : null,
+          entry.status !== 'draft' && isOwner
+            ? createElement('button', {
+                type: 'button',
+                className: 'visibility-flip-btn',
+                onClick: () => updateState({ entryOrganizerOpen: true }),
+              }, 'ORGANIZE')
+            : null,
           isOwner ? createElement('button', { onClick: handleDelete, className: 'delete-btn' }, 'DELETE') : null
         )
       )
     ),
     createElement('div', { className: 'reading-divider' }),
     createElement('div', { className: 'reading-content' }, ...renderMarkdown(entry.content)),
-    createElement(SourcesUsed, { entry })
+    createElement(SourcesUsed, { entry }),
+    isOwner && AppState.entryOrganizerOpen
+      ? createElement(EntryOrganizer, { entry })
+      : null
   );
 }
 

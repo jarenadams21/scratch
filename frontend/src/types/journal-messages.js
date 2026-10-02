@@ -21,6 +21,9 @@ const REGISTERED_NUM_MAP = {
   "delete_shelf": 24,
   "get_appearance": 25,
   "set_appearance": 26,
+  "update_post_organization": 44,
+  "get_about": 45,
+  "set_about": 46,
 };
 
 export const VISIBILITY_PUBLIC = 'public';
@@ -96,6 +99,33 @@ export function updatePostVisibilityMessage(postId, timestamp, visibility, autho
     payload: {
       content: { postId, timestamp, visibility, author },
       num: REGISTERED_NUM_MAP["update_post_visibility"]
+    }
+  };
+}
+
+export function updatePostOrganizationMessage(postId, timestamp, shelfId, sourceIds) {
+  return {
+    command: "update_post_organization",
+    payload: {
+      content: { postId, timestamp, shelfId, sourceIds },
+      num: REGISTERED_NUM_MAP["update_post_organization"]
+    }
+  };
+}
+
+export function getAboutMessage() {
+  return {
+    command: "get_about",
+    payload: { content: {}, num: REGISTERED_NUM_MAP["get_about"] }
+  };
+}
+
+export function setAboutMessage(title, sections) {
+  return {
+    command: "set_about",
+    payload: {
+      content: { title, sections },
+      num: REGISTERED_NUM_MAP["set_about"]
     }
   };
 }

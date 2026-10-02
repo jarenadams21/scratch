@@ -29,8 +29,10 @@ Opens:
 - Slash-command Markdown formatter with rich archive rendering
 - Database-backed drafts, custom shelves, and site appearance palettes
 - Public source library for linked websites and uploaded PDFs, with per-piece citations
+- Immutable published transmissions whose shelf and source metadata can still be reorganized
+- Public Archive, Sources, and an owner-editable About catalog with ordered archival cards, Markdown bodies, preview, and keyboard navigation
 - Full shelf management with names, descriptions, colors, entry counts, editing, and non-destructive deletion
-- Visitor-controlled light/dark and accent palettes saved per browser, with an owner-managed site default
+- Visitor-controlled light/dark modes and nine named New England archival accent palettes, saved per browser with an owner-managed site default
 - Message-based CRUD operations
 - DEV mode with auto-login and mock data
 - YAML configuration system

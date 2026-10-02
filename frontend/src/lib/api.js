@@ -4,6 +4,7 @@ import {
   getPostsMessage,
   deletePostMessage,
   updatePostVisibilityMessage,
+  updatePostOrganizationMessage,
   signupMessage,
   loginMessage,
   logoutMessage,
@@ -13,6 +14,8 @@ import {
   deleteShelfMessage,
   getAppearanceMessage,
   setAppearanceMessage,
+  getAboutMessage,
+  setAboutMessage,
 } from '../types/journal-messages.js';
 import {
   requestUploadUrlMessage,
@@ -88,12 +91,21 @@ const devVisitor = {
   upsert_post:        (msg) => mockDB.upsertPost(msg.payload.content),
   delete_post:        (msg) => mockDB.deletePost(msg.payload.content.postId),
   update_post_visibility: (msg) => { const { postId, visibility } = msg.payload.content; return mockDB.updateVisibility(postId, visibility); },
+  update_post_organization: (msg) => {
+    const c = msg.payload.content;
+    return mockDB.updateOrganization(c.postId, c.timestamp, c.shelfId, c.sourceIds);
+  },
   get_shelves:        () => mockDB.getShelves(),
   create_shelf:       (msg) => mockDB.createShelf(msg.payload.content.name, msg.payload.content.color, msg.payload.content.description),
   update_shelf:       (msg) => mockDB.updateShelf(msg.payload.content.id, msg.payload.content.patch),
   delete_shelf:       (msg) => mockDB.deleteShelf(msg.payload.content.id),
   get_appearance:     () => mockDB.getAppearance(),
   set_appearance:     (msg) => mockDB.setAppearance(msg.payload.content.theme, msg.payload.content.palette),
+  get_about:          () => mockDB.getAbout(),
+  set_about:          (msg) => mockDB.setAbout(
+    msg.payload.content.title,
+    msg.payload.content.sections ?? msg.payload.content.content,
+  ),
   get_sources:        () => mockDB.getSources(),
   create_source:      (msg) => mockDB.createSource(msg.payload.content),
   update_source:      (msg) => mockDB.updateSource(msg.payload.content.id, msg.payload.content.patch),
@@ -205,6 +217,10 @@ export async function updatePostVisibility(postId, timestamp, visibility, author
   return sendMessage(updatePostVisibilityMessage(postId, timestamp, visibility, author));
 }
 
+export async function updatePostOrganization(postId, timestamp, shelfId, sourceIds) {
+  return sendMessage(updatePostOrganizationMessage(postId, timestamp, shelfId, sourceIds));
+}
+
 export async function getShelves() {
   return sendMessage(getShelvesMessage(), false);
 }
@@ -227,6 +243,14 @@ export async function getAppearance() {
 
 export async function setAppearance(theme, palette) {
   return sendMessage(setAppearanceMessage(theme, palette));
+}
+
+export async function getAbout() {
+  return sendMessage(getAboutMessage(), false);
+}
+
+export async function setAbout(title, sections) {
+  return sendMessage(setAboutMessage(title, sections));
 }
 
 // ─── Source Library ─────────────────────────────────────────────────────────

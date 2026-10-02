@@ -3,6 +3,7 @@ import {
   getPosts, getAudioPosts, getTraits, getMealEntries, getProfiles,
   getInspoBoards, getInspos, getOutfits, getShelves, getAppearance,
   getSources,
+  getAbout,
 } from './api.js';
 import { applyAppearance, normalizedAppearance } from './appearance.js';
 
@@ -68,6 +69,13 @@ export const sourcesLoader = makeLoader({
   stateKey: 'sources',
   loadingKey: 'sourcesLoading',
   loadedKey: 'sourcesLoaded',
+});
+
+export const aboutLoader = makeLoader({
+  fetchFn: getAbout,
+  stateKey: 'about',
+  loadingKey: 'aboutLoading',
+  loadedKey: 'aboutLoaded',
 });
 
 function loadAppearance() {

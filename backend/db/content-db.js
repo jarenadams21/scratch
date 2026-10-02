@@ -14,7 +14,20 @@ const db = DynamoDBDocumentClient.from(client);
 const SITE_PK = 'SITE#HARBINGER';
 const DEFAULT_APPEARANCE = Object.freeze({ theme: 'dark', palette: 'ember' });
 const THEMES = Object.freeze(['light', 'dark']);
-const PALETTES = Object.freeze(['ember', 'blue', 'moss']);
+const PALETTES = Object.freeze([
+  'ember',
+  'moss',
+  'mainsail',
+  'summer-sea',
+  'sailor-red',
+  'night-sky',
+  'rrl-purple',
+  'maize',
+  'hammond-khaki',
+]);
+const PALETTE_ALIASES = Object.freeze({ blue: 'summer-sea' });
+const EMPTY_ABOUT = Object.freeze({ title: '', content: '', sections: [], updatedAt: null });
+const MAX_ABOUT_SECTIONS = 12;
 
 function cleanShelfName(value) {
   if (typeof value !== 'string') throw new Error('Invalid shelf name');
@@ -129,13 +142,22 @@ export async function getAppearance() {
     TableName: config.DYNAMODB_TABLE,
     Key: { pk: SITE_PK, sk: 'APPEARANCE' },
   }));
-  return result.Item?.appearance || DEFAULT_APPEARANCE;
+  const stored = result.Item?.appearance;
+  const theme = THEMES.includes(stored?.theme) ? stored.theme : DEFAULT_APPEARANCE.theme;
+  const requestedPalette = PALETTE_ALIASES[stored?.palette] || stored?.palette;
+  const palette = PALETTES.includes(requestedPalette)
+    ? requestedPalette
+    : DEFAULT_APPEARANCE.palette;
+  return { theme, palette };
 }
 
 export async function setAppearance(theme, palette) {
   if (!THEMES.includes(theme)) throw new Error(`Invalid theme (must be one of: ${THEMES.join(', ')})`);
-  if (!PALETTES.includes(palette)) throw new Error(`Invalid palette (must be one of: ${PALETTES.join(', ')})`);
-  const appearance = { theme, palette };
+  const requestedPalette = PALETTE_ALIASES[palette] || palette;
+  if (!PALETTES.includes(requestedPalette)) {
+    throw new Error(`Invalid palette (must be one of: ${PALETTES.join(', ')})`);
+  }
+  const appearance = { theme, palette: requestedPalette };
   await db.send(new PutCommand({
     TableName: config.DYNAMODB_TABLE,
     Item: {
@@ -146,4 +168,112 @@ export async function setAppearance(theme, palette) {
     },
   }));
   return appearance;
+}
+
+export async function getAbout() {
+  const result = await db.send(new GetCommand({
+    TableName: config.DYNAMODB_TABLE,
+    Key: { pk: SITE_PK, sk: 'ABOUT' },
+  }));
+  if (!result.Item) return { ...EMPTY_ABOUT, sections: [] };
+  const legacyContent = typeof result.Item.content === 'string' ? result.Item.content : '';
+  const storedSections = Array.isArray(result.Item.sections) ? result.Item.sections : [];
+  const sections = storedSections.length
+    ? storedSections.map((section, index) => ({
+        id: typeof section?.id === 'string' && section.id ? section.id : `about-${index + 1}`,
+        title: typeof section?.title === 'string' ? section.title : '',
+        descriptor: typeof section?.descriptor === 'string' ? section.descriptor : '',
+        classification: typeof section?.classification === 'string' ? section.classification : '',
+        content: typeof section?.content === 'string' ? section.content : '',
+      })).filter(section => section.title || section.content)
+    : legacyContent.trim()
+      ? [{
+          id: 'about-legacy',
+          title: typeof result.Item.title === 'string' && result.Item.title.trim()
+            ? result.Item.title.trim()
+            : 'About',
+          descriptor: '',
+          classification: '',
+          content: legacyContent,
+        }]
+      : [];
+  return {
+    title: typeof result.Item.title === 'string' ? result.Item.title : '',
+    content: legacyContent,
+    sections,
+    updatedAt: result.Item.updatedAt || null,
+  };
+}
+
+function cleanAboutText(value, label, max, { required = false } = {}) {
+  if (typeof value !== 'string') throw new Error(`Invalid About ${label}`);
+  const cleaned = value.trim();
+  if ((required && !cleaned) || cleaned.length > max) {
+    throw new Error(`Invalid About ${label} (max ${max} characters)`);
+  }
+  return cleaned;
+}
+
+function validatedAboutSections(value, legacyTitle = '') {
+  const input = typeof value === 'string'
+    ? value.trim()
+      ? [{
+          id: 'about-legacy',
+          title: legacyTitle.trim() || 'About',
+          descriptor: '',
+          classification: '',
+          content: value,
+        }]
+      : []
+    : value;
+  if (!Array.isArray(input) || input.length > MAX_ABOUT_SECTIONS) {
+    throw new Error(`Invalid About sections (max ${MAX_ABOUT_SECTIONS})`);
+  }
+  const ids = new Set();
+  const sections = input.map((section, index) => {
+    const id = cleanAboutText(section?.id || `about-${index + 1}`, 'section id', 80, { required: true });
+    if (ids.has(id)) throw new Error('Invalid About section id (must be unique)');
+    ids.add(id);
+    if (typeof section?.content !== 'string' || section.content.length > 50000) {
+      throw new Error('Invalid About section content (max 50000 characters)');
+    }
+    return {
+      id,
+      title: cleanAboutText(section?.title, 'section title', 120, { required: true }),
+      descriptor: cleanAboutText(section?.descriptor || '', 'section descriptor', 240),
+      classification: cleanAboutText(section?.classification || '', 'section classification', 160),
+      content: section.content,
+    };
+  });
+  if (sections.reduce((total, section) => total + section.content.length, 0) > 100000) {
+    throw new Error('Invalid About content (max 100000 characters)');
+  }
+  return sections;
+}
+
+function sectionsAsMarkdown(sections) {
+  return sections.map(section => [
+    `## ${section.title}`,
+    section.descriptor ? `*${section.descriptor}*` : '',
+    section.classification ? `Filed under: ${section.classification}` : '',
+    section.content,
+  ].filter(Boolean).join('\n\n')).join('\n\n---\n\n');
+}
+
+export async function setAbout(title, sectionsOrContent) {
+  if (typeof title !== 'string' || title.trim().length > 160) {
+    throw new Error('Invalid About title (max 160 characters)');
+  }
+  const sections = validatedAboutSections(sectionsOrContent, title);
+  const about = {
+    title: title.trim(),
+    content: sectionsAsMarkdown(sections),
+    sections,
+    updatedAt: new Date().toISOString(),
+  };
+  await db.send(new PutCommand({
+    TableName: config.DYNAMODB_TABLE,
+    Item: { pk: SITE_PK, sk: 'ABOUT', ...about },
+  }));
+  return about;
 }
