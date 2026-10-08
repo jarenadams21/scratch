@@ -34,7 +34,7 @@ Opens:
 - Public Archive, Sources, and an owner-editable About catalog with ordered archival cards, Markdown bodies, preview, and keyboard navigation
 - Full shelf management with names, descriptions, colors, entry counts, editing, and non-destructive deletion
 - Visitor-controlled light/dark modes and nine named New England archival accent palettes, saved per browser with an owner-managed site default
-- Persistent Small, Medium, and Large reader typography controls that preserve browser zoom and theme contrast
+- Persistent Small, Medium, and Large site-wide typography controls that preserve browser zoom, layout structure, and theme contrast
 - Message-based CRUD operations
 - DEV mode with auto-login and mock data
 - YAML configuration system

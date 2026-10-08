@@ -3,6 +3,7 @@ import { renderMarkdown } from '../lib/markdown.js';
 
 let activeCatalogCard = null;
 let catalogResizeInstalled = false;
+let catalogResizeObserver = null;
 
 function sizeActiveCatalogCard() {
   if (!activeCatalogCard?.node?.isConnected) return;
@@ -13,18 +14,28 @@ function sizeActiveCatalogCard() {
   const narrow = window.matchMedia('(max-width: 820px)').matches;
   const backgroundHeight = narrow && count > 1 ? ((count - 2) * 44) + 136 : 40;
   stage.style.setProperty('--catalog-measured-active-height', `${height}px`);
-  stage.style.minHeight = `${Math.max(height + backgroundHeight, 720 + (count * 44))}px`;
+  stage.style.minHeight = `${height + backgroundHeight}px`;
 }
 
 function registerActiveCatalogCard(node, active, count) {
   if (active) {
+    if (activeCatalogCard?.node && activeCatalogCard.node !== node) {
+      catalogResizeObserver?.unobserve(activeCatalogCard.node);
+    }
     activeCatalogCard = { node, count };
     requestAnimationFrame(sizeActiveCatalogCard);
+    if (typeof ResizeObserver !== 'undefined') {
+      if (!catalogResizeObserver) {
+        catalogResizeObserver = new ResizeObserver(() => sizeActiveCatalogCard());
+      }
+      catalogResizeObserver.observe(node);
+    }
     if (!catalogResizeInstalled) {
       window.addEventListener('resize', sizeActiveCatalogCard);
       catalogResizeInstalled = true;
     }
   } else if (activeCatalogCard?.node === node) {
+    catalogResizeObserver?.unobserve(node);
     activeCatalogCard = null;
   }
 }
@@ -153,7 +164,7 @@ export function CatalogStack({
     ),
     createElement('div', {
       className: 'catalog-stage',
-      style: `--catalog-stage-height:${Math.max(430, 330 + ((sections.length - 1) * 52))}px;--catalog-active-stage-height:${720 + (sections.length * 44)}px;`,
+      style: `--catalog-stage-height:${Math.max(430, 330 + ((sections.length - 1) * 52))}px;`,
     },
       ...(() => {
         let backgroundIndex = 0;

@@ -485,8 +485,8 @@ export function App() {
               type: 'button',
               className: AppState.readingSizeMenuOpen ? 'reading-size-toggle active' : 'reading-size-toggle',
               onClick: toggleReadingSizeMenu,
-              title: `Reading size: ${AppState.readingSize}`,
-              'aria-label': `Reading size: ${AppState.readingSize}`,
+              title: `Text size: ${AppState.readingSize}`,
+              'aria-label': `Text size: ${AppState.readingSize}`,
               'aria-expanded': AppState.readingSizeMenuOpen ? 'true' : 'false',
               'aria-controls': 'reading-size-menu',
               ref: node => { readingSizeToggleNode = node; },
@@ -535,9 +535,9 @@ export function App() {
           id: 'reading-size-menu',
           className: 'reading-size-menu',
           role: 'radiogroup',
-          'aria-label': 'Reading text size',
+          'aria-label': 'Website text size',
         },
-          createElement('span', { className: 'reading-size-label' }, 'READING SIZE'),
+          createElement('span', { className: 'reading-size-label' }, 'TEXT SIZE'),
           createElement('div', { className: 'reading-size-options' },
             ...READING_SIZE_OPTIONS.map((option, index) => {
               const selected = AppState.readingSize === option.id;
@@ -548,7 +548,7 @@ export function App() {
                 className: selected ? 'reading-size-option active' : 'reading-size-option',
                 onClick: () => selectReadingSize(option.id),
                 onKeyDown: event => handleReadingSizeKeyDown(event, index),
-                'aria-label': `${option.label} reading text`,
+                'aria-label': `${option.label} website text`,
                 'aria-checked': selected ? 'true' : 'false',
                 tabIndex: selected ? 0 : -1,
                 ref: node => {
