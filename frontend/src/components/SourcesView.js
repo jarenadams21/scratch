@@ -243,8 +243,7 @@ export function SourcesView() {
     createElement('header', { className: 'sources-header' },
       createElement('div', null,
         createElement('span', { className: 'sources-kicker' }, 'RESEARCH INDEX'),
-        createElement('h1', null, 'SOURCE LIBRARY'),
-        createElement('p', null, 'The documents and websites behind the work in Harbinger.')
+        createElement('h1', null, 'SOURCE LIBRARY')
       ),
       isAdmin
         ? createElement('div', { className: 'sources-create-actions' },

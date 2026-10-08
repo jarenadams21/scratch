@@ -70,10 +70,7 @@ function AboutSectionEditor({ section, index, count, onMove, onDelete }) {
   },
     createElement('header', { className: 'about-section-editor-head' },
       createElement('div', null,
-        createElement('span', { className: 'about-section-number' },
-          `CARD ${String(index + 1).padStart(2, '0')}`
-        ),
-        createElement('strong', null, section.title || 'UNTITLED CARD')
+        createElement('strong', null, section.title || 'UNTITLED SECTION')
       ),
       createElement('div', { className: 'about-section-controls' },
         createElement('button', {
@@ -81,14 +78,14 @@ function AboutSectionEditor({ section, index, count, onMove, onDelete }) {
           className: 'line-btn',
           disabled: index === 0,
           onClick: () => onMove(section.id, -1),
-          'aria-label': `Move ${section.title || 'card'} earlier`,
+          'aria-label': `Move ${section.title || 'section'} earlier`,
         }, '↑'),
         createElement('button', {
           type: 'button',
           className: 'line-btn',
           disabled: index === count - 1,
           onClick: () => onMove(section.id, 1),
-          'aria-label': `Move ${section.title || 'card'} later`,
+          'aria-label': `Move ${section.title || 'section'} later`,
         }, '↓'),
         createElement('button', {
           type: 'button',
@@ -107,16 +104,6 @@ function AboutSectionEditor({ section, index, count, onMove, onDelete }) {
           defaultValue: section.title,
           placeholder: 'Background',
         })
-      ),
-      createElement('label', null,
-        createElement('span', null, 'CATALOG CLASSIFICATION'),
-        createElement('input', {
-          type: 'text',
-          name: 'classification',
-          maxLength: 160,
-          defaultValue: section.classification,
-          placeholder: 'BIOGRAPHY / EDUCATION',
-        })
       )
     ),
     createElement('label', { className: 'about-section-descriptor' },
@@ -126,11 +113,11 @@ function AboutSectionEditor({ section, index, count, onMove, onDelete }) {
         name: 'descriptor',
         maxLength: 240,
         defaultValue: section.descriptor,
-        placeholder: 'A concise description shown while this card is filed.',
+        placeholder: 'A concise description of this section.',
       })
     ),
     createElement('label', { className: 'about-section-content' },
-      createElement('span', null, 'FULL RECORD · MARKDOWN'),
+      createElement('span', null, 'SECTION CONTENT · MARKDOWN'),
       createElement('div', { className: 'about-editor-input' },
         createElement('textarea', {
           name: 'sectionContent',
@@ -143,7 +130,7 @@ function AboutSectionEditor({ section, index, count, onMove, onDelete }) {
         createElement('div', {
           className: 'slash-menu',
           role: 'listbox',
-          'aria-label': `Formatting choices for ${section.title || 'About card'}`,
+          'aria-label': `Formatting choices for ${section.title || 'About section'}`,
           ref: node => { menuNode = node; bindFormatter(); },
         })
       )
@@ -167,7 +154,8 @@ function AboutEditor() {
         id: node.dataset.aboutSection,
         title: node.querySelector('[name="sectionTitle"]').value,
         descriptor: node.querySelector('[name="descriptor"]').value,
-        classification: node.querySelector('[name="classification"]').value,
+        classification: draft.sections.find(section => section.id === node.dataset.aboutSection)
+          ?.classification || '',
         content: node.querySelector('[name="sectionContent"]').value,
       })),
     };
@@ -195,7 +183,7 @@ function AboutEditor() {
     if (
       section
       && (section.title.trim() || section.content.trim())
-      && !confirm(`Remove the “${section.title || 'Untitled'}” catalog card?`)
+      && !confirm(`Remove the “${section.title || 'Untitled'}” section?`)
     ) return;
     updateSections(sections => sections.filter(item => item.id !== id));
   };
@@ -218,7 +206,7 @@ function AboutEditor() {
     const next = fields();
     if (saveNode) saveNode.disabled = true;
     if (statusNode) {
-      statusNode.textContent = 'Filing About catalog…';
+      statusNode.textContent = 'Saving About page…';
       statusNode.dataset.state = 'saving';
     }
     try {
@@ -232,7 +220,7 @@ function AboutEditor() {
       });
     } catch (err) {
       if (statusNode) {
-        statusNode.textContent = 'Could not file About catalog: ' + err.message;
+        statusNode.textContent = 'Could not save About page: ' + err.message;
         statusNode.dataset.state = 'error';
       }
       if (saveNode) saveNode.disabled = false;
@@ -242,7 +230,6 @@ function AboutEditor() {
   return createElement('section', { className: 'about-editor-shell about-catalog-editor-shell' },
     createElement('header', { className: 'about-editor-header' },
       createElement('div', null,
-        createElement('span', { className: 'about-kicker' }, 'REFERENCE DEPARTMENT · CATALOG EDITOR'),
         createElement('h1', null, 'ABOUT')
       ),
       createElement('button', {
@@ -270,7 +257,7 @@ function AboutEditor() {
         className: mode === 'preview' ? 'active' : '',
         'aria-selected': mode === 'preview' ? 'true' : 'false',
         onClick: preview,
-      }, 'PREVIEW CATALOG')
+      }, 'PREVIEW')
     ),
     mode === 'preview'
       ? createElement('div', { className: 'about-editor-preview about-catalog-preview' },
@@ -281,7 +268,7 @@ function AboutEditor() {
             onReturn: returnToCatalog,
             registerSummary,
             registerReturn,
-            emptyLabel: 'Add a catalog card in Write mode to preview the About page.',
+            emptyLabel: 'Add a section in Write mode to preview the About page.',
           })
         )
       : createElement('form', {
@@ -291,7 +278,7 @@ function AboutEditor() {
           key: `about-catalog-${draft.sections.map(section => section.id).join('-')}`,
         },
           createElement('label', { className: 'about-title-field' },
-            createElement('span', null, 'CATALOG TITLE'),
+            createElement('span', null, 'ABOUT TITLE'),
             createElement('input', {
               type: 'text',
               name: 'title',
@@ -315,12 +302,12 @@ function AboutEditor() {
             className: 'about-add-section',
             disabled: draft.sections.length >= 12,
             onClick: () => updateSections(sections => [...sections, newSection()]),
-          }, draft.sections.length >= 12 ? 'CATALOG LIMIT REACHED' : '+ ADD CATALOG CARD'),
+          }, draft.sections.length >= 12 ? 'SECTION LIMIT REACHED' : '+ ADD SECTION'),
           createElement('p', {
             className: 'about-editor-status',
             ref: node => { statusNode = node; },
             'aria-live': 'polite',
-          }, 'Cards remain unpublished until the entire catalog is saved.'),
+          }, 'Changes remain unpublished until the About page is saved.'),
           createElement('footer', { className: 'about-editor-actions' },
             createElement('button', {
               type: 'button',
@@ -331,7 +318,7 @@ function AboutEditor() {
               type: 'submit',
               className: 'publish-btn',
               ref: node => { saveNode = node; },
-            }, 'FILE ABOUT CATALOG')
+            }, 'SAVE ABOUT')
           )
         )
   );
@@ -359,7 +346,7 @@ export function AboutView() {
                   sections: about.sections.map(section => ({ ...section })),
                 },
               }),
-            }, about.sections.length || about.title.trim() ? 'EDIT CATALOG' : 'CREATE CATALOG')
+            }, about.sections.length || about.title.trim() ? 'EDIT ABOUT' : 'CREATE ABOUT')
           )
         : null,
       createElement(CatalogStack, {
@@ -370,8 +357,8 @@ export function AboutView() {
         registerSummary,
         registerReturn,
         emptyLabel: isAdmin
-          ? 'No About catalog has been filed. Use “Create Catalog” to add the first card.'
-          : 'No About catalog has been filed.',
+          ? 'No About page has been published. Use “Create About” to add the first section.'
+          : 'No About page has been published.',
       })
     )
   );

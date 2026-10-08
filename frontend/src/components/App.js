@@ -22,6 +22,9 @@ import {
 import {
   applyAppearance, PALETTE_OPTIONS,
 } from '../lib/appearance.js';
+import {
+  applyReadingSize, READING_SIZE_OPTIONS,
+} from '../lib/reading-preferences.js';
 
 let paletteLabelHideTimer = null;
 let paletteSelectionTimer = null;
@@ -29,6 +32,9 @@ let paletteViewportHandlerInstalled = false;
 let hoveredPalette = null;
 let focusedPalette = null;
 const paletteNodes = new Map();
+const readingSizeNodes = new Map();
+let readingSizeToggleNode = null;
+let focusReadingSizeOnOpen = false;
 
 function paletteOverlayPosition(node, estimatedHeight = 52) {
   const rect = node.getBoundingClientRect();
@@ -187,6 +193,8 @@ export function App() {
       editingEntry: null,
       editorMode: 'write',
       editorBuffer: null,
+      editorPublishPending: false,
+      readingSizeMenuOpen: false,
       entryOrganizerOpen: false,
       aboutEditing: false,
       aboutEditorMode: 'write',
@@ -209,6 +217,8 @@ export function App() {
       editingEntry: null,
       editorMode: 'write',
       editorBuffer: null,
+      editorPublishPending: false,
+      readingSizeMenuOpen: false,
       selectedAudio: null,
       audioEntries: [],
       audioLoaded: false,
@@ -254,6 +264,8 @@ export function App() {
     aboutActiveSectionId: view === 'about' ? AppState.aboutActiveSectionId : null,
     editingEntry: view === 'compose' ? AppState.editingEntry : null,
     editorMode: view === 'compose' ? 'write' : AppState.editorMode,
+    editorPublishPending: false,
+    readingSizeMenuOpen: false,
   });
 
   const updateAppearance = async (next) => {
@@ -272,6 +284,43 @@ export function App() {
     ...AppState.appearance,
     theme: AppState.appearance?.theme === 'dark' ? 'light' : 'dark',
   });
+
+  const selectReadingSize = (size) => {
+    const readingSize = applyReadingSize(size);
+    updateState({
+      readingSize,
+      readingSizeMenuOpen: false,
+    });
+    requestAnimationFrame(() => readingSizeToggleNode?.focus());
+  };
+
+  const toggleReadingSizeMenu = () => {
+    const open = !AppState.readingSizeMenuOpen;
+    focusReadingSizeOnOpen = open;
+    updateState({ readingSizeMenuOpen: open });
+  };
+
+  const handleReadingSizeKeyDown = (event, index) => {
+    const keys = ['ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown', 'Home', 'End', 'Escape'];
+    if (!keys.includes(event.key)) return;
+    event.preventDefault();
+    if (event.key === 'Escape') {
+      updateState({ readingSizeMenuOpen: false });
+      requestAnimationFrame(() => readingSizeToggleNode?.focus());
+      return;
+    }
+    let nextIndex = index;
+    if (event.key === 'Home') nextIndex = 0;
+    else if (event.key === 'End') nextIndex = READING_SIZE_OPTIONS.length - 1;
+    else {
+      const direction = event.key === 'ArrowLeft' || event.key === 'ArrowUp' ? -1 : 1;
+      nextIndex = (index + direction + READING_SIZE_OPTIONS.length) % READING_SIZE_OPTIONS.length;
+    }
+    const option = READING_SIZE_OPTIONS[nextIndex];
+    readingSizeNodes.get(option.id)?.focus();
+    applyReadingSize(option.id);
+    updateState({ readingSize: option.id });
+  };
 
   const selectPalette = (option, node) => {
     updateAppearance({
@@ -431,6 +480,18 @@ export function App() {
             title: 'Toggle light and dark theme',
             'aria-label': 'Toggle light and dark theme',
           }, AppState.appearance?.theme === 'dark' ? '☼' : '◐'),
+          createElement('div', { className: 'reading-size-control' },
+            createElement('button', {
+              type: 'button',
+              className: AppState.readingSizeMenuOpen ? 'reading-size-toggle active' : 'reading-size-toggle',
+              onClick: toggleReadingSizeMenu,
+              title: `Reading size: ${AppState.readingSize}`,
+              'aria-label': `Reading size: ${AppState.readingSize}`,
+              'aria-expanded': AppState.readingSizeMenuOpen ? 'true' : 'false',
+              'aria-controls': 'reading-size-menu',
+              ref: node => { readingSizeToggleNode = node; },
+            }, 'Aa')
+          ),
           createElement('div', {
             className: 'palette-swatches',
             role: 'radiogroup',
@@ -468,6 +529,43 @@ export function App() {
         )
       )
     ),
+
+    AppState.readingSizeMenuOpen
+      ? createElement('div', {
+          id: 'reading-size-menu',
+          className: 'reading-size-menu',
+          role: 'radiogroup',
+          'aria-label': 'Reading text size',
+        },
+          createElement('span', { className: 'reading-size-label' }, 'READING SIZE'),
+          createElement('div', { className: 'reading-size-options' },
+            ...READING_SIZE_OPTIONS.map((option, index) => {
+              const selected = AppState.readingSize === option.id;
+              return createElement('button', {
+                type: 'button',
+                key: option.id,
+                role: 'radio',
+                className: selected ? 'reading-size-option active' : 'reading-size-option',
+                onClick: () => selectReadingSize(option.id),
+                onKeyDown: event => handleReadingSizeKeyDown(event, index),
+                'aria-label': `${option.label} reading text`,
+                'aria-checked': selected ? 'true' : 'false',
+                tabIndex: selected ? 0 : -1,
+                ref: node => {
+                  readingSizeNodes.set(option.id, node);
+                  if (node && selected && focusReadingSizeOnOpen) {
+                    focusReadingSizeOnOpen = false;
+                    requestAnimationFrame(() => node.focus());
+                  }
+                },
+              },
+                createElement('span', { 'aria-hidden': 'true' }, option.label.toUpperCase()),
+                selected ? createElement('span', { className: 'reading-size-check', 'aria-hidden': 'true' }, '✓') : null
+              );
+            })
+          )
+        )
+      : null,
 
     showAdminPanel && !isAdmin
       ? createElement('div', { className: 'admin-panel-overlay', key: 'admin-overlay' },

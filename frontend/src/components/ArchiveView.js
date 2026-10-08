@@ -44,30 +44,43 @@ function ShelfTag({ entry }) {
   }, shelf.name.toUpperCase());
 }
 
-function SourcesUsed({ entry }) {
+function SourcesUsed({ entry, onOrganize }) {
   const ids = Array.isArray(entry?.sourceIds) ? entry.sourceIds : [];
   const sources = ids
     .map(id => (AppState.sources || []).find(source => source.id === id))
     .filter(Boolean);
-  if (!sources.length) return null;
+  if (!sources.length && !onOrganize) return null;
   return createElement('section', { className: 'reading-sources' },
     createElement('div', { className: 'reading-sources-rule' }),
-    createElement('span', { className: 'reading-sources-kicker' }, 'SOURCES USED'),
-    createElement('ol', null,
-      ...sources.map(source => createElement('li', { key: source.id },
-        createElement('a', {
-          href: source.url,
-          target: '_blank',
-          rel: 'noopener noreferrer',
-        },
-          createElement('strong', null, source.title),
-          createElement('span', null,
-            [source.creator, source.publication, source.publishedAt, source.type.toUpperCase()]
-              .filter(Boolean).join(' · ')
-          )
+    createElement('div', { className: 'reading-sources-heading' },
+      createElement('span', { className: 'reading-sources-kicker' }, 'SOURCES USED'),
+      onOrganize
+        ? createElement('button', {
+            type: 'button',
+            className: 'visibility-flip-btn reading-sources-edit',
+            onClick: onOrganize,
+          }, sources.length ? 'EDIT SOURCES' : '+ ADD SOURCES')
+        : null
+    ),
+    sources.length
+      ? createElement('ol', null,
+          ...sources.map(source => createElement('li', { key: source.id },
+            createElement('a', {
+              href: source.url,
+              target: '_blank',
+              rel: 'noopener noreferrer',
+            },
+              createElement('strong', null, source.title),
+              createElement('span', null,
+                [source.creator, source.publication, source.publishedAt, source.type.toUpperCase()]
+                  .filter(Boolean).join(' · ')
+              )
+            )
+          ))
         )
-      ))
-    )
+      : createElement('p', { className: 'reading-sources-empty' },
+          'No sources are assigned to this transmission.'
+        )
   );
 }
 
@@ -177,7 +190,8 @@ function ReadingPane({ entry, onDeleted, onVisibilityChanged }) {
                 type: 'button',
                 className: 'visibility-flip-btn',
                 onClick: () => updateState({ entryOrganizerOpen: true }),
-              }, 'ORGANIZE')
+                title: 'Change this transmission’s shelf and sources',
+              }, 'SHELF & SOURCES')
             : null,
           isOwner ? createElement('button', { onClick: handleDelete, className: 'delete-btn' }, 'DELETE') : null
         )
@@ -185,7 +199,12 @@ function ReadingPane({ entry, onDeleted, onVisibilityChanged }) {
     ),
     createElement('div', { className: 'reading-divider' }),
     createElement('div', { className: 'reading-content' }, ...renderMarkdown(entry.content)),
-    createElement(SourcesUsed, { entry }),
+    createElement(SourcesUsed, {
+      entry,
+      onOrganize: entry.status !== 'draft' && isOwner
+        ? () => updateState({ entryOrganizerOpen: true })
+        : null,
+    }),
     isOwner && AppState.entryOrganizerOpen
       ? createElement(EntryOrganizer, { entry })
       : null

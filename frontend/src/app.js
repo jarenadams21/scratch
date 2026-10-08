@@ -11,14 +11,20 @@ import { subscribeToState, updateState } from './lib/state.js';
 import {
   applyAppearance, DEFAULT_APPEARANCE, readLocalAppearance,
 } from './lib/appearance.js';
+import {
+  applyReadingSize, readLocalReadingSize,
+} from './lib/reading-preferences.js';
 
 console.log('[Harbinger] Imports successful');
 const localAppearance = readLocalAppearance();
 const initialAppearance = localAppearance || DEFAULT_APPEARANCE;
+const initialReadingSize = readLocalReadingSize();
 applyAppearance(initialAppearance, false);
+applyReadingSize(initialReadingSize, false);
 updateState({
   appearance: initialAppearance,
   appearanceIsPersonal: !!localAppearance,
+  readingSize: initialReadingSize,
 });
 
 function syncAdminLoginRoute() {

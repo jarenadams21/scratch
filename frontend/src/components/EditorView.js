@@ -2,11 +2,13 @@ import { createElement } from '../engine/main.js';
 import { currentUserEmail, upsertPost } from '../lib/api.js';
 import { installFormatter } from '../lib/formatter.js';
 import { renderMarkdown } from '../lib/markdown.js';
+import { applyWritingSuggestion, reviewWriting } from '../lib/writing-review.js';
 import { AppState, updateState } from '../lib/state.js';
 import { DEFAULT_VISIBILITY_FALLBACK } from './SettingsView.js';
 
 const RECOVERY_KEY = 'harbinger-editor-draft-v2';
 const AUTOSAVE_DELAY = 900;
+let pendingReviewSelection = null;
 
 function readRecoveryDraft() {
   try {
@@ -123,6 +125,100 @@ function EditorPreview({ draft }) {
   );
 }
 
+function WritingReview({ draft, publishPending, onApply, onLocate, onReturn, onTransmit }) {
+  const review = reviewWriting(draft);
+  const grouped = [
+    ['grammar', 'GRAMMAR'],
+    ['mechanics', 'MECHANICS'],
+    ['clarity', 'CLARITY'],
+  ];
+  return createElement('section', {
+    className: 'writing-review',
+    'aria-label': 'Local writing review',
+  },
+    createElement('header', { className: 'writing-review-header' },
+      createElement('div', null,
+        createElement('span', { className: 'writing-review-kicker' }, 'LOCAL PREFLIGHT'),
+        createElement('h2', null, 'WRITING REVIEW'),
+        createElement('p', null,
+          'Grammar and clarity checks run in this browser. Draft text is not sent to an AI or third-party review service.'
+        )
+      ),
+      createElement('div', { className: 'writing-review-stats', 'aria-label': 'Draft statistics' },
+        createElement('span', null, `${review.stats.words} WORDS`),
+        createElement('span', null, `${review.stats.sentences} SENTENCES`),
+        createElement('span', null, review.stats.minutes ? `${review.stats.minutes} MIN READ` : 'NO READING TIME')
+      )
+    ),
+    createElement('div', { className: 'writing-review-spelling' },
+      createElement('strong', null, 'SPELLING'),
+      createElement('span', null,
+        'Browser spelling remains active in Write mode. Underlined words can be corrected with the browser context menu.'
+      )
+    ),
+    review.issues.length
+      ? createElement('div', { className: 'writing-review-groups' },
+          ...grouped.map(([category, label]) => {
+            const issues = review.issues.filter(issue => issue.category === category);
+            if (!issues.length) return null;
+            return createElement('section', { className: 'writing-review-group', key: category },
+              createElement('div', { className: 'writing-review-group-heading' },
+                createElement('h3', null, label),
+                createElement('span', null, String(issues.length).padStart(2, '0'))
+              ),
+              ...issues.map(issue => createElement('article', {
+                className: 'writing-review-issue',
+                key: issue.id,
+              },
+                createElement('div', { className: 'writing-review-issue-copy' },
+                  createElement('strong', null, issue.message),
+                  createElement('p', null, issue.detail),
+                  createElement('blockquote', null,
+                    createElement('span', null, issue.excerpt.before),
+                    createElement('mark', null, issue.excerpt.match || 'DOCUMENT'),
+                    createElement('span', null, issue.excerpt.after)
+                  )
+                ),
+                createElement('div', { className: 'writing-review-issue-actions' },
+                  createElement('button', {
+                    type: 'button',
+                    className: 'line-btn',
+                    onClick: () => onLocate(issue),
+                  }, 'LOCATE'),
+                  issue.replacement !== null
+                    ? createElement('button', {
+                        type: 'button',
+                        className: 'writing-review-apply',
+                        onClick: () => onApply(issue),
+                      }, issue.replacement ? `APPLY “${issue.replacement}”` : 'REMOVE')
+                    : null
+                )
+              ))
+            );
+          })
+        )
+      : createElement('div', { className: 'writing-review-clear', role: 'status' },
+          createElement('span', { 'aria-hidden': 'true' }, '✓'),
+          createElement('strong', null, 'NO LOCAL REVIEW NOTES'),
+          createElement('p', null, 'Read through once more and check any browser spelling underlines before transmission.')
+        ),
+    createElement('footer', { className: 'writing-review-actions' },
+      createElement('button', {
+        type: 'button',
+        className: 'line-btn',
+        onClick: onReturn,
+      }, 'RETURN TO WRITING'),
+      publishPending
+        ? createElement('button', {
+            type: 'button',
+            className: 'publish-btn',
+            onClick: () => onTransmit(draft),
+          }, review.issues.length ? `TRANSMIT WITH ${review.issues.length} ${review.issues.length === 1 ? 'NOTE' : 'NOTES'}` : 'TRANSMIT')
+        : null
+    )
+  );
+}
+
 export function EditorView({ onPostCreated, onDraftSaved }) {
   const defaultVis = AppState.traits?.defaultVisibility ?? DEFAULT_VISIBILITY_FALLBACK;
   const me = currentUserEmail();
@@ -147,6 +243,7 @@ export function EditorView({ onPostCreated, onDraftSaved }) {
     ? { ...(recoveredEntry || {}), ...AppState.editorBuffer }
     : recoveredEntry;
   let formNode;
+  let titleNode;
   let bodyNode;
   let menuNode;
   let statusNode;
@@ -173,8 +270,10 @@ export function EditorView({ onPostCreated, onDraftSaved }) {
     };
   };
 
-  const save = async (status, { quiet = false } = {}) => {
-    const draft = fields();
+  const snapshot = () => fields() || currentEntry;
+
+  const save = async (status, { quiet = false, draftOverride = null } = {}) => {
+    const draft = draftOverride || fields();
     if (!draft) return currentEntry;
     if (status === 'published' && (!draft.title.trim() || !draft.content.trim())) {
       throw new Error('Headline and body required');
@@ -200,7 +299,7 @@ export function EditorView({ onPostCreated, onDraftSaved }) {
         && latest.shelfId === draft.shelfId
         && latest.sourceIds.join('|') === draft.sourceIds.join('|');
       writeRecoveryDraft({
-        ...(unchanged ? currentEntry : latest),
+        ...(unchanged ? currentEntry : (latest || draft)),
         entryId: currentEntry.entryId,
         createdAt: currentEntry.createdAt,
         status: 'draft',
@@ -244,18 +343,39 @@ export function EditorView({ onPostCreated, onDraftSaved }) {
   const handleSubmit = async (event) => {
     event.preventDefault();
     clearTimeout(autosaveTimer);
-    const visibility = event.target.elements.visibility.value;
+    await publishDraft(fields());
+  };
+
+  const publishDraft = async (draft, skipReview = false) => {
+    if (!draft) return;
+    const review = reviewWriting(draft);
+    if (!skipReview && review.issues.length) {
+      writeRecoveryDraft({ ...draft, status: 'draft' });
+      updateState({
+        editorMode: 'review',
+        editorBuffer: draft,
+        editorPublishPending: true,
+      });
+      return;
+    }
+    const visibility = draft.visibility;
     if (visibility === 'public') {
       const ok = confirm(
         'Publish to the PUBLIC web?\n\n' +
-        'Unauthenticated visitors will see the title, formatted body, shelf, and your display name.'
+        'Unauthenticated visitors will see the title, formatted body, shelf, and your display name.\n\n' +
+        'This is a one-way transmission. The title and body cannot be edited after publication.'
       );
       if (!ok) return;
     }
     try {
-      await save('published');
+      await save('published', { draftOverride: draft });
       clearRecoveryDraft();
-      updateState({ editingEntry: null, editorBuffer: null, editorMode: 'write' });
+      updateState({
+        editingEntry: null,
+        editorBuffer: null,
+        editorMode: 'write',
+        editorPublishPending: false,
+      });
       if (onPostCreated) onPostCreated();
     } catch (err) {
       if (err.message === 'Headline and body required') alert(err.message);
@@ -280,19 +400,68 @@ export function EditorView({ onPostCreated, onDraftSaved }) {
   const handleNewDraft = () => {
     clearTimeout(autosaveTimer);
     clearRecoveryDraft();
-    updateState({ editingEntry: null, editorMode: 'write', editorBuffer: null });
+    updateState({
+      editingEntry: null,
+      editorMode: 'write',
+      editorBuffer: null,
+      editorPublishPending: false,
+    });
   };
 
   const showPreview = () => {
     clearTimeout(autosaveTimer);
-    const draft = fields();
+    const draft = snapshot();
     if (!draft) return;
     writeRecoveryDraft({ ...draft, status: 'draft' });
-    updateState({ editorMode: 'preview', editorBuffer: draft });
+    updateState({
+      editorMode: 'preview',
+      editorBuffer: draft,
+      editorPublishPending: false,
+    });
+  };
+
+  const showReview = (publishPending = false) => {
+    clearTimeout(autosaveTimer);
+    const draft = snapshot();
+    if (!draft) return;
+    writeRecoveryDraft({ ...draft, status: 'draft' });
+    updateState({
+      editorMode: 'review',
+      editorBuffer: draft,
+      editorPublishPending: publishPending,
+    });
   };
 
   const bindFormatter = () => {
-    if (bodyNode && menuNode) installFormatter(bodyNode, menuNode, scheduleAutosave);
+    if (bodyNode && menuNode) {
+      installFormatter(bodyNode, menuNode, {
+        onChange: scheduleAutosave,
+        onReview: () => showReview(false),
+      });
+      if (pendingReviewSelection?.field === 'content') {
+        const selection = pendingReviewSelection;
+        pendingReviewSelection = null;
+        requestAnimationFrame(() => {
+          bodyNode.focus();
+          bodyNode.setSelectionRange(selection.start, selection.end);
+        });
+      }
+    }
+  };
+
+  const locateIssue = (issue) => {
+    pendingReviewSelection = issue;
+    updateState({
+      editorMode: 'write',
+      editorPublishPending: false,
+    });
+  };
+
+  const applyIssue = (issue) => {
+    const draft = snapshot();
+    const next = applyWritingSuggestion(draft, issue);
+    writeRecoveryDraft({ ...next, status: 'draft' });
+    updateState({ editorBuffer: next });
   };
 
   const date = new Date().toLocaleDateString('en-US', {
@@ -303,7 +472,9 @@ export function EditorView({ onPostCreated, onDraftSaved }) {
   const initialVisibility = currentEntry?.visibility || defaultVis;
   const initialSourceIds = currentEntry?.sourceIds || [];
   const sources = AppState.sources || [];
-  const editorMode = AppState.editorMode === 'preview' ? 'preview' : 'write';
+  const editorMode = ['preview', 'review'].includes(AppState.editorMode)
+    ? AppState.editorMode
+    : 'write';
 
   return createElement('div', { className: 'editor-sheet' },
     createElement('div', { className: 'sheet-header' },
@@ -321,7 +492,7 @@ export function EditorView({ onPostCreated, onDraftSaved }) {
         role: 'tab',
         className: editorMode === 'write' ? 'active' : '',
         'aria-selected': editorMode === 'write' ? 'true' : 'false',
-        onClick: () => updateState({ editorMode: 'write' }),
+        onClick: () => updateState({ editorMode: 'write', editorPublishPending: false }),
       }, 'WRITE'),
       createElement('button', {
         type: 'button',
@@ -329,10 +500,29 @@ export function EditorView({ onPostCreated, onDraftSaved }) {
         className: editorMode === 'preview' ? 'active' : '',
         'aria-selected': editorMode === 'preview' ? 'true' : 'false',
         onClick: showPreview,
-      }, 'PREVIEW')
+      }, 'PREVIEW'),
+      createElement('button', {
+        type: 'button',
+        role: 'tab',
+        className: editorMode === 'review' ? 'active' : '',
+        'aria-selected': editorMode === 'review' ? 'true' : 'false',
+        onClick: () => showReview(false),
+      }, 'REVIEW')
     ),
     editorMode === 'preview'
       ? createElement(EditorPreview, { draft: currentEntry || {} })
+      : editorMode === 'review'
+        ? createElement(WritingReview, {
+            draft: currentEntry || {},
+            publishPending: AppState.editorPublishPending,
+            onApply: applyIssue,
+            onLocate: locateIssue,
+            onReturn: () => updateState({
+              editorMode: 'write',
+              editorPublishPending: false,
+            }),
+            onTransmit: draft => publishDraft(draft, true),
+          })
       : createElement('form', {
       className: 'typewriter-form',
       onSubmit: handleSubmit,
@@ -347,8 +537,21 @@ export function EditorView({ onPostCreated, onDraftSaved }) {
         placeholder: 'HEADLINE',
         className: 'headline-input',
         autocomplete: 'off',
+        spellcheck: true,
+        autocapitalize: 'sentences',
         defaultValue: currentEntry?.title || '',
         maxLength: 240,
+        ref: node => {
+          titleNode = node;
+          if (node && pendingReviewSelection?.field === 'title') {
+            const selection = pendingReviewSelection;
+            pendingReviewSelection = null;
+            requestAnimationFrame(() => {
+              titleNode.focus();
+              titleNode.setSelectionRange(selection.start, selection.end);
+            });
+          }
+        },
       }),
       createElement('div', { className: 'editor-input' },
         createElement('textarea', {
@@ -357,6 +560,8 @@ export function EditorView({ onPostCreated, onDraftSaved }) {
           className: 'body-text',
           defaultValue: currentEntry?.content || '',
           spellcheck: true,
+          autocorrect: 'on',
+          autocapitalize: 'sentences',
           ref: node => { bodyNode = node; bindFormatter(); },
         }),
         createElement('div', {

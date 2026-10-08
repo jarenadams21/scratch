@@ -56,10 +56,6 @@ export function normalizeAbout(about) {
   };
 }
 
-function cardNumber(index) {
-  return String(index + 1).padStart(2, '0');
-}
-
 export function CatalogCard({
   section,
   index,
@@ -73,7 +69,6 @@ export function CatalogCard({
 }) {
   const active = activeId === section.id;
   const background = !!activeId && !active;
-  const number = cardNumber(index);
   const state = active ? 'active' : background ? 'background' : 'collapsed';
   const headingId = `about-card-title-${section.id}`;
   const bodyId = `about-card-body-${section.id}`;
@@ -95,46 +90,26 @@ export function CatalogCard({
       'aria-current': active ? 'true' : 'false',
       ref: node => registerSummary(section.id, node),
     },
-      createElement('span', { className: 'catalog-card-register' },
-        createElement('span', null, `CARD ${number}`),
-        createElement('span', null, (section.classification || 'GENERAL REFERENCE').toUpperCase())
-      ),
       createElement('span', {
         className: 'catalog-card-title',
         id: headingId,
       }, (section.title || 'Untitled card').toUpperCase()),
       createElement('span', { className: 'catalog-card-descriptor' },
-        section.descriptor || 'No descriptor filed.'
+        section.descriptor || ''
       ),
-      createElement('span', { className: 'catalog-card-rule', 'aria-hidden': 'true' }),
-      createElement('span', { className: 'catalog-card-filed' },
-        createElement('span', null, 'FILED UNDER'),
-        createElement('strong', null, (section.classification || 'ABOUT / GENERAL').toUpperCase())
-      ),
-      createElement('span', { className: 'catalog-card-open' },
-        active ? 'SELECTED RECORD' : 'OPEN CARD →'
-      )
+      createElement('span', { className: 'catalog-card-rule', 'aria-hidden': 'true' })
     ),
     createElement('div', {
       className: 'catalog-card-body',
       id: bodyId,
       'aria-hidden': active ? 'false' : 'true',
     },
-      createElement('div', { className: 'catalog-card-body-register' },
-        createElement('span', null, `${number} / ${String(count).padStart(2, '0')}`),
-        createElement('span', null, 'HARBINGER ABOUT CATALOG')
-      ),
-      createElement('h2', null, section.title || 'Untitled card'),
-      section.descriptor
-        ? createElement('p', { className: 'catalog-card-deck' }, section.descriptor)
-        : null,
-      createElement('div', { className: 'catalog-card-body-rule', 'aria-hidden': 'true' }),
       active && section.content.trim()
         ? createElement('div', { className: 'catalog-card-content reading-content' },
             ...renderMarkdown(section.content)
           )
         : active
-          ? createElement('p', { className: 'catalog-card-empty' }, 'This catalog card has no published text.')
+          ? createElement('p', { className: 'catalog-card-empty' }, 'This section has no published content.')
           : null,
       createElement('button', {
         type: 'button',
@@ -142,7 +117,7 @@ export function CatalogCard({
         onClick: () => onReturn(section.id),
         tabIndex: active ? 0 : -1,
         ref: node => registerReturn(section.id, node),
-      }, '← RETURN TO CATALOG')
+      }, '← ALL SECTIONS')
     )
   );
 }
@@ -161,7 +136,6 @@ export function CatalogStack({
   const validActiveId = sections.some(section => section.id === activeId) ? activeId : null;
   if (!sections.length) {
     return createElement('div', { className: 'catalog-empty' },
-      createElement('span', { className: 'about-kicker' }, 'REFERENCE FILE'),
       createElement('h1', null, normalized.title || 'ABOUT'),
       createElement('p', null, emptyLabel)
     );
@@ -169,15 +143,13 @@ export function CatalogStack({
 
   return createElement('section', {
     className: validActiveId ? 'catalog-stack catalog-stack-active' : 'catalog-stack',
-    'aria-label': normalized.title || 'About catalog',
+    'aria-label': normalized.title || 'About',
   },
     createElement('header', { className: 'catalog-heading' },
-      createElement('span', { className: 'about-kicker' }, 'REFERENCE DEPARTMENT · PUBLIC FILE'),
       createElement('h1', null, normalized.title || 'ABOUT'),
-      createElement('p', null, validActiveId
-        ? 'Selected record pulled for reading. Remaining index cards stay available.'
-        : 'Select a catalog card to pull its record forward.'
-      )
+      validActiveId
+        ? null
+        : createElement('p', null, 'Select a card for more.')
     ),
     createElement('div', {
       className: 'catalog-stage',

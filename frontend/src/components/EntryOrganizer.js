@@ -60,7 +60,7 @@ export function EntryOrganizer({ entry }) {
       createElement('header', { className: 'entry-organizer-header' },
         createElement('div', null,
           createElement('span', { className: 'entry-organizer-kicker' }, 'METADATA ONLY'),
-          createElement('h2', null, 'ORGANIZE TRANSMISSION'),
+          createElement('h2', null, 'SHELF & SOURCES'),
           createElement('p', null, entry.title || 'Untitled')
         ),
         createElement('button', {
@@ -147,7 +147,7 @@ export function EntryOrganizer({ entry }) {
           type: 'submit',
           className: 'publish-btn',
           ref: node => { saveNode = node; },
-        }, 'SAVE ORGANIZATION')
+        }, 'SAVE SHELF & SOURCES')
       )
     )
   );

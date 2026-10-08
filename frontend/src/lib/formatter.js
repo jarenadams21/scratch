@@ -1,4 +1,5 @@
 export const FORMATTING_COMMANDS = Object.freeze([
+  { id: 'review', icon: '✓', label: 'Writing review', hint: 'Check grammar, mechanics, and clarity', keywords: 'spell grammar proofread edit' },
   { id: 'title', icon: 'H1', label: 'Title', hint: 'Name the central idea', keywords: 'heading headline' },
   { id: 'subtitle', icon: 'H3', label: 'Subtitle', hint: 'Add context beneath a title', keywords: 'deck subheading' },
   { id: 'section', icon: 'H2', label: 'Section heading', hint: 'Organize the argument', keywords: 'heading outline' },
@@ -16,9 +17,11 @@ export const FORMATTING_COMMANDS = Object.freeze([
 
 const installedEditors = new WeakSet();
 
-export function installFormatter(textarea, menu, onChange) {
+export function installFormatter(textarea, menu, options = {}) {
   if (!textarea || !menu || installedEditors.has(textarea)) return;
   installedEditors.add(textarea);
+  const onChange = typeof options === 'function' ? options : options.onChange;
+  const onReview = typeof options === 'object' ? options.onReview : null;
 
   let matches = [...FORMATTING_COMMANDS];
   let activeIndex = 0;
@@ -107,6 +110,14 @@ export function installFormatter(textarea, menu, onChange) {
 
   const choose = (commandId) => {
     if (!slashRange) return;
+    if (commandId === 'review') {
+      const { start, end } = slashRange;
+      textarea.value = `${textarea.value.slice(0, start)}${textarea.value.slice(end)}`;
+      closeMenu();
+      notify();
+      if (onReview) onReview();
+      return;
+    }
     const { start, end } = slashRange;
     textarea.value = `${textarea.value.slice(0, start)}${textarea.value.slice(end)}`;
     textarea.setSelectionRange(start, start);
