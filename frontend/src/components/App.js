@@ -285,7 +285,12 @@ export function App() {
     theme: AppState.appearance?.theme === 'dark' ? 'light' : 'dark',
   });
 
-  const selectReadingSize = (size) => {
+  const selectReadingSize = (size, optionNode) => {
+    const menu = optionNode?.closest?.('.reading-size-menu');
+    if (menu) {
+      menu.hidden = true;
+      menu.setAttribute('aria-hidden', 'true');
+    }
     const readingSize = applyReadingSize(size);
     updateState({
       readingSize,
@@ -546,7 +551,7 @@ export function App() {
                 key: option.id,
                 role: 'radio',
                 className: selected ? 'reading-size-option active' : 'reading-size-option',
-                onClick: () => selectReadingSize(option.id),
+                onClick: event => selectReadingSize(option.id, event.currentTarget),
                 onKeyDown: event => handleReadingSizeKeyDown(event, index),
                 'aria-label': `${option.label} website text`,
                 'aria-checked': selected ? 'true' : 'false',
