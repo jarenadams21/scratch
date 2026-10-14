@@ -21,6 +21,7 @@ let shortcutsInstalled = false;
 let pendingScrollTop = null;
 let pendingSearchSelection = null;
 let pendingRowFocusId = null;
+let pendingInspectorFocus = false;
 let interactionRestoreScheduled = false;
 
 function restoreSourceInteraction() {
@@ -44,6 +45,10 @@ function restoreSourceInteraction() {
       );
       row?.focus({ preventScroll: true });
       pendingRowFocusId = null;
+    }
+    if (pendingInspectorFocus) {
+      document.querySelector('.source-record-close')?.focus({ preventScroll: true });
+      pendingInspectorFocus = false;
     }
   });
 }
@@ -69,8 +74,20 @@ function installSourceShortcuts() {
   document.addEventListener('keydown', event => {
     if (AppState.currentView !== 'sources') return;
     const target = event.target;
+    const row = target?.closest?.('.source-index-row');
     const isTyping = target?.matches?.('input, textarea, select')
       || target?.isContentEditable;
+    const isInteractive = !!target?.closest?.(
+      'button, a, input, textarea, select, [role="menuitemradio"]'
+    );
+    const entersIndexFromTab = !!target?.matches?.('.tab.active');
+    if (AppState.sourceInspectingId) {
+      if (event.key === 'Escape') {
+        event.preventDefault();
+        closeSourceInspection();
+      }
+      return;
+    }
     if (event.key === '/' && !isTyping) {
       event.preventDefault();
       searchInputNode?.focus({ preventScroll: true });
@@ -80,6 +97,24 @@ function installSourceShortcuts() {
     } else if (event.key === 'Escape' && AppState.sourceSortMenuOpen) {
       event.preventDefault();
       updateSourceState({ sourceSortMenuOpen: false });
+    } else if (!isTyping && !row && (
+      (['ArrowDown', 'ArrowUp'].includes(event.key) && (!isInteractive || entersIndexFromTab))
+      || (event.key === 'Enter' && !isInteractive)
+    )) {
+      const rows = [...(sourceScrollNode?.querySelectorAll('.source-index-row') || [])];
+      if (!rows.length) return;
+      event.preventDefault();
+      const current = rows.findIndex(button =>
+        button.dataset.sourceId === AppState.selectedSourceId
+      );
+      const next = event.key === 'ArrowUp'
+        ? (current < 0 ? rows.length - 1 : Math.max(current - 1, 0))
+        : event.key === 'ArrowDown'
+          ? (current < 0 ? 0 : Math.min(current + 1, rows.length - 1))
+          : (current < 0 ? 0 : current);
+      const nextId = rows[next].dataset.sourceId;
+      if (event.key === 'Enter') openSourceInspection(nextId);
+      else updateSourceState({ selectedSourceId: nextId }, { focusRowId: nextId });
     }
   });
   document.addEventListener('pointerdown', event => {
@@ -102,11 +137,30 @@ function sourceByline(source) {
 }
 
 function openSourceEditor(source) {
-  updateState({
+  updateSourceState({
     sourceEditorOpen: true,
     sourceEditingId: source.id,
     sourceDraftType: source.type,
+    sourceInspectingId: null,
   });
+}
+
+function openSourceInspection(id) {
+  if (!id) return;
+  pendingInspectorFocus = true;
+  updateSourceState({
+    selectedSourceId: id,
+    sourceInspectingId: id,
+    sourceSortMenuOpen: false,
+  });
+}
+
+function closeSourceInspection() {
+  const id = AppState.sourceInspectingId || AppState.selectedSourceId;
+  updateSourceState(
+    { sourceInspectingId: null },
+    { focusRowId: id },
+  );
 }
 
 function selectLinkedEntry(entry) {
@@ -145,7 +199,14 @@ function SourceIndexRow({ source, code, uses, selected }) {
       className: 'source-index-row',
       'data-source-id': source.id,
       onClick: () => updateSourceState({ selectedSourceId: source.id }),
-      onKeyDown: moveFocus,
+      onKeyDown: event => {
+        if (event.key === 'Enter') {
+          event.preventDefault();
+          openSourceInspection(source.id);
+          return;
+        }
+        moveFocus(event);
+      },
       'aria-current': selected ? 'true' : 'false',
       'aria-label': `${source.title}, ${source.type === 'pdf' ? 'PDF' : 'website'}, cited by ${uses} ${uses === 1 ? 'piece' : 'pieces'}`,
     },
@@ -254,11 +315,6 @@ function SourceSortControl() {
 }
 
 function SourceRecordDetail({ source, code, linkedEntries, isAdmin }) {
-  if (!source) return createElement('aside', { className: 'source-record-detail empty' },
-    createElement('span', { className: 'source-record-empty-mark', 'aria-hidden': 'true' }, '⌁'),
-    createElement('p', null, 'Select a record to inspect its source note and linked writing.')
-  );
-
   const domain = sourceDomain(source);
   const facts = [
     ['FORMAT', source.type === 'pdf' ? 'PDF DOCUMENT' : 'WEBSITE'],
@@ -270,9 +326,8 @@ function SourceRecordDetail({ source, code, linkedEntries, isAdmin }) {
     source.createdAt ? ['ADDED', formatShortDate(source.createdAt)] : null,
   ].filter(Boolean);
 
-  return createElement('aside', {
+  return createElement('article', {
     className: 'source-record-detail',
-    'aria-label': `Selected source: ${source.title}`,
   },
     createElement('header', { className: 'source-record-header' },
       createElement('div', { className: 'source-record-labels' },
@@ -281,13 +336,21 @@ function SourceRecordDetail({ source, code, linkedEntries, isAdmin }) {
           source.type === 'pdf' ? 'PDF' : 'WEB'
         )
       ),
-      isAdmin
-        ? createElement('button', {
-            type: 'button',
-            className: 'source-record-edit',
-            onClick: () => openSourceEditor(source),
-          }, 'EDIT RECORD')
-        : null
+      createElement('div', { className: 'source-record-actions' },
+        isAdmin
+          ? createElement('button', {
+              type: 'button',
+              className: 'source-record-edit',
+              onClick: () => openSourceEditor(source),
+            }, 'EDIT RECORD')
+          : null,
+        createElement('button', {
+          type: 'button',
+          className: 'source-record-close',
+          onClick: closeSourceInspection,
+          'aria-label': 'Close source record',
+        }, 'CLOSE ×')
+      )
     ),
     createElement('h2', null, source.title),
     source.description
@@ -323,6 +386,40 @@ function SourceRecordDetail({ source, code, linkedEntries, isAdmin }) {
             ))
           )
         : createElement('p', null, 'Retained in the index; not yet cited by a transmission.')
+    )
+  );
+}
+
+function SourceRecordOverlay({ source, code, linkedEntries, isAdmin }) {
+  if (!source) return null;
+  const keepFocusInside = event => {
+    if (event.key !== 'Tab') return;
+    const focusable = [...event.currentTarget.querySelectorAll(
+      'a[href], button:not([disabled]), input:not([disabled]), [tabindex]:not([tabindex="-1"])'
+    )];
+    if (!focusable.length) return;
+    const first = focusable[0];
+    const last = focusable[focusable.length - 1];
+    if (event.shiftKey && document.activeElement === first) {
+      event.preventDefault();
+      last.focus({ preventScroll: true });
+    } else if (!event.shiftKey && document.activeElement === last) {
+      event.preventDefault();
+      first.focus({ preventScroll: true });
+    }
+  };
+  return createElement('div', {
+    className: 'source-record-overlay',
+    role: 'dialog',
+    'aria-modal': 'true',
+    'aria-label': `Source record: ${source.title}`,
+    onKeyDown: keepFocusInside,
+    onClick: event => {
+      if (event.target === event.currentTarget) closeSourceInspection();
+    },
+  },
+    createElement('div', { className: 'source-record-frame' },
+      createElement(SourceRecordDetail, { source, code, linkedEntries, isAdmin })
     )
   );
 }
@@ -530,7 +627,10 @@ export function SourcesView() {
   const selected = results.find(source => source.id === AppState.selectedSourceId)
     || results[0]
     || null;
-  const linkedEntries = selected ? linkedEntriesForSource(selected.id, entries) : [];
+  const inspecting = sources.find(source => source.id === AppState.sourceInspectingId) || null;
+  const inspectingEntries = inspecting
+    ? linkedEntriesForSource(inspecting.id, entries)
+    : [];
   const handleSearchKeyDown = event => {
     if (!results.length || !['ArrowDown', 'ArrowUp', 'Enter'].includes(event.key)) return;
     event.preventDefault();
@@ -541,7 +641,8 @@ export function SourcesView() {
         ? (current < 0 ? 0 : Math.min(current + 1, results.length - 1))
         : (current < 0 ? 0 : current);
     const nextId = results[next].id;
-    updateSourceState({ selectedSourceId: nextId }, { focusRowId: nextId });
+    if (event.key === 'Enter') openSourceInspection(nextId);
+    else updateSourceState({ selectedSourceId: nextId }, { focusRowId: nextId });
   };
 
   installSourceShortcuts();
@@ -589,7 +690,11 @@ export function SourcesView() {
                 'aria-label': 'Search source records',
                 placeholder: 'Search title, creator, publication, domain, or linked writing',
                 onInput: event => updateSourceState(
-                  { sourceQuery: event.target.value, selectedSourceId: null },
+                {
+                  sourceQuery: event.target.value,
+                  selectedSourceId: null,
+                  sourceInspectingId: null,
+                },
                   { preserveSearch: true },
                 ),
                 onKeyDown: handleSearchKeyDown,
@@ -603,7 +708,11 @@ export function SourcesView() {
                     type: 'button',
                     className: 'source-search-clear',
                     onClick: () => updateSourceState(
-                      { sourceQuery: '', selectedSourceId: null },
+                      {
+                        sourceQuery: '',
+                        selectedSourceId: null,
+                        sourceInspectingId: null,
+                      },
                       { preserveSearch: true },
                     ),
                     'aria-label': 'Clear source search',
@@ -623,6 +732,7 @@ export function SourcesView() {
                   onClick: () => updateSourceState({
                     sourceFilter: option.id,
                     selectedSourceId: null,
+                    sourceInspectingId: null,
                   }),
                   'aria-pressed': AppState.sourceFilter === option.id ? 'true' : 'false',
                 },
@@ -637,7 +747,7 @@ export function SourcesView() {
             createElement('span', null,
               `${results.length} OF ${sources.length} ${sources.length === 1 ? 'RECORD' : 'RECORDS'}`
             ),
-            createElement('span', null, 'ARROWS SELECT · ENTER INSPECTS')
+            createElement('span', null, 'ARROWS SELECT · ENTER MAGNIFIES')
           ),
           createElement('div', { className: 'source-index-workspace' },
             createElement('section', {
@@ -663,21 +773,24 @@ export function SourcesView() {
                         sourceQuery: '',
                         sourceFilter: 'all',
                         selectedSourceId: null,
+                        sourceInspectingId: null,
                       }),
                     }, 'RESET INDEX')
                   )
-            ),
-            createElement(SourceRecordDetail, {
-              source: selected,
-              code: selected ? codes.get(selected.id) : null,
-              linkedEntries,
-              isAdmin,
-            })
+            )
           )
         )
       : createElement('div', { className: 'sources-empty' },
           isAdmin ? 'NO SOURCES YET · ADD A WEBSITE OR PDF' : 'NO SOURCES HAVE BEEN PUBLISHED'
         ),
+    inspecting
+      ? createElement(SourceRecordOverlay, {
+          source: inspecting,
+          code: codes.get(inspecting.id),
+          linkedEntries: inspectingEntries,
+          isAdmin,
+        })
+      : null,
     isAdmin && AppState.sourceEditorOpen ? createElement(SourceEditor, {}) : null
   );
 }
