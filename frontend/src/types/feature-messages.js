@@ -17,7 +17,7 @@ export const ALLOWED_IMAGE_TYPES = ['image/jpeg', 'image/png', 'image/webp', 'im
 export const MAX_IMAGE_SIZE = 8 * 1024 * 1024;  // 8 MB
 
 export const DISPLAY_COLORS = ['green', 'indigo', 'terracotta', 'ochre', 'sand', 'plum'];
-export const DEFAULT_DISPLAY_NAME = 'Operator';
+export const DEFAULT_DISPLAY_NAME = 'Archive';
 
 export function getTraitsMessage() {
   return {

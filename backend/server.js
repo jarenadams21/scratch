@@ -94,7 +94,7 @@ async function handleMessage(message, userId) {
         status: entry.status || DEFAULT_ENTRY_STATUS,
       }));
       // Visitors see only public entries, with author emails scrubbed and
-      // replaced by the author's chosen displayName (Operator if unset).
+      // replaced by the author's chosen displayName (Archive if unset).
       const publicEntries = all.filter(e =>
         (e.status || DEFAULT_ENTRY_STATUS) === 'published'
         && (e.visibility || DEFAULT_VISIBILITY) === 'public'

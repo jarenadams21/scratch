@@ -186,10 +186,19 @@ export function ensureProfilesFor(emails) {
 
 // Helper for consumers — given an email, return its profile or a synthesized
 // fallback. Never throws; never returns null.
+const RESERVED_DISPLAY_NAMES = new Set(['admin', 'administrator', 'operator', 'root', 'system']);
+
+export function publicDisplayName(value) {
+  const displayName = typeof value === 'string' ? value.trim() : '';
+  return displayName && !RESERVED_DISPLAY_NAMES.has(displayName.toLowerCase())
+    ? displayName
+    : 'Archive';
+}
+
 export function profileFor(email) {
   const p = (AppState.profiles || {})[email];
   return {
-    displayName: p?.displayName || 'Operator',
+    displayName: publicDisplayName(p?.displayName),
     displayColor: p?.displayColor || null,
   };
 }

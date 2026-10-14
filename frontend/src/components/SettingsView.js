@@ -150,7 +150,7 @@ export function SettingsView({ onChanged }) {
     // round-trip resolves.
     const me = currentUserEmail();
     if (me && (id === 'displayName' || id === 'displayColor')) {
-      const mine = beforeProfiles[me] || { displayName: 'Operator', displayColor: null };
+      const mine = beforeProfiles[me] || { displayName: 'Archive', displayColor: null };
       updateState({ profiles: { ...beforeProfiles, [me]: { ...mine, [id]: nextValue } } });
     }
 
@@ -202,7 +202,7 @@ export function SettingsView({ onChanged }) {
 
   return createElement('div', { className: 'settings-sheet' },
     createElement('div', { className: 'sheet-header' },
-      createElement('span', { className: 'date-stamp' }, 'OPERATOR'),
+      createElement('span', { className: 'date-stamp' }, 'ADMIN'),
       createElement('span', { className: 'date-stamp' }, 'PREFERENCES')
     ),
     createElement('div', { className: 'settings-body' },

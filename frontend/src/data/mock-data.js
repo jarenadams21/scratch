@@ -220,7 +220,7 @@ let mockSources = [
 // In dev mode each "user" has their own traits document. Map email -> traits
 // so the mock can answer get_profiles realistically.
 const mockProfiles = {
-  [CONFIG.MOCK_USER]: { displayName: 'Operator', displayColor: 'green' },
+  [CONFIG.MOCK_USER]: { displayName: 'Archive', displayColor: 'green' },
   'partner@example.com': { displayName: 'Partner', displayColor: 'indigo' },
 };
 
@@ -579,7 +579,7 @@ export const mockFeatureDB = {
   getProfiles: (emails) => {
     const out = {};
     for (const e of (emails || [])) {
-      out[e] = mockProfiles[e] || { displayName: 'Operator', displayColor: null };
+      out[e] = mockProfiles[e] || { displayName: 'Archive', displayColor: null };
     }
     return Promise.resolve({ profiles: out });
   },

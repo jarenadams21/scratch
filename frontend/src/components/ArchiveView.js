@@ -4,7 +4,7 @@ import { AppState, updateState } from '../lib/state.js';
 import { formatShortDate, formatLongDate } from '../lib/format.js';
 import { plainText, renderCanvasMarkdown, renderMarkdown } from '../lib/markdown.js';
 import { confirmDelete } from '../lib/actions.js';
-import { ensureProfilesFor, profileFor } from '../lib/loaders.js';
+import { ensureProfilesFor, profileFor, publicDisplayName } from '../lib/loaders.js';
 import { ListView } from './ListView.js';
 import { EntryOrganizer } from './EntryOrganizer.js';
 
@@ -19,7 +19,7 @@ function authorOf(entry) {
 }
 
 function displayNameFor(entry) {
-  if (entry?.displayName) return entry.displayName;
+  if (entry?.displayName) return publicDisplayName(entry.displayName);
   return profileFor(authorOf(entry)).displayName;
 }
 

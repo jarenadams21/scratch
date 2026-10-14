@@ -16,7 +16,7 @@ export function LoginForm({ onAuthSuccess }) {
   };
 
   return createElement('div', { className: 'typewriter-login' },
-    createElement('p', { className: 'login-heading' }, 'OPERATOR ACCESS'),
+    createElement('p', { className: 'login-heading' }, 'ADMIN ACCESS'),
     createElement('p', { className: 'login-subhead' }, 'Restricted Terminal'),
     createElement('hr', { className: 'login-rule' }),
     createElement('form', { className: 'credentials', onSubmit: handleSubmit },

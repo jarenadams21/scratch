@@ -64,9 +64,15 @@ export const TRAIT_SCHEMA = Object.freeze({
 
 export const ALLOWED_TRAITS = Object.freeze(Object.keys(TRAIT_SCHEMA));
 
-// Public-facing fallback. Visitors and admins without a displayName render
-// as "Operator" — keeps the surface anonymous without exposing email parts.
-export const DEFAULT_DISPLAY_NAME = 'Operator';
+// Public-facing fallback for legacy records without a chosen byline.
+export const DEFAULT_DISPLAY_NAME = 'Archive';
+const RESERVED_DISPLAY_NAMES = Object.freeze(new Set([
+  'admin',
+  'administrator',
+  'operator',
+  'root',
+  'system',
+]));
 
 const DATE_RX = /^\d{4}-(0[1-9]|1[0-2])-(0[1-9]|[12]\d|3[01])$/;
 const MEAL_TEXT_MAX = 2000;
@@ -100,6 +106,9 @@ function validateTraitValue(trait, value) {
     // an HTML-injection vector if rendering ever changes.
     if (/[@<>]/.test(trimmed)) {
       throw new Error(`Invalid value for ${trait} (cannot contain @ < >)`);
+    }
+    if (trait === 'displayName' && RESERVED_DISPLAY_NAMES.has(trimmed.toLowerCase())) {
+      throw new Error('Invalid value for displayName (reserved system name)');
     }
     return trimmed;
   }
@@ -151,8 +160,12 @@ export async function getTraits(userId) {
 // the email (admin operations) already have it as the lookup key.
 export async function getProfile(email) {
   const traits = await getTraits(email);
+  const displayName = typeof traits.displayName === 'string'
+    && !RESERVED_DISPLAY_NAMES.has(traits.displayName.trim().toLowerCase())
+    ? traits.displayName.trim()
+    : DEFAULT_DISPLAY_NAME;
   return {
-    displayName: traits.displayName || DEFAULT_DISPLAY_NAME,
+    displayName,
     displayColor: traits.displayColor || null,
   };
 }
