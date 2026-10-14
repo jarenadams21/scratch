@@ -145,70 +145,72 @@ export function ShelfManager() {
           ref: node => { formNode = node; },
           key: editing?.id || 'new-shelf',
         },
-          createElement('label', { className: 'shelf-manager-field' },
-            createElement('span', null, 'NAME'),
-            createElement('input', {
-              type: 'text',
-              name: 'name',
-              maxLength: 80,
-              required: true,
-              defaultValue: editing?.name || '',
-              placeholder: 'e.g. Serious Papers',
-            })
-          ),
-          createElement('label', { className: 'shelf-manager-field' },
-            createElement('span', null, 'DESCRIPTION'),
-            createElement('textarea', {
-              name: 'description',
-              maxLength: 280,
-              rows: 4,
-              defaultValue: editing?.description || '',
-              placeholder: 'What belongs on this shelf?',
-            })
-          ),
-          createElement('label', { className: 'shelf-manager-field shelf-manager-color-field' },
-            createElement('span', null, 'COLOR'),
-            createElement('input', {
-              type: 'color',
-              name: 'color',
-              defaultValue: editing?.color || '#c85232',
-            }),
-            createElement('strong', null, editing?.color?.toUpperCase() || 'SELECT')
-          ),
-          createElement('fieldset', { className: 'shelf-manager-scope' },
-            createElement('legend', null, 'PUBLIC PLACEMENT'),
-            createElement('label', null,
+          createElement('div', { className: 'shelf-manager-form-fields' },
+            createElement('label', { className: 'shelf-manager-field' },
+              createElement('span', null, 'NAME'),
               createElement('input', {
-                type: 'radio',
-                name: 'archiveVisibility',
-                value: 'archive',
-                defaultChecked: editing?.archiveVisibility !== 'editions',
+                type: 'text',
+                name: 'name',
+                maxLength: 80,
+                required: true,
+                defaultValue: editing?.name || '',
+                placeholder: 'e.g. Serious Papers',
+              })
+            ),
+            createElement('label', { className: 'shelf-manager-field' },
+              createElement('span', null, 'DESCRIPTION'),
+              createElement('textarea', {
+                name: 'description',
+                maxLength: 280,
+                rows: 4,
+                defaultValue: editing?.description || '',
+                placeholder: 'What belongs on this shelf?',
+              })
+            ),
+            createElement('label', { className: 'shelf-manager-field shelf-manager-color-field' },
+              createElement('span', null, 'COLOR'),
+              createElement('input', {
+                type: 'color',
+                name: 'color',
+                defaultValue: editing?.color || '#c85232',
               }),
-              createElement('span', null,
-                createElement('strong', null, 'ARCHIVE + EDITIONS'),
-                createElement('small', null, 'Show published pieces in the main Archive and allow Edition curation.')
+              createElement('strong', null, editing?.color?.toUpperCase() || 'SELECT')
+            ),
+            createElement('fieldset', { className: 'shelf-manager-scope' },
+              createElement('legend', null, 'PUBLIC PLACEMENT'),
+              createElement('label', null,
+                createElement('input', {
+                  type: 'radio',
+                  name: 'archiveVisibility',
+                  value: 'archive',
+                  defaultChecked: editing?.archiveVisibility !== 'editions',
+                }),
+                createElement('span', null,
+                  createElement('strong', null, 'ARCHIVE + EDITIONS'),
+                  createElement('small', null, 'Show published pieces in the main Archive and allow Edition curation.')
+                )
+              ),
+              createElement('label', null,
+                createElement('input', {
+                  type: 'radio',
+                  name: 'archiveVisibility',
+                  value: 'editions',
+                  defaultChecked: editing?.archiveVisibility === 'editions',
+                }),
+                createElement('span', null,
+                  createElement('strong', null, 'EDITIONS ONLY'),
+                  createElement('small', null, 'Hide this shelf from the Archive; pieces appear publicly only through curated Editions.')
+                )
               )
             ),
-            createElement('label', null,
-              createElement('input', {
-                type: 'radio',
-                name: 'archiveVisibility',
-                value: 'editions',
-                defaultChecked: editing?.archiveVisibility === 'editions',
-              }),
-              createElement('span', null,
-                createElement('strong', null, 'EDITIONS ONLY'),
-                createElement('small', null, 'Hide this shelf from the Archive; pieces appear publicly only through curated Editions.')
-              )
-            )
+            createElement('p', {
+              className: 'shelf-manager-status',
+              ref: node => { statusNode = node; },
+              'aria-live': 'polite',
+            }, editing
+              ? `${entryCount(editing.id)} assigned ${entryCount(editing.id) === 1 ? 'entry' : 'entries'}`
+              : 'Create a named collection for related writing.')
           ),
-          createElement('p', {
-            className: 'shelf-manager-status',
-            ref: node => { statusNode = node; },
-            'aria-live': 'polite',
-          }, editing
-            ? `${entryCount(editing.id)} assigned ${entryCount(editing.id) === 1 ? 'entry' : 'entries'}`
-            : 'Create a named collection for related writing.'),
           createElement('footer', { className: 'shelf-manager-actions' },
             editing
               ? createElement('button', {

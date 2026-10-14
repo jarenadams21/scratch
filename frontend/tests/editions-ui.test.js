@@ -82,6 +82,8 @@ test('shelves can reserve published writing for curated Editions', () => {
   assert.match(archiveView, /function shelfAppearsInArchive/);
   assert.match(archiveView, /shelf\.archiveVisibility !== 'editions'/);
   assert.doesNotMatch(editionsView, /archiveVisibility !== 'editions'/);
+  assert.match(shelfManager, /shelf-manager-form-fields/);
+  assert.match(editionsCss, /grid-template-rows: minmax\(0, 1fr\) auto/);
 });
 
 test('long papers open in an accessible focused reader with return continuity', () => {

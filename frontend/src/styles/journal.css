@@ -5265,9 +5265,12 @@ textarea {
 }
 
 .shelf-manager {
+  display: grid;
   width: min(860px, 100%);
+  height: min(720px, calc(100dvh - 48px));
   max-height: min(720px, calc(100dvh - 48px));
   overflow: hidden;
+  grid-template-rows: auto minmax(0, 1fr);
   border: 1px solid color-mix(in srgb, var(--accent) 38%, var(--rule));
   background: var(--sheet-solid);
   box-shadow: 18px 24px 70px color-mix(in srgb, var(--paper-deep) 72%, transparent);
@@ -5297,8 +5300,8 @@ textarea {
 
 .shelf-manager-body {
   display: grid;
-  min-height: 410px;
-  max-height: calc(100dvh - 150px);
+  min-height: 0;
+  overflow: hidden;
   grid-template-columns: minmax(220px, .8fr) minmax(320px, 1.2fr);
 }
 
@@ -5396,8 +5399,16 @@ textarea {
 }
 
 .shelf-manager-form {
-  display: flex;
+  display: grid;
   min-width: 0;
+  min-height: 0;
+  overflow: hidden;
+  grid-template-rows: minmax(0, 1fr) auto;
+}
+
+.shelf-manager-form-fields {
+  display: flex;
+  min-height: 0;
   overflow-y: auto;
   flex-direction: column;
   gap: 20px;
@@ -5528,9 +5539,9 @@ textarea {
   align-items: center;
   justify-content: flex-end;
   gap: 10px;
-  margin-top: auto;
   border-top: 1px solid var(--rule);
-  padding-top: 18px;
+  background: var(--sheet-solid);
+  padding: 16px 30px 18px;
 }
 
 .shelf-manager-delete {
@@ -5561,12 +5572,13 @@ textarea {
   }
 
   .shelf-manager {
+    height: calc(100dvh - 20px);
     max-height: calc(100dvh - 20px);
   }
 
   .shelf-manager-body {
     display: flex;
-    max-height: calc(100dvh - 90px);
+    min-height: 0;
     flex-direction: column;
   }
 
@@ -5577,8 +5589,15 @@ textarea {
   }
 
   .shelf-manager-form {
+    min-height: 0;
+    flex: 1;
+  }
+
+  .shelf-manager-form-fields {
     padding: 20px;
   }
+
+  .shelf-manager-actions { padding: 14px 20px 16px; }
 }
 
 /* ─── Source library and citations ───────────────────────────────────────── */
