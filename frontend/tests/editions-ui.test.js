@@ -72,6 +72,9 @@ test('Edition selection uses a scalable custom archival menu', () => {
   assert.match(editionsView, /ArrowDown/);
   assert.match(editionsView, /scrollIntoView/);
   assert.doesNotMatch(editionsView, /createElement\('select'/);
+  assert.match(editionsView, /editionNumber\(edition, index\)/);
+  assert.match(editionsView, /String\(editions\.length\).*TOTAL/);
+  assert.doesNotMatch(editionsView, /String\(selectedIndex \+ 1\)/);
   assert.match(editionsCss, /max-height: min\(390px, 60vh\)/);
 });
 

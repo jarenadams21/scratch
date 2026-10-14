@@ -638,7 +638,7 @@ function EditionSelector({ editions, selected }) {
       ),
       createElement('span', { className: 'edition-selector-title' }, selected?.title || 'Untitled'),
       createElement('span', { className: 'edition-selector-count' },
-        `${String(selectedIndex + 1).padStart(2, '0')} / ${String(editions.length).padStart(2, '0')}`
+        `${String(editions.length).padStart(2, '0')} TOTAL`
       ),
       createElement('span', { className: 'edition-selector-mark', 'aria-hidden': 'true' }, open ? '−' : '+')
     ),
@@ -660,10 +660,10 @@ function EditionSelector({ editions, selected }) {
               onKeyDown: onOptionKeyDown,
             },
               createElement('span', { className: 'edition-selector-option-index' },
-                String(index + 1).padStart(2, '0')
+                editionNumber(edition, index)
               ),
               createElement('span', { className: 'edition-selector-option-copy' },
-                createElement('small', null, `EDITION ${editionNumber(edition, index)}`),
+                createElement('small', null, 'EDITION'),
                 createElement('strong', null, edition.title || 'Untitled')
               ),
               createElement('span', { className: 'edition-selector-option-meta' },
