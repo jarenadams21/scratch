@@ -56,6 +56,17 @@ test('Edition navigation keeps owner controls in two quiet rows', () => {
   assert.match(editionsView, /\}, 'EDIT'\)/);
 });
 
+test('Edition selection uses a scalable custom archival menu', () => {
+  assert.match(editionsView, /function EditionSelector/);
+  assert.match(editionsView, /role: 'listbox'/);
+  assert.match(editionsView, /role: 'option'/);
+  assert.match(editionsView, /aria-haspopup': 'listbox'/);
+  assert.match(editionsView, /ArrowDown/);
+  assert.match(editionsView, /scrollIntoView/);
+  assert.doesNotMatch(editionsView, /createElement\('select'/);
+  assert.match(editionsCss, /max-height: min\(390px, 60vh\)/);
+});
+
 test('long papers open in an accessible focused reader with return continuity', () => {
   assert.match(editionsView, /className: 'edition-reader-overlay'/);
   assert.match(editionsView, /'aria-modal': 'true'/);

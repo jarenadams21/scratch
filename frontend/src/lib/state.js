@@ -62,6 +62,7 @@ export const AppState = {
   editionsLoaded: false,
   editionsLoading: false,
   selectedEditionId: null,
+  editionSelectorOpen: false,
   editionEditorOpen: false,
   editionEditingId: null,
   editionDraft: null,

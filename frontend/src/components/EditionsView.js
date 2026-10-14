@@ -21,6 +21,7 @@ let pendingReaderFocus = false;
 let pendingManagerFocus = false;
 let restoreScheduled = false;
 let shortcutsInstalled = false;
+let editionSelectorToggleNode = null;
 
 function scheduleRestore() {
   if (restoreScheduled || typeof requestAnimationFrame === 'undefined') return;
@@ -72,6 +73,19 @@ function installShortcuts() {
         editionDraftEntryIds: [],
         editionDraftBlocks: [],
       });
+    } else if (AppState.editionSelectorOpen && event.key === 'Escape') {
+      event.preventDefault();
+      updateState({ editionSelectorOpen: false });
+      requestAnimationFrame(() => editionSelectorToggleNode?.focus({ preventScroll: true }));
+    }
+  });
+  document.addEventListener('pointerdown', event => {
+    if (
+      AppState.currentView === 'editions'
+      && AppState.editionSelectorOpen
+      && !event.target?.closest?.('.edition-selector')
+    ) {
+      updateState({ editionSelectorOpen: false });
     }
   });
 }
@@ -569,6 +583,99 @@ function EditionSequenceBlock({ block, index, entries, sources }) {
     : createElement(InlineTransmission, { key: block.id, entry, index });
 }
 
+function EditionSelector({ editions, selected }) {
+  const selectedIndex = Math.max(0, editions.findIndex(edition => edition.id === selected?.id));
+  const open = AppState.editionSelectorOpen;
+  const focusOption = direction => {
+    requestAnimationFrame(() => {
+      const options = [...(document.querySelectorAll('.edition-selector-option') || [])];
+      if (!options.length) return;
+      const target = direction === 'last' ? options.length - 1 : selectedIndex;
+      options[Math.max(0, target)]?.focus({ preventScroll: true });
+    });
+  };
+  const onToggleKeyDown = event => {
+    if (!['ArrowDown', 'ArrowUp'].includes(event.key)) return;
+    event.preventDefault();
+    updateState({ editionSelectorOpen: true });
+    focusOption(event.key === 'ArrowUp' ? 'last' : 'selected');
+  };
+  const onOptionKeyDown = event => {
+    if (!['ArrowDown', 'ArrowUp', 'Home', 'End'].includes(event.key)) return;
+    event.preventDefault();
+    const options = [...event.currentTarget.closest('[role="listbox"]')
+      .querySelectorAll('.edition-selector-option')];
+    const current = options.indexOf(event.currentTarget);
+    const next = event.key === 'Home'
+      ? 0
+      : event.key === 'End'
+        ? options.length - 1
+        : event.key === 'ArrowDown'
+          ? (current + 1) % options.length
+          : (current - 1 + options.length) % options.length;
+    options[next]?.focus({ preventScroll: true });
+    options[next]?.scrollIntoView?.({ block: 'nearest' });
+  };
+  const choose = edition => updateState({
+    selectedEditionId: edition.id,
+    editionReadingEntryId: null,
+    editionSelectorOpen: false,
+  });
+
+  return createElement('nav', { className: 'edition-selector', 'aria-label': 'Choose an edition' },
+    createElement('button', {
+      type: 'button',
+      className: 'edition-selector-toggle',
+      onClick: () => updateState({ editionSelectorOpen: !open }),
+      onKeyDown: onToggleKeyDown,
+      'aria-haspopup': 'listbox',
+      'aria-expanded': open ? 'true' : 'false',
+      ref: node => { editionSelectorToggleNode = node; },
+    },
+      createElement('span', { className: 'edition-selector-register' },
+        createElement('small', null, 'CURRENT EDITION'),
+        createElement('strong', null, `EDITION ${editionNumber(selected, selectedIndex)}`)
+      ),
+      createElement('span', { className: 'edition-selector-title' }, selected?.title || 'Untitled'),
+      createElement('span', { className: 'edition-selector-count' },
+        `${String(selectedIndex + 1).padStart(2, '0')} / ${String(editions.length).padStart(2, '0')}`
+      ),
+      createElement('span', { className: 'edition-selector-mark', 'aria-hidden': 'true' }, open ? '−' : '+')
+    ),
+    open
+      ? createElement('div', {
+          className: 'edition-selector-menu',
+          role: 'listbox',
+          'aria-label': 'Available editions',
+        },
+          ...editions.map((edition, index) => {
+            const active = edition.id === selected?.id;
+            return createElement('button', {
+              key: edition.id,
+              type: 'button',
+              className: `edition-selector-option${active ? ' active' : ''}`,
+              role: 'option',
+              'aria-selected': active ? 'true' : 'false',
+              onClick: () => choose(edition),
+              onKeyDown: onOptionKeyDown,
+            },
+              createElement('span', { className: 'edition-selector-option-index' },
+                String(index + 1).padStart(2, '0')
+              ),
+              createElement('span', { className: 'edition-selector-option-copy' },
+                createElement('small', null, `EDITION ${editionNumber(edition, index)}`),
+                createElement('strong', null, edition.title || 'Untitled')
+              ),
+              createElement('span', { className: 'edition-selector-option-meta' },
+                edition.visibility === 'draft' ? 'DRAFT' : formatCompactDate(edition.createdAt)
+              )
+            );
+          })
+        )
+      : null
+  );
+}
+
 export function EditionsView({ isAdmin = false }) {
   installShortcuts();
   const allEditions = AppState.editions || [];
@@ -613,24 +720,7 @@ export function EditionsView({ isAdmin = false }) {
           : null
       ),
       editions.length > 1
-        ? createElement('nav', { className: 'edition-selector', 'aria-label': 'Choose an edition' },
-            ...editions.map((edition, index) => createElement('button', {
-              key: edition.id,
-              type: 'button',
-              className: edition.id === selected?.id ? 'active' : '',
-              onClick: () => updateState({
-                selectedEditionId: edition.id,
-                editionReadingEntryId: null,
-              }),
-              'aria-current': edition.id === selected?.id ? 'page' : null,
-            },
-              createElement('span', null, editionNumber(edition, index)),
-              createElement('strong', null, edition.title),
-              edition.visibility === 'draft'
-                ? createElement('small', null, 'DRAFT')
-                : null
-            ))
-          )
+        ? createElement(EditionSelector, { editions, selected })
         : null,
       AppState.editionsLoading
         ? createElement('div', { className: 'editions-empty' }, 'LOADING ISSUE INDEX…')

@@ -6664,47 +6664,131 @@ textarea {
 }
 
 .edition-selector {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
+  position: relative;
   border-bottom: 1px solid var(--ink);
+  padding: 10px 0;
 }
 
-.edition-selector button {
+.edition-selector-toggle {
   display: grid;
+  width: min(100%, 560px);
   min-height: 52px;
-  border: 0;
-  border-right: 1px solid var(--rule);
+  border: 1px solid var(--rule);
   background: transparent;
-  padding: 10px 12px;
-  color: var(--ink-3);
+  grid-template-columns: auto minmax(0, 1fr) auto auto;
+  align-items: center;
+  gap: 16px;
+  padding: 9px 12px;
+  color: var(--ink);
   text-align: left;
   cursor: pointer;
 }
 
-.edition-selector button:last-child { border-right: 0; }
-
-.edition-selector button:hover,
-.edition-selector button.active {
+.edition-selector-toggle:hover,
+.edition-selector-toggle:focus-visible,
+.edition-selector-toggle[aria-expanded="true"] {
+  border-color: var(--ink);
   background: color-mix(in srgb, var(--ink) 5%, var(--paper));
-  color: var(--ink);
-  box-shadow: inset 0 -3px 0 var(--accent);
+  outline: none;
 }
 
-.edition-selector button > span,
-.edition-selector button > small {
+.edition-selector-register {
+  display: grid;
+  min-width: 88px;
+  gap: 2px;
+}
+
+.edition-selector-register small,
+.edition-selector-register strong,
+.edition-selector-count,
+.edition-selector-option small,
+.edition-selector-option-meta,
+.edition-selector-option-index {
   font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
   font-size: calc(7px * var(--type-scale));
   letter-spacing: 1.5px;
 }
 
-.edition-selector button > span { color: var(--accent); }
-.edition-selector button > small { margin-top: 5px; color: var(--danger); }
-.edition-selector button > strong {
-  margin-top: 5px;
+.edition-selector-register small { color: var(--ink-3); }
+.edition-selector-register strong { color: var(--accent); }
+
+.edition-selector-title,
+.edition-selector-option strong {
+  overflow: hidden;
   font-family: 'Arial Narrow', 'Helvetica Neue Condensed', Arial, sans-serif;
   font-size: calc(10px * var(--type-scale));
   letter-spacing: .25px;
+  text-overflow: ellipsis;
   text-transform: uppercase;
+  white-space: nowrap;
+}
+
+.edition-selector-count { color: var(--ink-3); }
+
+.edition-selector-mark {
+  color: var(--accent);
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  font-size: calc(14px * var(--type-scale));
+}
+
+.edition-selector-menu {
+  position: absolute;
+  z-index: 45;
+  top: calc(100% - 10px);
+  left: 0;
+  width: min(100%, 680px);
+  max-height: min(390px, 60vh);
+  overflow-y: auto;
+  border: 1px solid var(--ink);
+  background: var(--sheet-solid);
+  box-shadow: 8px 8px 0 color-mix(in srgb, var(--ink) 12%, transparent);
+}
+
+.edition-selector-option {
+  display: grid;
+  width: 100%;
+  min-height: 58px;
+  border: 0;
+  border-bottom: 1px solid var(--rule);
+  background: transparent;
+  grid-template-columns: 36px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 14px;
+  padding: 10px 12px;
+  color: var(--ink);
+  text-align: left;
+  cursor: pointer;
+}
+
+.edition-selector-option:last-child { border-bottom: 0; }
+
+.edition-selector-option:hover,
+.edition-selector-option:focus-visible,
+.edition-selector-option.active {
+  background:
+    linear-gradient(90deg, var(--accent-wash), transparent 70%),
+    var(--sheet-solid);
+  outline: none;
+}
+
+.edition-selector-option.active {
+  box-shadow: inset 3px 0 0 var(--accent);
+}
+
+.edition-selector-option-index { color: var(--accent); }
+
+.edition-selector-option-copy {
+  display: grid;
+  min-width: 0;
+  gap: 4px;
+}
+
+.edition-selector-option small,
+.edition-selector-option-meta { color: var(--ink-3); }
+
+.edition-selector-option-meta {
+  text-align: right;
+  white-space: nowrap;
 }
 
 .edition-publication {
@@ -7388,6 +7472,21 @@ textarea {
     align-items: stretch;
   }
   .editions-index-header button { align-self: start; }
+  .edition-selector-toggle {
+    grid-template-columns: auto minmax(0, 1fr) auto;
+    gap: 10px;
+  }
+  .edition-selector-register { min-width: 72px; }
+  .edition-selector-count { display: none; }
+  .edition-selector-menu {
+    width: 100%;
+    box-shadow: 4px 4px 0 color-mix(in srgb, var(--ink) 12%, transparent);
+  }
+  .edition-selector-option {
+    grid-template-columns: 28px minmax(0, 1fr);
+    gap: 10px;
+  }
+  .edition-selector-option-meta { display: none; }
   .edition-publication { margin-top: 22px; }
   .edition-cover {
     min-height: 0;
