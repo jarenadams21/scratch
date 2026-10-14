@@ -4,6 +4,42 @@ import { updateState } from '../lib/state.js';
 let returnFocusNode = null;
 let activeImageUrl = null;
 let focusOnOpen = false;
+let returnScrollPositions = [];
+
+const READER_SCROLL_SELECTORS = [
+  '.editions-view',
+  '.edition-reader',
+  '.reading-pane',
+  '.editor-reader-preview',
+];
+
+function captureScrollPositions(triggerNode) {
+  if (!triggerNode?.closest) return [];
+  return READER_SCROLL_SELECTORS
+    .map(selector => {
+      const node = triggerNode.closest(selector);
+      return node ? { selector, top: node.scrollTop, left: node.scrollLeft } : null;
+    })
+    .filter(Boolean);
+}
+
+function restoreScrollPositions() {
+  for (const position of returnScrollPositions) {
+    const node = document.querySelector(position.selector);
+    if (!node) continue;
+    node.scrollTop = position.top;
+    node.scrollLeft = position.left;
+  }
+}
+
+export function openLightbox(image, triggerNode = null) {
+  returnFocusNode = triggerNode || (typeof document !== 'undefined' ? document.activeElement : null);
+  returnScrollPositions = typeof document !== 'undefined'
+    ? captureScrollPositions(returnFocusNode)
+    : [];
+  updateState({ lightboxImage: image });
+  requestAnimationFrame(restoreScrollPositions);
+}
 
 // In-app full-screen image viewer. The image URL never goes into the browser
 // address bar or history, and we set referrerpolicy=no-referrer on the <img>
@@ -13,7 +49,12 @@ export function Lightbox({ image }) {
   if (!image) return null;
   if (activeImageUrl !== image.url) {
     activeImageUrl = image.url;
-    returnFocusNode = typeof document !== 'undefined' ? document.activeElement : null;
+    if (!returnFocusNode) {
+      returnFocusNode = typeof document !== 'undefined' ? document.activeElement : null;
+      returnScrollPositions = typeof document !== 'undefined'
+        ? captureScrollPositions(returnFocusNode)
+        : [];
+    }
     focusOnOpen = true;
   }
   const close = () => {
@@ -21,7 +62,11 @@ export function Lightbox({ image }) {
     const target = returnFocusNode;
     returnFocusNode = null;
     updateState({ lightboxImage: null });
-    requestAnimationFrame(() => target?.focus?.({ preventScroll: true }));
+    requestAnimationFrame(() => {
+      restoreScrollPositions();
+      target?.focus?.({ preventScroll: true });
+      returnScrollPositions = [];
+    });
   };
   const handleKeyDown = event => {
     if (event.key === 'Escape') {

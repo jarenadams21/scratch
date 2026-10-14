@@ -1,6 +1,6 @@
 import { createElement } from '../engine/main.js';
-import { updateState } from './state.js';
 import { CanvasArtboard, canvasFrame } from '../components/CanvasArtboard.js';
+import { openLightbox } from '../components/Lightbox.js';
 
 function safeUrl(value) {
   try {
@@ -160,9 +160,10 @@ function canvasImageNode(image) {
       ? element
       : createElement('button', {
           type: 'button',
-          onClick: () => updateState({
-            lightboxImage: { url: image.imageUrl, alt: image.alt, caption: image.caption },
-          }),
+          onClick: event => openLightbox(
+            { url: image.imageUrl, alt: image.alt, caption: image.caption },
+            event.currentTarget,
+          ),
           'aria-label': `Enlarge image: ${image.alt}`,
         }, element),
     image.caption ? createElement('figcaption', null, image.caption) : null
@@ -231,9 +232,10 @@ function imageNode(image, key) {
       : createElement('button', {
           type: 'button',
           className: 'editorial-image-trigger',
-          onClick: () => updateState({
-            lightboxImage: { url: image.imageUrl, alt: image.alt, caption: image.caption },
-          }),
+          onClick: event => openLightbox(
+            { url: image.imageUrl, alt: image.alt, caption: image.caption },
+            event.currentTarget,
+          ),
           'aria-label': `Enlarge image: ${image.alt}`,
         }, imageElement),
     image.caption

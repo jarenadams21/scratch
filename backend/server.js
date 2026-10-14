@@ -110,6 +110,7 @@ async function handleMessage(message, userId) {
         status:      e.status || DEFAULT_ENTRY_STATUS,
         shelfId:     e.shelfId || null,
         sourceIds:   Array.isArray(e.sourceIds) ? e.sourceIds : [],
+        canvasLayout: e.canvasLayout || null,
         createdAt:  e.createdAt,
         updatedAt:  e.updatedAt,
         displayName: profiles[e.author]?.displayName || DEFAULT_DISPLAY_NAME,

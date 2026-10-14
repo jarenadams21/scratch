@@ -50,6 +50,10 @@ const shelfManager = readFileSync(
   new URL('../src/components/ShelfManager.js', import.meta.url),
   'utf8',
 );
+const server = readFileSync(
+  new URL('../../backend/server.js', import.meta.url),
+  'utf8',
+);
 
 test('Editions is a first-class public navigation destination', () => {
   assert.match(appView, /switchView\('editions'\)/);
@@ -139,6 +143,8 @@ test('Compose separates editable canvas from locked final preview', () => {
   assert.match(canvasArtboard, /canvas-page-label/);
   assert.match(canvasArtboard, /syncReaderPage/);
   assert.match(canvasArtboard, /canvas-flow-continuation/);
+  assert.match(server, /canvasLayout: e\.canvasLayout \|\| null/);
+  assert.match(editionsView, /entry\.canvasLayout\s*\?\s*renderCanvasMarkdown/);
 });
 
 test('shared image insertion requires accessible metadata and renders structured figures', () => {
@@ -168,6 +174,9 @@ test('shared image insertion requires accessible metadata and renders structured
   assert.match(markdown, /renderCanvasMarkdown/);
   assert.match(lightbox, /event\.key === 'Escape'/);
   assert.match(lightbox, /returnFocusNode/);
+  assert.match(lightbox, /captureScrollPositions/);
+  assert.match(lightbox, /restoreScrollPositions/);
+  assert.match(markdown, /openLightbox\(/);
   assert.match(editionsCss, /\.canvas-artboard\s*\{[\s\S]*?aspect-ratio: 5 \/ 7/);
   assert.match(editionsCss, /\.canvas-artboard\s*\{[\s\S]*?background: transparent/);
   assert.match(editionsCss, /\.canvas-object\s*\{[\s\S]*?position: absolute/);
