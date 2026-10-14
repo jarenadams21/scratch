@@ -3,7 +3,7 @@ import { config } from './config/config.js';
 import { signup, login, extractUser } from './auth/auth.js';
 import { createEntry, upsertEntry, getAllEntries, clearShelfFromEntries, clearSourceFromEntries, deleteEntry, updateEntryVisibility, updateEntryOrganization, DEFAULT_VISIBILITY, DEFAULT_ENTRY_STATUS } from './db/db.js';
 import { generateUploadUrl, createAudioEntry, getUserAudioEntries, deleteAudioEntry } from './db/audio-db.js';
-import { getTraits, setTrait, upsertMealEntry, deleteMealEntry, getMealEntries, getProfiles, DEFAULT_DISPLAY_NAME, generateImageUploadUrl, generateWritingImageUploadUrl, attachMealImage, detachMealImage } from './db/feature-db.js';
+import { getTraits, setTrait, upsertMealEntry, deleteMealEntry, getMealEntries, getProfiles, DEFAULT_DISPLAY_NAME, generateImageUploadUrl, generateWritingImageUploadUrl, presignWritingImagesInContent, attachMealImage, detachMealImage } from './db/feature-db.js';
 import {
   getInspoBoards, createInspoBoard, updateInspoBoard, deleteInspoBoard,
   getInspos, createInspo, updateInspo, deleteInspo,
@@ -89,10 +89,11 @@ async function handleMessage(message, userId) {
       const all = await getAllEntries();
       // Authed admins see everything verbatim — they have legitimate need
       // for the raw author email (it's the pk for delete/visibility ops).
-      if (userId) return all.map(entry => ({
+      if (userId) return Promise.all(all.map(async entry => ({
         ...entry,
+        content: await presignWritingImagesInContent(entry.content),
         status: entry.status || DEFAULT_ENTRY_STATUS,
-      }));
+      })));
       // Visitors see only public entries, with author emails scrubbed and
       // replaced by the author's chosen displayName (Archive if unset).
       const publicEntries = all.filter(e =>
@@ -100,10 +101,10 @@ async function handleMessage(message, userId) {
         && (e.visibility || DEFAULT_VISIBILITY) === 'public'
       );
       const profiles = await getProfiles(publicEntries.map(e => e.author).filter(Boolean));
-      return publicEntries.map(e => ({
+      return Promise.all(publicEntries.map(async e => ({
         entryId:    e.entryId,
         title:      e.title,
-        content:    e.content,
+        content:    await presignWritingImagesInContent(e.content),
         mood:       e.mood ?? null,
         visibility: e.visibility || DEFAULT_VISIBILITY,
         status:      e.status || DEFAULT_ENTRY_STATUS,
@@ -113,7 +114,7 @@ async function handleMessage(message, userId) {
         updatedAt:  e.updatedAt,
         displayName: profiles[e.author]?.displayName || DEFAULT_DISPLAY_NAME,
         // pk and author are intentionally omitted.
-      }));
+      })));
     }
 
     case 'get_shelves': {

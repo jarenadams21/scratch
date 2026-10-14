@@ -468,10 +468,12 @@ export async function uploadWritingImage(file) {
   let imageUrl = presigned.imageUrl;
 
   if (presigned.uploadUrl === 'mock://upload') {
-    if (typeof URL?.createObjectURL !== 'function') {
-      throw new Error('Browser image previews are unavailable');
-    }
-    imageUrl = URL.createObjectURL(file);
+    imageUrl = await new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => resolve(reader.result);
+      reader.onerror = () => reject(new Error('Could not read image'));
+      reader.readAsDataURL(file);
+    });
   } else {
     const response = await fetch(presigned.uploadUrl, {
       method: 'PUT',
@@ -480,6 +482,7 @@ export async function uploadWritingImage(file) {
     });
     if (!response.ok) throw new Error(`Upload failed (${response.status})`);
   }
+  if (!imageUrl) throw new Error('The uploaded image could not be opened');
 
   return {
     imageKey: presigned.imageKey,

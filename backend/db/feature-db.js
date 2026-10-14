@@ -36,6 +36,34 @@ async function presignImageGet(imageKey) {
   return getSignedUrl(s3, cmd, { expiresIn: IMAGE_VIEW_TTL_SECONDS });
 }
 
+export async function presignWritingImagesInContent(content) {
+  const source = String(content || '');
+  const directives = [...source.matchAll(/:::image\s+(.+?)\s+:::/g)];
+  if (!directives.length) return source;
+  let resolved = source;
+  for (const match of directives.reverse()) {
+    const attributes = match[1].split(/\s+/);
+    const keyField = attributes.find(field => field.startsWith('key='));
+    if (!keyField) continue;
+    let imageKey;
+    try {
+      imageKey = decodeURIComponent(keyField.slice(4));
+    } catch {
+      continue;
+    }
+    if (!imageKey.startsWith(`${WRITING_IMAGE_PREFIX}/`)) continue;
+    const imageUrl = await presignImageGet(imageKey);
+    if (!imageUrl) continue;
+    const urlIndex = attributes.findIndex(field => field.startsWith('url='));
+    const urlField = `url=${encodeURIComponent(imageUrl)}`;
+    if (urlIndex >= 0) attributes[urlIndex] = urlField;
+    else attributes.unshift(urlField);
+    const replacement = `:::image ${attributes.join(' ')} :::`;
+    resolved = `${resolved.slice(0, match.index)}${replacement}${resolved.slice(match.index + match[0].length)}`;
+  }
+  return resolved;
+}
+
 // Walk a list of meal entries and re-sign every image's imageUrl. Idempotent
 // and safe on entries that have no images.
 async function presignImagesOn(entries) {
@@ -272,7 +300,7 @@ async function generateManagedImageUploadUrl(filename, contentType, prefix, file
     ...(fileSize == null ? {} : { ContentLength: fileSize }),
   });
   const uploadUrl = await getSignedUrl(s3, command, { expiresIn: 900 });
-  const imageUrl  = `https://${MEDIA_BUCKET}.s3.${config.AWS_REGION}.amazonaws.com/${key}`;
+  const imageUrl = await presignImageGet(key);
   return { uploadUrl, imageKey: key, imageUrl };
 }
 

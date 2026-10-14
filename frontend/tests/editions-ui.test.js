@@ -155,7 +155,8 @@ test('shared image insertion requires accessible metadata and renders structured
   assert.match(markdown, /loading: 'lazy'/);
   assert.match(markdown, /decoding: 'async'/);
   assert.match(imageDialog, /return `:::image \$\{attributes\} :::`/);
-  assert.match(api, /URL\.createObjectURL\(file\)/);
+  assert.match(api, /reader\.readAsDataURL\(file\)/);
+  assert.doesNotMatch(api, /imageUrl = URL\.createObjectURL\(file\)/);
   assert.match(markdown, /parseCompactImageDirective/);
   assert.match(markdown, /source\.startsWith\('blob:'\)/);
   assert.match(markdown, /editorial-image-trigger/);
