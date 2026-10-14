@@ -22,6 +22,7 @@ function maskedText(value) {
     /```[\s\S]*?```/g,
     /`[^`\n]*`/g,
     /https?:\/\/[^\s)]+/g,
+    /^:::text-box\s+id=[a-zA-Z0-9_-]{1,120}\s+:::$/gm,
   ];
   for (const pattern of ranges) {
     for (const match of value.matchAll(pattern)) mask(match.index, match.index + match[0].length);
@@ -243,8 +244,9 @@ export function reviewWriting(draft = {}) {
     if (a.field !== b.field) return a.field === 'title' ? -1 : 1;
     return a.start - b.start || a.end - b.end;
   });
-  const words = content.match(WORD_RX) || [];
-  const sentences = maskedText(content).match(/[^.!?\n]+(?:[.!?]+|$)/g)
+  const maskedContent = maskedText(content);
+  const words = maskedContent.match(WORD_RX) || [];
+  const sentences = maskedContent.match(/[^.!?\n]+(?:[.!?]+|$)/g)
     ?.filter(sentence => sentence.match(WORD_RX)) || [];
   return {
     issues,

@@ -2,7 +2,7 @@ import { createElement } from '../engine/main.js';
 import { deletePost, updatePostVisibility, currentUserEmail, isLoggedIn } from '../lib/api.js';
 import { AppState, updateState } from '../lib/state.js';
 import { formatShortDate, formatLongDate } from '../lib/format.js';
-import { plainText, renderMarkdown } from '../lib/markdown.js';
+import { plainText, renderCanvasMarkdown, renderMarkdown } from '../lib/markdown.js';
 import { confirmDelete } from '../lib/actions.js';
 import { ensureProfilesFor, profileFor } from '../lib/loaders.js';
 import { ListView } from './ListView.js';
@@ -198,7 +198,9 @@ function ReadingPane({ entry, onDeleted, onVisibilityChanged }) {
       )
     ),
     createElement('div', { className: 'reading-divider' }),
-    createElement('div', { className: 'reading-content' }, ...renderMarkdown(entry.content)),
+    entry.canvasLayout
+      ? renderCanvasMarkdown(entry.content, entry.canvasLayout, { label: `Layout for ${entry.title || 'entry'}` })
+      : createElement('div', { className: 'reading-content' }, ...renderMarkdown(entry.content)),
     createElement(SourcesUsed, {
       entry,
       onOrganize: entry.status !== 'draft' && isOwner

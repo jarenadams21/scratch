@@ -61,7 +61,9 @@ test('applies suggestions only when the reviewed text is unchanged', () => {
 });
 
 test('reports draft statistics and exposes review in slash commands', () => {
-  const result = reviewWriting({ content: 'One sentence. Two sentences.' });
+  const result = reviewWriting({
+    content: 'One sentence.\n\n:::text-box id=text-second :::\n\nTwo sentences.',
+  });
   assert.equal(result.stats.words, 4);
   assert.equal(result.stats.sentences, 2);
   assert.equal(result.stats.minutes, 1);

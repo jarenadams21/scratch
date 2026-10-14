@@ -55,6 +55,41 @@ export function assertEntryStatus(status) {
   }
 }
 
+function cleanCanvasFrame(value, fallback) {
+  const source = value && typeof value === 'object' ? value : {};
+  const number = (key, min, max) => {
+    const parsed = Number(source[key]);
+    const base = Number(fallback[key]);
+    return Math.min(max, Math.max(min, Number.isFinite(parsed) ? parsed : base));
+  };
+  return {
+    x: number('x', 0, 94),
+    y: number('y', 0, 94),
+    width: number('width', 12, 100),
+    height: number('height', 8, 100),
+    page: Math.round(number('page', 0, 20)),
+  };
+}
+
+function cleanCanvasLayout(value) {
+  if (!value || typeof value !== 'object') return null;
+  const texts = {};
+  for (const [key, frame] of Object.entries(value.texts || {}).slice(0, 40)) {
+    if (!/^[a-zA-Z0-9_-]{1,120}$/.test(key)) continue;
+    texts[key] = cleanCanvasFrame(frame, { x: 6, y: 5, width: 88, height: 40, page: 0 });
+  }
+  const images = {};
+  for (const [key, frame] of Object.entries(value.images || {}).slice(0, 80)) {
+    if (!/^[a-zA-Z0-9/_.-]{1,500}$/.test(key)) continue;
+    images[key] = cleanCanvasFrame(frame, { x: 58, y: 5, width: 34, height: 24, page: 0 });
+  }
+  return {
+    text: cleanCanvasFrame(value.text || texts.text, { x: 6, y: 5, width: 88, height: 88, page: 0 }),
+    texts,
+    images,
+  };
+}
+
 function validatedEntry(entry, { publishing = false } = {}) {
   const title = typeof entry.title === 'string' ? entry.title.trim() : '';
   const content = typeof entry.content === 'string' ? entry.content : '';
@@ -76,7 +111,15 @@ function validatedEntry(entry, { publishing = false } = {}) {
   if ((publishing || status === 'published') && (!title || !content.trim())) {
     throw new Error('Published entries require a title and body');
   }
-  return { title, content, status, visibility, shelfId: shelfId || null, sourceIds };
+  return {
+    title,
+    content,
+    status,
+    visibility,
+    shelfId: shelfId || null,
+    sourceIds,
+    canvasLayout: cleanCanvasLayout(entry.canvasLayout),
+  };
 }
 
 function validatedEntryOrganization(entry) {
@@ -110,6 +153,7 @@ export async function createEntry(userId, entry) {
       status: validated.status,
       shelfId: validated.shelfId,
       sourceIds: validated.sourceIds,
+      canvasLayout: validated.canvasLayout,
       createdAt: timestamp,
       updatedAt: timestamp,
     }
@@ -136,6 +180,7 @@ export async function upsertEntry(userId, entry) {
       status: validated.status,
       shelfId: validated.shelfId,
       sourceIds: validated.sourceIds,
+      canvasLayout: validated.canvasLayout,
       createdAt: timestamp,
       updatedAt: timestamp,
     };
@@ -161,7 +206,7 @@ export async function upsertEntry(userId, entry) {
     await db.send(new UpdateCommand({
       TableName: config.DYNAMODB_TABLE,
       Key: key,
-      UpdateExpression: 'SET title = :title, content = :content, mood = :mood, visibility = :visibility, #status = :status, shelfId = :shelfId, sourceIds = :sourceIds, updatedAt = :updatedAt',
+      UpdateExpression: 'SET title = :title, content = :content, mood = :mood, visibility = :visibility, #status = :status, shelfId = :shelfId, sourceIds = :sourceIds, canvasLayout = :canvasLayout, updatedAt = :updatedAt',
       ExpressionAttributeNames: { '#status': 'status' },
       ExpressionAttributeValues: {
         ':title': validated.title,
@@ -172,6 +217,7 @@ export async function upsertEntry(userId, entry) {
         ':draft': 'draft',
         ':shelfId': validated.shelfId,
         ':sourceIds': validated.sourceIds,
+        ':canvasLayout': validated.canvasLayout,
         ':updatedAt': updatedAt,
       },
       ConditionExpression: 'attribute_exists(pk) AND #status = :draft',
@@ -192,6 +238,7 @@ export async function upsertEntry(userId, entry) {
     status: validated.status,
     shelfId: validated.shelfId,
     sourceIds: validated.sourceIds,
+    canvasLayout: validated.canvasLayout,
     createdAt: entry.createdAt,
     updatedAt,
   };

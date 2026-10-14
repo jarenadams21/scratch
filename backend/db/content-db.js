@@ -28,6 +28,9 @@ const PALETTES = Object.freeze([
 const PALETTE_ALIASES = Object.freeze({ blue: 'summer-sea' });
 const EMPTY_ABOUT = Object.freeze({ title: '', content: '', sections: [], updatedAt: null });
 const MAX_ABOUT_SECTIONS = 12;
+const EDITION_VISIBILITIES = Object.freeze(['draft', 'public']);
+const MAX_EDITION_ENTRIES = 80;
+const MAX_EDITION_BLOCKS = 120;
 
 function cleanShelfName(value) {
   if (typeof value !== 'string') throw new Error('Invalid shelf name');
@@ -132,6 +135,165 @@ export async function deleteShelf(id) {
   } catch (err) {
     if (err?.name === 'ConditionalCheckFailedException') {
       throw new Error('Invalid shelf (not found)');
+    }
+    throw err;
+  }
+}
+
+function cleanEditionText(value, label, max, { required = false } = {}) {
+  if (value == null) value = '';
+  if (typeof value !== 'string') throw new Error(`Invalid edition ${label}`);
+  const cleaned = value.trim().replace(/\s+/g, ' ');
+  if (required && !cleaned) throw new Error(`Invalid edition ${label} (required)`);
+  if (cleaned.length > max) {
+    throw new Error(`Invalid edition ${label} (max ${max} characters)`);
+  }
+  return cleaned;
+}
+
+function cleanEditionBlocks(value) {
+  if (!Array.isArray(value) || value.length > MAX_EDITION_BLOCKS) {
+    throw new Error(`Invalid edition blocks (max ${MAX_EDITION_BLOCKS})`);
+  }
+  const ids = new Set();
+  const entryIds = new Set();
+  const sourceIds = new Set();
+  return value.map((block, index) => {
+    if (!block || typeof block !== 'object') throw new Error('Invalid edition block');
+    const id = cleanEditionText(block.id || `block-${index + 1}`, 'block id', 120, { required: true });
+    if (ids.has(id)) throw new Error('Invalid edition blocks (duplicate block id)');
+    ids.add(id);
+    if (block.type === 'entry') {
+      const entryId = cleanEditionText(block.entryId, 'entry id', 120, { required: true });
+      if (entryIds.has(entryId)) throw new Error('Invalid edition entries (duplicates are not allowed)');
+      entryIds.add(entryId);
+      return { id, type: 'entry', entryId };
+    }
+    if (block.type === 'source') {
+      const sourceId = cleanEditionText(block.sourceId, 'source id', 120, { required: true });
+      if (sourceIds.has(sourceId)) throw new Error('Invalid edition sources (duplicates are not allowed)');
+      sourceIds.add(sourceId);
+      return { id, type: 'source', sourceId };
+    }
+    throw new Error('Invalid edition block type');
+  });
+}
+
+function cleanEditionEntryIds(value) {
+  if (!Array.isArray(value) || value.length > MAX_EDITION_ENTRIES) {
+    throw new Error(`Invalid edition entries (max ${MAX_EDITION_ENTRIES})`);
+  }
+  const entryIds = value.map(id => cleanEditionText(id, 'entry id', 120, { required: true }));
+  if (new Set(entryIds).size !== entryIds.length) {
+    throw new Error('Invalid edition entries (duplicates are not allowed)');
+  }
+  return entryIds;
+}
+
+function cleanEditionVisibility(value) {
+  if (!EDITION_VISIBILITIES.includes(value)) {
+    throw new Error(`Invalid edition visibility (must be one of: ${EDITION_VISIBILITIES.join(', ')})`);
+  }
+  return value;
+}
+
+function cleanEdition(input, current = null) {
+  const sourceBlocks = input.blocks !== undefined
+    ? input.blocks
+    : input.entryIds !== undefined
+      ? cleanEditionEntryIds(input.entryIds).map((entryId, index) => ({
+          id: `entry-${index + 1}-${entryId}`,
+          type: 'entry',
+          entryId,
+        }))
+      : current?.blocks || (current?.entryIds || []).map((entryId, index) => ({
+          id: `entry-${index + 1}-${entryId}`,
+          type: 'entry',
+          entryId,
+        }));
+  const blocks = cleanEditionBlocks(sourceBlocks);
+  return {
+    number: cleanEditionText(input.number ?? current?.number, 'number', 24),
+    title: cleanEditionText(input.title ?? current?.title, 'title', 160, { required: true }),
+    subtitle: cleanEditionText(input.subtitle ?? current?.subtitle, 'subtitle', 240),
+    description: cleanEditionText(input.description ?? current?.description, 'description', 1200),
+    visibility: cleanEditionVisibility(input.visibility ?? current?.visibility ?? 'draft'),
+    blocks,
+    entryIds: blocks.filter(block => block.type === 'entry').map(block => block.entryId),
+  };
+}
+
+export async function getEditions(includeDrafts = false) {
+  const result = await db.send(new QueryCommand({
+    TableName: config.DYNAMODB_TABLE,
+    KeyConditionExpression: 'pk = :pk AND begins_with(sk, :prefix)',
+    ExpressionAttributeValues: { ':pk': SITE_PK, ':prefix': 'EDITION#' },
+  }));
+  return (result.Items || [])
+    .map(({ pk, sk, author, ...edition }) => {
+      const blocks = edition.blocks || (edition.entryIds || []).map((entryId, index) => ({
+        id: `entry-${index + 1}-${entryId}`,
+        type: 'entry',
+        entryId,
+      }));
+      return { ...edition, blocks };
+    })
+    .filter(edition => includeDrafts || edition.visibility === 'public')
+    .sort((a, b) =>
+      (new Date(b.createdAt).getTime() || 0) - (new Date(a.createdAt).getTime() || 0)
+    );
+}
+
+export async function createEdition(userId, input) {
+  const now = new Date().toISOString();
+  const id = `${Date.now()}-${Math.random().toString(36).slice(2, 9)}`;
+  const edition = {
+    id,
+    ...cleanEdition(input),
+    author: userId,
+    createdAt: now,
+    updatedAt: now,
+  };
+  await db.send(new PutCommand({
+    TableName: config.DYNAMODB_TABLE,
+    Item: { pk: SITE_PK, sk: `EDITION#${id}`, ...edition },
+  }));
+  const { author, ...publicEdition } = edition;
+  return publicEdition;
+}
+
+export async function updateEdition(id, patch) {
+  if (typeof id !== 'string' || !id) throw new Error('Invalid edition');
+  const key = { pk: SITE_PK, sk: `EDITION#${id}` };
+  const current = (await db.send(new GetCommand({
+    TableName: config.DYNAMODB_TABLE,
+    Key: key,
+  }))).Item;
+  if (!current) throw new Error('Invalid edition (not found)');
+  const next = {
+    ...current,
+    ...cleanEdition(patch, current),
+    updatedAt: new Date().toISOString(),
+  };
+  await db.send(new PutCommand({
+    TableName: config.DYNAMODB_TABLE,
+    Item: next,
+  }));
+  const { pk, sk, author, ...edition } = next;
+  return edition;
+}
+
+export async function deleteEdition(id) {
+  if (typeof id !== 'string' || !id) throw new Error('Invalid edition');
+  try {
+    await db.send(new DeleteCommand({
+      TableName: config.DYNAMODB_TABLE,
+      Key: { pk: SITE_PK, sk: `EDITION#${id}` },
+      ConditionExpression: 'attribute_exists(pk)',
+    }));
+  } catch (err) {
+    if (err?.name === 'ConditionalCheckFailedException') {
+      throw new Error('Invalid edition (not found)');
     }
     throw err;
   }

@@ -152,6 +152,18 @@ function maybeCallRef(fiber) {
   }
 }
 
+function syncSelectValue(fiber) {
+  const dom = fiber.dom
+  if (!dom || dom.tagName !== "SELECT") return
+  const hasControlledValue = Object.prototype.hasOwnProperty.call(fiber.props, "value")
+  const hasInitialValue = fiber.effectTag === "PLACEMENT"
+    && Object.prototype.hasOwnProperty.call(fiber.props, "defaultValue")
+  if (!hasControlledValue && !hasInitialValue) return
+  const nextValue = hasControlledValue ? fiber.props.value : fiber.props.defaultValue
+  const normalized = nextValue == null ? "" : String(nextValue)
+  if (dom.value !== normalized) dom.value = normalized
+}
+
 // Applies a fiber's effect tag to the DOM, then walks into children and siblings.
 // Function components don't own DOM nodes, so we climb the parent chain to find
 // the nearest ancestor that does before touching the DOM.
@@ -181,6 +193,7 @@ function commitWork(fiber) {
   // Must be outside the if-else — every fiber needs to walk its subtree
   // regardless of its own effect tag.
   commitWork(fiber.child)
+  syncSelectValue(fiber)
   commitWork(fiber.sibling)
 }
 

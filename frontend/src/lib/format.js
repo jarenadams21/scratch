@@ -23,3 +23,13 @@ export function formatLongDate(isoString) {
     hour: '2-digit', minute: '2-digit',
   });
 }
+
+export function formatCompactDate(isoString) {
+  const date = new Date(isoString);
+  if (Number.isNaN(date.getTime())) return '------';
+  return [
+    String(date.getMonth() + 1).padStart(2, '0'),
+    String(date.getDate()).padStart(2, '0'),
+    String(date.getFullYear()).slice(-2),
+  ].join('');
+}

@@ -109,6 +109,19 @@ let mockShelves = [
 ];
 let mockAppearance = { theme: 'dark', palette: 'ember' };
 let mockAbout = { title: '', content: '', sections: [], updatedAt: null };
+let mockEditions = [
+  {
+    id: 'edition-001',
+    number: '001',
+    title: 'Signal and Institution',
+    subtitle: 'Public memory, technical systems, and the discipline of keeping a record.',
+    description: 'A first authored sequence moving between observation, design, and public responsibility.',
+    visibility: 'public',
+    entryIds: ['mock-1', 'mock-2', 'mock-4'],
+    createdAt: new Date(2026, 4, 8).toISOString(),
+    updatedAt: new Date(2026, 4, 8).toISOString(),
+  },
+];
 let mockSources = [
   {
     id: 'source-writing',
@@ -403,6 +416,54 @@ export const mockDB = {
     });
   },
 
+  getEditions: () => Promise.resolve(mockEditions.map(edition => ({
+    ...edition,
+    entryIds: [...edition.entryIds],
+    blocks: (edition.blocks || edition.entryIds.map((entryId, index) => ({
+      id: `entry-${index + 1}-${entryId}`,
+      type: 'entry',
+      entryId,
+    }))).map(block => ({ ...block })),
+  }))),
+
+  createEdition: (edition) => {
+    const now = new Date().toISOString();
+    const saved = {
+      ...edition,
+      id: `edition-${Date.now()}`,
+      entryIds: [...(edition.entryIds || [])],
+      blocks: (edition.blocks || []).map(block => ({ ...block })),
+      createdAt: now,
+      updatedAt: now,
+    };
+    mockEditions.unshift(saved);
+    return Promise.resolve({
+      ...saved,
+      entryIds: [...saved.entryIds],
+      blocks: saved.blocks.map(block => ({ ...block })),
+    });
+  },
+
+  updateEdition: (id, patch) => {
+    const edition = mockEditions.find(item => item.id === id);
+    if (!edition) return Promise.reject(new Error('Invalid edition (not found)'));
+    Object.assign(edition, patch, {
+      entryIds: [...(patch.entryIds || edition.entryIds || [])],
+      blocks: (patch.blocks || edition.blocks || []).map(block => ({ ...block })),
+      updatedAt: new Date().toISOString(),
+    });
+    return Promise.resolve({
+      ...edition,
+      entryIds: [...edition.entryIds],
+      blocks: edition.blocks.map(block => ({ ...block })),
+    });
+  },
+
+  deleteEdition: (id) => {
+    mockEditions = mockEditions.filter(edition => edition.id !== id);
+    return Promise.resolve({ message: 'Deleted' });
+  },
+
   getSources: () => Promise.resolve(mockSources.map(source => ({ ...source }))),
 
   createSource: (source) => {
@@ -447,6 +508,7 @@ export const mockDB = {
   reset: () => {
     mockData = freshMockPosts();
     mockAbout = { title: '', content: '', sections: [], updatedAt: null };
+    mockEditions = [];
   }
 };
 
@@ -561,6 +623,20 @@ export const mockFeatureDB = {
       uploadUrl: 'mock://upload',
       imageKey,
       imageUrl: `mock://${imageKey}`, // overwritten by the caller in dev
+    });
+  },
+
+  requestWritingImageUploadUrl: (filename, contentType, fileSize) => {
+    if (!Number.isInteger(fileSize) || fileSize < 1 || fileSize > 8 * 1024 * 1024) {
+      return Promise.reject(new Error('Invalid image size'));
+    }
+    const id = `${Date.now()}-${Math.random().toString(36).slice(2, 11)}`;
+    const ext = String(filename || '').split('.').pop().toLowerCase().slice(0, 8) || 'jpg';
+    return Promise.resolve({
+      uploadUrl: 'mock://upload',
+      imageKey: `writing-images/${id}.${ext}`,
+      imageUrl: `mock://writing-images/${id}.${ext}`,
+      contentType,
     });
   },
 

@@ -13,7 +13,7 @@ const FEATURE_COMMAND_MAP = {
   'detach_meal_image':         23,
 };
 
-export const ALLOWED_IMAGE_TYPES = ['image/jpeg', 'image/png', 'image/webp', 'image/gif', 'image/heic'];
+export const ALLOWED_IMAGE_TYPES = ['image/jpeg', 'image/png', 'image/webp', 'image/gif', 'image/heic', 'image/heif'];
 export const MAX_IMAGE_SIZE = 8 * 1024 * 1024;  // 8 MB
 
 export const DISPLAY_COLORS = ['green', 'indigo', 'terracotta', 'ochre', 'sand', 'plum'];

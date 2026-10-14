@@ -4,6 +4,7 @@ import {
   getInspoBoards, getInspos, getOutfits, getShelves, getAppearance,
   getSources,
   getAbout,
+  getEditions,
 } from './api.js';
 import { applyAppearance, normalizedAppearance } from './appearance.js';
 
@@ -76,6 +77,13 @@ export const aboutLoader = makeLoader({
   stateKey: 'about',
   loadingKey: 'aboutLoading',
   loadedKey: 'aboutLoaded',
+});
+
+export const editionsLoader = makeLoader({
+  fetchFn: getEditions,
+  stateKey: 'editions',
+  loadingKey: 'editionsLoading',
+  loadedKey: 'editionsLoaded',
 });
 
 function loadAppearance() {

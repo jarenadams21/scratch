@@ -16,6 +16,11 @@ import {
   setAppearanceMessage,
   getAboutMessage,
   setAboutMessage,
+  getEditionsMessage,
+  createEditionMessage,
+  updateEditionMessage,
+  deleteEditionMessage,
+  requestWritingImageUploadUrlMessage,
 } from '../types/journal-messages.js';
 import {
   requestUploadUrlMessage,
@@ -106,6 +111,14 @@ const devVisitor = {
     msg.payload.content.title,
     msg.payload.content.sections ?? msg.payload.content.content,
   ),
+  get_editions:       () => mockDB.getEditions(),
+  create_edition:     (msg) => mockDB.createEdition(msg.payload.content),
+  update_edition:     (msg) => mockDB.updateEdition(msg.payload.content.id, msg.payload.content.patch),
+  delete_edition:     (msg) => mockDB.deleteEdition(msg.payload.content.id),
+  request_writing_image_upload_url: (msg) => {
+    const c = msg.payload.content;
+    return mockFeatureDB.requestWritingImageUploadUrl(c.filename, c.contentType, c.fileSize);
+  },
   get_sources:        () => mockDB.getSources(),
   create_source:      (msg) => mockDB.createSource(msg.payload.content),
   update_source:      (msg) => mockDB.updateSource(msg.payload.content.id, msg.payload.content.patch),
@@ -253,6 +266,22 @@ export async function setAbout(title, sections) {
   return sendMessage(setAboutMessage(title, sections));
 }
 
+export async function getEditions() {
+  return sendMessage(getEditionsMessage());
+}
+
+export async function createEdition(edition) {
+  return sendMessage(createEditionMessage(edition));
+}
+
+export async function updateEdition(id, patch) {
+  return sendMessage(updateEditionMessage(id, patch));
+}
+
+export async function deleteEdition(id) {
+  return sendMessage(deleteEditionMessage(id));
+}
+
 // ─── Source Library ─────────────────────────────────────────────────────────
 
 export async function getSources() {
@@ -384,6 +413,7 @@ export async function uploadMealImage(date, file) {
   if (!ALLOWED_IMAGE_TYPES.includes(type)) {
     throw new Error('Invalid file type — pick a JPEG, PNG, WebP, GIF, or HEIC');
   }
+
   if (file.size > MAX_IMAGE_SIZE) {
     throw new Error(`File too large (max ${Math.floor(MAX_IMAGE_SIZE / 1024 / 1024)}MB)`);
   }
@@ -416,6 +446,42 @@ export async function uploadMealImage(date, file) {
     mimeType: type,
     size: file.size,
   });
+}
+
+export async function uploadWritingImage(file) {
+  if (!(file instanceof Blob)) throw new Error('Invalid file');
+  const type = (file.type || '').toLowerCase();
+  if (!ALLOWED_IMAGE_TYPES.includes(type)) {
+    throw new Error('Invalid file type — pick a JPEG, PNG, WebP, GIF, or HEIC');
+  }
+  if (file.size > MAX_IMAGE_SIZE) {
+    throw new Error(`File too large (max ${Math.floor(MAX_IMAGE_SIZE / 1024 / 1024)}MB)`);
+  }
+
+  const filename = file.name || `writing-image-${Date.now()}.jpg`;
+  const presigned = await sendMessage(requestWritingImageUploadUrlMessage(filename, type, file.size));
+  let imageUrl = presigned.imageUrl;
+
+  if (presigned.uploadUrl === 'mock://upload') {
+    if (typeof URL?.createObjectURL !== 'function') {
+      throw new Error('Browser image previews are unavailable');
+    }
+    imageUrl = URL.createObjectURL(file);
+  } else {
+    const response = await fetch(presigned.uploadUrl, {
+      method: 'PUT',
+      body: file,
+      headers: { 'Content-Type': type },
+    });
+    if (!response.ok) throw new Error(`Upload failed (${response.status})`);
+  }
+
+  return {
+    imageKey: presigned.imageKey,
+    imageUrl,
+    mimeType: type,
+    size: file.size,
+  };
 }
 
 // ─── Inspiration Board ────────────────────────────────────────────────────────

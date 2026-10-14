@@ -1,14 +1,31 @@
 import { createElement } from '../engine/main.js';
 import { currentUserEmail, upsertPost } from '../lib/api.js';
 import { installFormatter } from '../lib/formatter.js';
-import { renderMarkdown } from '../lib/markdown.js';
+import { renderCanvasMarkdown, renderMarkdown, splitCanvasContent } from '../lib/markdown.js';
 import { applyWritingSuggestion, reviewWriting } from '../lib/writing-review.js';
 import { AppState, updateState } from '../lib/state.js';
 import { DEFAULT_VISIBILITY_FALLBACK } from './SettingsView.js';
+import { insertImageDirective, openImageInsert } from './ImageInsertDialog.js';
 
 const RECOVERY_KEY = 'harbinger-editor-draft-v2';
 const AUTOSAVE_DELAY = 900;
 let pendingReviewSelection = null;
+
+function insertTextBoxMarker(textarea, insertAt = textarea?.selectionStart || 0) {
+  if (!textarea) return;
+  const id = `text-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 6)}`;
+  const value = textarea.value;
+  const before = value.slice(0, insertAt);
+  const after = value.slice(insertAt);
+  const leading = before && !before.endsWith('\n\n') ? (before.endsWith('\n') ? '\n' : '\n\n') : '';
+  const trailing = after && !after.startsWith('\n\n') ? (after.startsWith('\n') ? '\n' : '\n\n') : '';
+  const marker = `${leading}:::text-box id=${id} :::${trailing || '\n\n'}`;
+  textarea.value = `${before}${marker}${after}`;
+  const caret = before.length + marker.length;
+  textarea.focus();
+  textarea.setSelectionRange(caret, caret);
+  textarea.dispatchEvent(new Event('input', { bubbles: true }));
+}
 
 function readRecoveryDraft() {
   try {
@@ -79,7 +96,7 @@ function PreviewSources({ sourceIds }) {
   );
 }
 
-function EditorPreview({ draft }) {
+function EditorPreview({ draft, editable = false, onLayoutChange = null }) {
   const shelf = (AppState.shelves || []).find(item => item.id === draft?.shelfId);
   const isPublic = draft?.visibility !== 'admins';
   const date = new Date(draft?.createdAt || Date.now()).toLocaleDateString('en-US', {
@@ -89,15 +106,13 @@ function EditorPreview({ draft }) {
 
   return createElement('article', {
     className: 'editor-reader-preview',
-    'aria-label': 'Signed-out reader preview',
+    'aria-label': editable ? 'Composition canvas' : 'Final reader preview',
   },
     createElement('div', { className: 'editor-preview-notice' },
-      createElement('strong', null, isPublic ? 'SIGNED-OUT READER PREVIEW' : 'FORMATTING PREVIEW'),
-      createElement('span', null,
-        isPublic
-          ? 'This matches the public reading surface. Nothing has been published.'
-          : 'Admins-only pieces are not visible to signed-out readers. Nothing has been published.'
-      )
+      createElement('strong', null, editable ? 'CANVAS' : 'FINAL PREVIEW'),
+      createElement('span', null, editable
+        ? 'Drag objects. Resize from a corner. Objects cannot overlap.'
+        : 'Editing controls are hidden. This is the reader-facing composition.')
     ),
     createElement('header', { className: 'reading-header' },
       createElement('h1', { className: 'reading-title' }, (draft?.title || 'Untitled').toUpperCase()),
@@ -119,7 +134,11 @@ function EditorPreview({ draft }) {
     ),
     createElement('div', { className: 'reading-divider' }),
     content
-      ? createElement('div', { className: 'reading-content' }, ...renderMarkdown(draft.content))
+      ? renderCanvasMarkdown(draft.content, draft.canvasLayout, {
+          editable,
+          label: editable ? 'Compose artboard' : 'Final composition preview',
+          onLayoutChange,
+        })
       : createElement('p', { className: 'editor-preview-empty' }, 'Begin writing to preview the formatted piece.'),
     createElement(PreviewSources, { sourceIds: draft?.sourceIds })
   );
@@ -264,6 +283,7 @@ export function EditorView({ onPostCreated, onDraftSaved }) {
       createdAt: currentEntry?.createdAt || null,
       title: formNode.elements.title.value,
       content: formNode.elements.content.value,
+      canvasLayout: currentEntry?.canvasLayout || null,
       visibility: formNode.elements.visibility.value,
       shelfId: formNode.elements.shelfId.value || null,
       sourceIds: [...formNode.querySelectorAll('input[name="sourceIds"]:checked')].map(input => input.value),
@@ -408,13 +428,22 @@ export function EditorView({ onPostCreated, onDraftSaved }) {
     });
   };
 
-  const showPreview = () => {
+  const showVisualMode = mode => {
     clearTimeout(autosaveTimer);
-    const draft = snapshot();
-    if (!draft) return;
+    const snapshotDraft = snapshot();
+    if (!snapshotDraft) return;
+    const images = splitCanvasContent(snapshotDraft.content).images;
+    const draft = {
+      ...snapshotDraft,
+      canvasLayout: snapshotDraft.canvasLayout || {
+        text: { x: 6, y: 5, width: images.length ? 52 : 88, height: 88 },
+        texts: {},
+        images: {},
+      },
+    };
     writeRecoveryDraft({ ...draft, status: 'draft' });
     updateState({
-      editorMode: 'preview',
+      editorMode: mode,
       editorBuffer: draft,
       editorPublishPending: false,
     });
@@ -431,12 +460,39 @@ export function EditorView({ onPostCreated, onDraftSaved }) {
       editorPublishPending: publishPending,
     });
   };
+  const updateCanvasLayout = (id, frame) => {
+    const currentLayout = currentEntry?.canvasLayout || {};
+    const textIds = new Set(splitCanvasContent(currentEntry?.content || '').texts.map(section => section.id));
+    const isText = textIds.has(id);
+    const draft = {
+      ...currentEntry,
+      canvasLayout: {
+        text: id === 'text' ? frame : currentLayout.text,
+        texts: isText
+          ? { ...(currentLayout.texts || {}), [id]: frame }
+          : { ...(currentLayout.texts || {}) },
+        images: isText
+          ? { ...(currentLayout.images || {}) }
+          : { ...(currentLayout.images || {}), [id]: frame },
+      },
+    };
+    writeRecoveryDraft({ ...draft, status: 'draft' });
+    updateState({ editorBuffer: draft });
+  };
 
   const bindFormatter = () => {
     if (bodyNode && menuNode) {
       installFormatter(bodyNode, menuNode, {
         onChange: scheduleAutosave,
         onReview: () => showReview(false),
+        onTextBox: ({ textarea, insertAt }) => {
+          insertTextBoxMarker(textarea, insertAt);
+          scheduleAutosave();
+        },
+        onImage: ({ textarea, insertAt }) => openImageInsert(image => {
+          insertImageDirective(textarea, insertAt, image);
+          scheduleAutosave();
+        }),
       });
       if (pendingReviewSelection?.field === 'content') {
         const selection = pendingReviewSelection;
@@ -472,7 +528,7 @@ export function EditorView({ onPostCreated, onDraftSaved }) {
   const initialVisibility = currentEntry?.visibility || defaultVis;
   const initialSourceIds = currentEntry?.sourceIds || [];
   const sources = AppState.sources || [];
-  const editorMode = ['preview', 'review'].includes(AppState.editorMode)
+  const editorMode = ['canvas', 'preview', 'review'].includes(AppState.editorMode)
     ? AppState.editorMode
     : 'write';
 
@@ -497,9 +553,16 @@ export function EditorView({ onPostCreated, onDraftSaved }) {
       createElement('button', {
         type: 'button',
         role: 'tab',
+        className: editorMode === 'canvas' ? 'active' : '',
+        'aria-selected': editorMode === 'canvas' ? 'true' : 'false',
+        onClick: () => showVisualMode('canvas'),
+      }, 'CANVAS'),
+      createElement('button', {
+        type: 'button',
+        role: 'tab',
         className: editorMode === 'preview' ? 'active' : '',
         'aria-selected': editorMode === 'preview' ? 'true' : 'false',
-        onClick: showPreview,
+        onClick: () => showVisualMode('preview'),
       }, 'PREVIEW'),
       createElement('button', {
         type: 'button',
@@ -509,8 +572,17 @@ export function EditorView({ onPostCreated, onDraftSaved }) {
         onClick: () => showReview(false),
       }, 'REVIEW')
     ),
-    editorMode === 'preview'
-      ? createElement(EditorPreview, { draft: currentEntry || {} })
+    editorMode === 'canvas'
+      ? createElement(EditorPreview, {
+          draft: currentEntry || {},
+          editable: true,
+          onLayoutChange: updateCanvasLayout,
+        })
+      : editorMode === 'preview'
+        ? createElement(EditorPreview, {
+            draft: currentEntry || {},
+            editable: false,
+          })
       : editorMode === 'review'
         ? createElement(WritingReview, {
             draft: currentEntry || {},
@@ -553,6 +625,20 @@ export function EditorView({ onPostCreated, onDraftSaved }) {
           }
         },
       }),
+      createElement('div', { className: 'editor-structure-tools' },
+        createElement('div', null,
+          createElement('strong', null, 'TEXT BOXES'),
+          createElement('span', null, 'Start a section that can be positioned independently in Canvas.')
+        ),
+        createElement('button', {
+          type: 'button',
+          className: 'line-btn',
+          onClick: () => {
+            insertTextBoxMarker(bodyNode);
+            scheduleAutosave();
+          },
+        }, '+ TEXT BOX')
+      ),
       createElement('div', { className: 'editor-input' },
         createElement('textarea', {
           name: 'content',

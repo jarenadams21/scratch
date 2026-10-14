@@ -20,7 +20,9 @@ const SHARED_BOARD = 'MEALBOARD#default';
 // keeps the two media types cleanly separated.
 const MEDIA_BUCKET = process.env.MEDIA_BUCKET || process.env.AUDIO_BUCKET || 'harbinger-audio-files';
 const IMAGE_PREFIX = 'meal-images';
-const ALLOWED_IMAGE_TYPES = Object.freeze(['image/jpeg', 'image/png', 'image/webp', 'image/gif', 'image/heic']);
+const WRITING_IMAGE_PREFIX = 'writing-images';
+const ALLOWED_IMAGE_TYPES = Object.freeze(['image/jpeg', 'image/png', 'image/webp', 'image/gif', 'image/heic', 'image/heif']);
+const MAX_WRITING_IMAGE_SIZE = 8 * 1024 * 1024;
 const MAX_IMAGES_PER_DAY = 12;
 const IMAGE_VIEW_TTL_SECONDS = 900;  // 15 min — long enough to browse, short enough to expire fast
 
@@ -242,22 +244,34 @@ export async function deleteMealEntry(userId, date) {
 // inline on the meal entry as an `images: [...]` array — atomic appends via
 // list_append, atomic removes via DELETE then re-PUT (small enough to be cheap).
 
-export async function generateImageUploadUrl(filename, contentType) {
+async function generateManagedImageUploadUrl(filename, contentType, prefix, fileSize = null) {
   if (typeof contentType !== 'string' || !ALLOWED_IMAGE_TYPES.includes(contentType.toLowerCase())) {
     throw new Error(`Invalid content type (must be one of: ${ALLOWED_IMAGE_TYPES.join(', ')})`);
   }
   const id = `${Date.now()}-${Math.random().toString(36).slice(2, 11)}`;
   const ext = String(filename || '').split('.').pop().toLowerCase().slice(0, 8) || 'jpg';
-  const key = `${IMAGE_PREFIX}/${id}.${ext}`;
+  const key = `${prefix}/${id}.${ext}`;
 
   const command = new PutObjectCommand({
     Bucket: MEDIA_BUCKET,
     Key: key,
     ContentType: contentType,
+    ...(fileSize == null ? {} : { ContentLength: fileSize }),
   });
   const uploadUrl = await getSignedUrl(s3, command, { expiresIn: 900 });
   const imageUrl  = `https://${MEDIA_BUCKET}.s3.${config.AWS_REGION}.amazonaws.com/${key}`;
   return { uploadUrl, imageKey: key, imageUrl };
+}
+
+export async function generateImageUploadUrl(filename, contentType) {
+  return generateManagedImageUploadUrl(filename, contentType, IMAGE_PREFIX);
+}
+
+export async function generateWritingImageUploadUrl(filename, contentType, fileSize) {
+  if (!Number.isInteger(fileSize) || fileSize < 1 || fileSize > MAX_WRITING_IMAGE_SIZE) {
+    throw new Error(`Invalid image size (max ${MAX_WRITING_IMAGE_SIZE} bytes)`);
+  }
+  return generateManagedImageUploadUrl(filename, contentType, WRITING_IMAGE_PREFIX, fileSize);
 }
 
 function assertImageMeta(meta) {

@@ -87,6 +87,16 @@ function maybeCallRef(fiber) {
     fiber.props.ref(fiber.dom);
   }
 }
+function syncSelectValue(fiber) {
+  const dom = fiber.dom;
+  if (!dom || dom.tagName !== "SELECT") return;
+  const hasControlledValue = Object.prototype.hasOwnProperty.call(fiber.props, "value");
+  const hasInitialValue = fiber.effectTag === "PLACEMENT" && Object.prototype.hasOwnProperty.call(fiber.props, "defaultValue");
+  if (!hasControlledValue && !hasInitialValue) return;
+  const nextValue = hasControlledValue ? fiber.props.value : fiber.props.defaultValue;
+  const normalized = nextValue == null ? "" : String(nextValue);
+  if (dom.value !== normalized) dom.value = normalized;
+}
 function commitWork(fiber) {
   if (!fiber) {
     return;
@@ -107,6 +117,7 @@ function commitWork(fiber) {
     maybeCallRef(fiber);
   }
   commitWork(fiber.child);
+  syncSelectValue(fiber);
   commitWork(fiber.sibling);
 }
 function commitDeletion(fiber, domParent) {

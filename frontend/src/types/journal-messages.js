@@ -24,10 +24,25 @@ const REGISTERED_NUM_MAP = {
   "update_post_organization": 44,
   "get_about": 45,
   "set_about": 46,
+  "get_editions": 47,
+  "create_edition": 48,
+  "update_edition": 49,
+  "delete_edition": 50,
+  "request_writing_image_upload_url": 51,
 };
 
 export const VISIBILITY_PUBLIC = 'public';
 export const VISIBILITY_ADMINS = 'admins';
+
+export function requestWritingImageUploadUrlMessage(filename, contentType, fileSize) {
+  return {
+    command: 'request_writing_image_upload_url',
+    payload: {
+      content: { filename, contentType, fileSize },
+      num: REGISTERED_NUM_MAP.request_writing_image_upload_url,
+    },
+  };
+}
 
 // ─── Journal Message Creators ───────────────────────────────────────────────
 
@@ -127,6 +142,34 @@ export function setAboutMessage(title, sections) {
       content: { title, sections },
       num: REGISTERED_NUM_MAP["set_about"]
     }
+  };
+}
+
+export function getEditionsMessage() {
+  return {
+    command: "get_editions",
+    payload: { content: {}, num: REGISTERED_NUM_MAP["get_editions"] }
+  };
+}
+
+export function createEditionMessage(edition) {
+  return {
+    command: "create_edition",
+    payload: { content: edition, num: REGISTERED_NUM_MAP["create_edition"] }
+  };
+}
+
+export function updateEditionMessage(id, patch) {
+  return {
+    command: "update_edition",
+    payload: { content: { id, patch }, num: REGISTERED_NUM_MAP["update_edition"] }
+  };
+}
+
+export function deleteEditionMessage(id) {
+  return {
+    command: "delete_edition",
+    payload: { content: { id }, num: REGISTERED_NUM_MAP["delete_edition"] }
   };
 }
 

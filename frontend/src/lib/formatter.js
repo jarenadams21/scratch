@@ -13,6 +13,8 @@ export const FORMATTING_COMMANDS = Object.freeze([
   { id: 'divider', icon: '—', label: 'Section break', hint: 'Separate major thoughts', keywords: 'divider rule break' },
   { id: 'code', icon: '</>', label: 'Code', hint: 'Inline or fenced code', keywords: 'snippet technical' },
   { id: 'link', icon: '↗', label: 'Link', hint: 'Add a labeled URL', keywords: 'url reference' },
+  { id: 'textbox', icon: '□+', label: 'New text box', hint: 'Start an independently placed section', keywords: 'canvas section layout box' },
+  { id: 'image', icon: '▧', label: 'Image', hint: 'Upload an accessible image', keywords: 'photo picture upload media figure' },
 ]);
 
 const installedEditors = new WeakSet();
@@ -22,8 +24,15 @@ export function installFormatter(textarea, menu, options = {}) {
   installedEditors.add(textarea);
   const onChange = typeof options === 'function' ? options : options.onChange;
   const onReview = typeof options === 'object' ? options.onReview : null;
+  const onImage = typeof options === 'object' ? options.onImage : null;
+  const onTextBox = typeof options === 'object' ? options.onTextBox : null;
+  const availableCommands = FORMATTING_COMMANDS.filter(command => (
+    (command.id !== 'review' || onReview)
+    && (command.id !== 'textbox' || onTextBox)
+    && (command.id !== 'image' || onImage)
+  ));
 
-  let matches = [...FORMATTING_COMMANDS];
+  let matches = [...availableCommands];
   let activeIndex = 0;
   let slashRange = null;
 
@@ -118,6 +127,23 @@ export function installFormatter(textarea, menu, options = {}) {
       if (onReview) onReview();
       return;
     }
+    if (commandId === 'image') {
+      const { start, end } = slashRange;
+      textarea.value = `${textarea.value.slice(0, start)}${textarea.value.slice(end)}`;
+      textarea.setSelectionRange(start, start);
+      closeMenu();
+      notify();
+      if (onImage) onImage({ textarea, insertAt: start });
+      return;
+    }
+    if (commandId === 'textbox') {
+      const { start, end } = slashRange;
+      textarea.value = `${textarea.value.slice(0, start)}${textarea.value.slice(end)}`;
+      textarea.setSelectionRange(start, start);
+      closeMenu();
+      if (onTextBox) onTextBox({ textarea, insertAt: start });
+      return;
+    }
     const { start, end } = slashRange;
     textarea.value = `${textarea.value.slice(0, start)}${textarea.value.slice(end)}`;
     textarea.setSelectionRange(start, start);
@@ -156,7 +182,7 @@ export function installFormatter(textarea, menu, options = {}) {
     const match = beforeCaret.match(/(?:^|\n)[ \t]*\/([a-z]*)$/i);
     if (!match) return closeMenu();
     const query = match[1].toLowerCase();
-    matches = FORMATTING_COMMANDS.filter(command =>
+    matches = availableCommands.filter(command =>
       `${command.id} ${command.label} ${command.keywords}`.toLowerCase().includes(query)
     );
     activeIndex = Math.min(activeIndex, Math.max(0, matches.length - 1));

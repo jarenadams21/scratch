@@ -8,16 +8,19 @@ import { RecordingsView } from './RecordingsView.js';
 import { SettingsView } from './SettingsView.js';
 import { ShelfManager } from './ShelfManager.js';
 import { SourcesView } from './SourcesView.js';
+import { EditionsView } from './EditionsView.js';
 import { AboutView } from './AboutView.js';
 import { CalendarView } from './CalendarView.js';
 import { InspoView } from './InspoView.js';
 import { Lightbox } from './Lightbox.js';
+import { ImageInsertDialog } from './ImageInsertDialog.js';
 import { AppState, updateState } from '../lib/state.js';
 import {
   postLoader, audioLoader, traitsLoader, mealLoader, inspoBoardsLoader,
   inspoItemsLoader, outfitsLoader, shelvesLoader, appearanceLoader,
   sourcesLoader,
   aboutLoader,
+  editionsLoader,
 } from '../lib/loaders.js';
 import {
   applyAppearance, PALETTE_OPTIONS,
@@ -167,6 +170,7 @@ export function App() {
   shelvesLoader.ensureLoaded();
   sourcesLoader.ensureLoaded();
   aboutLoader.ensureLoaded();
+  editionsLoader.ensureLoaded();
   appearanceLoader.ensureLoaded();
   applyAppearance(AppState.appearance, false);
   if (isAdmin) {
@@ -200,12 +204,18 @@ export function App() {
       aboutEditorMode: 'write',
       aboutBuffer: null,
       aboutActiveSectionId: null,
+      editionEditorOpen: false,
+      editionEditingId: null,
+      editionDraftEntryIds: [],
+      editionDraftBlocks: [],
+      editionReadingEntryId: null,
       traitsLoaded: false,
       mealLoaded: false,
     });
     postLoader.reload();
     audioLoader.reload();
     traitsLoader.reload();
+    editionsLoader.reload();
   };
 
   const handleLogout = () => {
@@ -233,6 +243,12 @@ export function App() {
       aboutEditorMode: 'write',
       aboutBuffer: null,
       aboutActiveSectionId: null,
+      selectedEditionId: null,
+      editionEditorOpen: false,
+      editionEditingId: null,
+      editionDraftEntryIds: [],
+      editionDraftBlocks: [],
+      editionReadingEntryId: null,
       inspoBoards: [],
       inspoItems: [],
       inspoBoardsLoaded: false,
@@ -247,6 +263,7 @@ export function App() {
       shelves: [],
       shelvesLoaded: false,
     });
+    editionsLoader.reload();
   };
 
   const switchView = (view) => updateState({
@@ -257,6 +274,11 @@ export function App() {
     inspoEditingId: null,
     outfitAssignSlot: null,
     sourceEditorOpen: view === 'sources' ? AppState.sourceEditorOpen : false,
+    editionEditorOpen: view === 'editions' ? AppState.editionEditorOpen : false,
+    editionEditingId: view === 'editions' ? AppState.editionEditingId : null,
+    editionDraftEntryIds: view === 'editions' ? AppState.editionDraftEntryIds : [],
+    editionDraftBlocks: view === 'editions' ? AppState.editionDraftBlocks : [],
+    editionReadingEntryId: view === 'editions' ? AppState.editionReadingEntryId : null,
     entryOrganizerOpen: false,
     aboutEditing: view === 'about' ? AppState.aboutEditing : false,
     aboutEditorMode: view === 'about' ? AppState.aboutEditorMode : 'write',
@@ -361,7 +383,13 @@ export function App() {
   // Only block on audioLoading when we're actually showing audio.
   const isAudioView = AppState.currentView === 'recordings' || AppState.currentView === 'record';
   const isAboutView = AppState.currentView === 'about';
-  if (AppState.loading || (isAudioView && AppState.audioLoading) || (isAboutView && AppState.aboutLoading)) {
+  const isEditionsView = AppState.currentView === 'editions';
+  if (
+    AppState.loading
+    || (isAudioView && AppState.audioLoading)
+    || (isAboutView && AppState.aboutLoading)
+    || (isEditionsView && AppState.editionsLoading)
+  ) {
     workspaceContent = createElement('div', { className: 'loading-state', key: 'loading' }, 'LOADING...');
   } else if (AppState.currentView === 'record' && isAdmin) {
     workspaceContent = createElement('div', { className: 'view-wrapper', key: 'record-view' },
@@ -399,6 +427,10 @@ export function App() {
     workspaceContent = createElement('div', { className: 'view-wrapper', key: 'sources-view' },
       createElement(SourcesView, {})
     );
+  } else if (AppState.currentView === 'editions') {
+    workspaceContent = createElement('div', { className: 'view-wrapper view-wrapper-editions', key: 'editions-view' },
+      createElement(EditionsView, { isAdmin })
+    );
   } else if (AppState.currentView === 'about') {
     workspaceContent = createElement('div', { className: 'view-wrapper', key: 'about-view' },
       createElement(AboutView, {})
@@ -418,6 +450,10 @@ export function App() {
     onClick: () => switchView('archive'),
     className: AppState.currentView === 'archive' ? 'tab active' : 'tab',
   }, 'ARCHIVE'));
+  navTabs.push(createElement('button', {
+    onClick: () => switchView('editions'),
+    className: AppState.currentView === 'editions' ? 'tab active' : 'tab',
+  }, 'EDITIONS'));
   navTabs.push(createElement('button', {
     onClick: () => switchView('sources'),
     className: AppState.currentView === 'sources' ? 'tab active' : 'tab',
@@ -585,6 +621,10 @@ export function App() {
 
     AppState.lightboxImage
       ? createElement(Lightbox, { key: 'lightbox', image: AppState.lightboxImage })
+      : null,
+
+    AppState.imageInsertOpen
+      ? createElement(ImageInsertDialog, { key: 'image-insert' })
       : null,
 
     isAdmin && AppState.shelfManagerOpen

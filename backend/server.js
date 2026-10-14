@@ -3,7 +3,7 @@ import { config } from './config/config.js';
 import { signup, login, extractUser } from './auth/auth.js';
 import { createEntry, upsertEntry, getAllEntries, clearShelfFromEntries, clearSourceFromEntries, deleteEntry, updateEntryVisibility, updateEntryOrganization, DEFAULT_VISIBILITY, DEFAULT_ENTRY_STATUS } from './db/db.js';
 import { generateUploadUrl, createAudioEntry, getUserAudioEntries, deleteAudioEntry } from './db/audio-db.js';
-import { getTraits, setTrait, upsertMealEntry, deleteMealEntry, getMealEntries, getProfiles, DEFAULT_DISPLAY_NAME, generateImageUploadUrl, attachMealImage, detachMealImage } from './db/feature-db.js';
+import { getTraits, setTrait, upsertMealEntry, deleteMealEntry, getMealEntries, getProfiles, DEFAULT_DISPLAY_NAME, generateImageUploadUrl, generateWritingImageUploadUrl, attachMealImage, detachMealImage } from './db/feature-db.js';
 import {
   getInspoBoards, createInspoBoard, updateInspoBoard, deleteInspoBoard,
   getInspos, createInspo, updateInspo, deleteInspo,
@@ -11,7 +11,7 @@ import {
 } from './db/inspo-db.js';
 import {
   getShelves, createShelf, updateShelf, deleteShelf, getAppearance, setAppearance,
-  getAbout, setAbout,
+  getAbout, setAbout, getEditions, createEdition, updateEdition, deleteEdition,
 } from './db/content-db.js';
 import {
   getSources, createSource, updateSource, deleteSource, generateSourceUploadUrl,
@@ -137,6 +137,22 @@ async function handleMessage(message, userId) {
         entriesUncategorized: await clearShelfFromEntries(content.id),
       };
 
+    case 'get_editions':
+      return await getEditions(!!userId);
+
+    case 'create_edition':
+      if (!userId) throw new Error('Unauthorized');
+      return await createEdition(userId, content);
+
+    case 'update_edition':
+      if (!userId) throw new Error('Unauthorized');
+      return await updateEdition(content.id, content.patch || {});
+
+    case 'delete_edition':
+      if (!userId) throw new Error('Unauthorized');
+      await deleteEdition(content.id);
+      return { message: 'Deleted' };
+
     case 'get_appearance':
       return await getAppearance();
 
@@ -242,6 +258,10 @@ async function handleMessage(message, userId) {
     case 'request_image_upload_url':
       if (!userId) throw new Error('Unauthorized');
       return await generateImageUploadUrl(content.filename, content.contentType);
+
+    case 'request_writing_image_upload_url':
+      if (!userId) throw new Error('Unauthorized');
+      return await generateWritingImageUploadUrl(content.filename, content.contentType, content.fileSize);
 
     case 'attach_meal_image':
       if (!userId) throw new Error('Unauthorized');
