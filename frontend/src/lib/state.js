@@ -45,6 +45,7 @@ export const AppState = {
   sourceQuery: '',
   sourceFilter: 'all',
   sourceSort: 'title',
+  sourceSortMenuOpen: false,
   sourceEditorOpen: false,
   sourceEditingId: null,
   sourceDraftType: 'website',

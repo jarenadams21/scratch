@@ -16,7 +16,52 @@ import {
 import { AppState, updateState } from '../lib/state.js';
 
 let searchInputNode = null;
+let sourceScrollNode = null;
 let shortcutsInstalled = false;
+let pendingScrollTop = null;
+let pendingSearchSelection = null;
+let pendingRowFocusId = null;
+let interactionRestoreScheduled = false;
+
+function restoreSourceInteraction() {
+  if (interactionRestoreScheduled || typeof requestAnimationFrame === 'undefined') return;
+  interactionRestoreScheduled = true;
+  requestAnimationFrame(() => {
+    interactionRestoreScheduled = false;
+    if (sourceScrollNode && pendingScrollTop != null) {
+      sourceScrollNode.scrollTop = pendingScrollTop;
+      pendingScrollTop = null;
+    }
+    if (searchInputNode && pendingSearchSelection) {
+      const { start, end } = pendingSearchSelection;
+      searchInputNode.focus({ preventScroll: true });
+      searchInputNode.setSelectionRange?.(start, end);
+      pendingSearchSelection = null;
+    }
+    if (pendingRowFocusId) {
+      const row = sourceScrollNode?.querySelector(
+        `.source-index-row[data-source-id="${CSS.escape(pendingRowFocusId)}"]`
+      );
+      row?.focus({ preventScroll: true });
+      pendingRowFocusId = null;
+    }
+  });
+}
+
+function updateSourceState(patch, {
+  preserveSearch = false,
+  focusRowId = null,
+} = {}) {
+  pendingScrollTop = sourceScrollNode?.scrollTop ?? null;
+  if (preserveSearch && searchInputNode) {
+    pendingSearchSelection = {
+      start: searchInputNode.selectionStart ?? searchInputNode.value.length,
+      end: searchInputNode.selectionEnd ?? searchInputNode.value.length,
+    };
+  }
+  if (focusRowId) pendingRowFocusId = focusRowId;
+  updateState(patch);
+}
 
 function installSourceShortcuts() {
   if (shortcutsInstalled || typeof document === 'undefined') return;
@@ -28,10 +73,22 @@ function installSourceShortcuts() {
       || target?.isContentEditable;
     if (event.key === '/' && !isTyping) {
       event.preventDefault();
-      searchInputNode?.focus();
+      searchInputNode?.focus({ preventScroll: true });
     } else if (event.key === 'Escape' && target === searchInputNode && AppState.sourceQuery) {
       event.preventDefault();
-      updateState({ sourceQuery: '' });
+      updateSourceState({ sourceQuery: '' }, { preserveSearch: true });
+    } else if (event.key === 'Escape' && AppState.sourceSortMenuOpen) {
+      event.preventDefault();
+      updateSourceState({ sourceSortMenuOpen: false });
+    }
+  });
+  document.addEventListener('pointerdown', event => {
+    if (
+      AppState.currentView === 'sources'
+      && AppState.sourceSortMenuOpen
+      && !event.target?.closest?.('.source-sort')
+    ) {
+      updateSourceState({ sourceSortMenuOpen: false });
     }
   });
 }
@@ -77,13 +134,17 @@ function SourceIndexRow({ source, code, uses, selected }) {
         : event.key === 'ArrowDown'
           ? Math.min(current + 1, buttons.length - 1)
           : Math.max(current - 1, 0);
-    buttons[next]?.focus();
+    const nextId = buttons[next]?.dataset.sourceId;
+    if (nextId) {
+      updateSourceState({ selectedSourceId: nextId }, { focusRowId: nextId });
+    }
   };
   return createElement('li', { className: selected ? 'source-index-item selected' : 'source-index-item' },
     createElement('button', {
       type: 'button',
       className: 'source-index-row',
-      onClick: () => updateState({ selectedSourceId: source.id }),
+      'data-source-id': source.id,
+      onClick: () => updateSourceState({ selectedSourceId: source.id }),
       onKeyDown: moveFocus,
       'aria-current': selected ? 'true' : 'false',
       'aria-label': `${source.title}, ${source.type === 'pdf' ? 'PDF' : 'website'}, cited by ${uses} ${uses === 1 ? 'piece' : 'pieces'}`,
@@ -103,6 +164,92 @@ function SourceIndexRow({ source, code, uses, selected }) {
       ),
       createElement('span', { className: 'source-index-arrow', 'aria-hidden': 'true' }, '→')
     )
+  );
+}
+
+function SourceSortControl() {
+  const active = SOURCE_INDEX_SORTS.find(option => option.id === AppState.sourceSort)
+    || SOURCE_INDEX_SORTS[0];
+  const selectSort = id => updateSourceState({
+    sourceSort: id,
+    sourceSortMenuOpen: false,
+    selectedSourceId: null,
+  });
+  const moveOptionFocus = event => {
+    if (!['ArrowDown', 'ArrowUp', 'Home', 'End'].includes(event.key)) return;
+    event.preventDefault();
+    const options = [...event.currentTarget.closest('[role="menu"]')
+      .querySelectorAll('[role="menuitemradio"]')];
+    const current = options.indexOf(event.currentTarget);
+    const next = event.key === 'Home'
+      ? 0
+      : event.key === 'End'
+        ? options.length - 1
+        : event.key === 'ArrowDown'
+          ? (current + 1) % options.length
+          : (current - 1 + options.length) % options.length;
+    options[next]?.focus({ preventScroll: true });
+  };
+
+  return createElement('div', { className: 'source-sort' },
+    createElement('span', { className: 'source-sort-label' }, 'ORDER'),
+    createElement('button', {
+      type: 'button',
+      className: 'source-sort-toggle',
+      onClick: () => updateSourceState({
+        sourceSortMenuOpen: !AppState.sourceSortMenuOpen,
+      }),
+      onKeyDown: event => {
+        if (!['ArrowDown', 'ArrowUp'].includes(event.key)) return;
+        event.preventDefault();
+        updateSourceState({ sourceSortMenuOpen: true });
+        requestAnimationFrame(() => {
+          const options = sourceScrollNode?.querySelectorAll(
+            '.source-sort-menu [role="menuitemradio"]'
+          );
+          if (!options?.length) return;
+          const index = event.key === 'ArrowUp' ? options.length - 1 : 0;
+          options[index]?.focus({ preventScroll: true });
+        });
+      },
+      'aria-haspopup': 'menu',
+      'aria-expanded': AppState.sourceSortMenuOpen ? 'true' : 'false',
+    },
+      createElement('span', null, active.label.toUpperCase()),
+      createElement('span', { className: 'source-sort-chevron', 'aria-hidden': 'true' }, '⌄')
+    ),
+    AppState.sourceSortMenuOpen
+      ? createElement('div', {
+          className: 'source-sort-menu',
+          role: 'menu',
+          'aria-label': 'Order source records',
+        },
+          ...SOURCE_INDEX_SORTS.map(option => createElement('button', {
+            key: option.id,
+            type: 'button',
+            role: 'menuitemradio',
+            className: option.id === active.id ? 'active' : '',
+            'aria-checked': option.id === active.id ? 'true' : 'false',
+            onClick: () => selectSort(option.id),
+            onKeyDown: event => {
+              if (event.key === 'Escape') {
+                event.preventDefault();
+                updateSourceState({ sourceSortMenuOpen: false });
+                requestAnimationFrame(() => sourceScrollNode
+                  ?.querySelector('.source-sort-toggle')
+                  ?.focus({ preventScroll: true }));
+                return;
+              }
+              moveOptionFocus(event);
+            },
+          },
+            createElement('span', { className: 'source-sort-check', 'aria-hidden': 'true' },
+              option.id === active.id ? '●' : '○'
+            ),
+            createElement('span', null, option.label.toUpperCase())
+          ))
+        )
+      : null
   );
 }
 
@@ -384,10 +531,28 @@ export function SourcesView() {
     || results[0]
     || null;
   const linkedEntries = selected ? linkedEntriesForSource(selected.id, entries) : [];
+  const handleSearchKeyDown = event => {
+    if (!results.length || !['ArrowDown', 'ArrowUp', 'Enter'].includes(event.key)) return;
+    event.preventDefault();
+    const current = results.findIndex(source => source.id === AppState.selectedSourceId);
+    const next = event.key === 'ArrowUp'
+      ? (current < 0 ? results.length - 1 : Math.max(current - 1, 0))
+      : event.key === 'ArrowDown'
+        ? (current < 0 ? 0 : Math.min(current + 1, results.length - 1))
+        : (current < 0 ? 0 : current);
+    const nextId = results[next].id;
+    updateSourceState({ selectedSourceId: nextId }, { focusRowId: nextId });
+  };
 
   installSourceShortcuts();
 
-  return createElement('div', { className: 'sources-view' },
+  return createElement('div', {
+    className: 'sources-view',
+    ref: node => {
+      sourceScrollNode = node;
+      restoreSourceInteraction();
+    },
+  },
     createElement('header', { className: 'sources-header' },
       createElement('div', null,
         createElement('span', { className: 'sources-kicker' }, 'RESEARCH INDEX'),
@@ -423,14 +588,24 @@ export function SourcesView() {
                 value: AppState.sourceQuery,
                 'aria-label': 'Search source records',
                 placeholder: 'Search title, creator, publication, domain, or linked writing',
-                onInput: event => updateState({ sourceQuery: event.target.value }),
-                ref: node => { searchInputNode = node; },
+                onInput: event => updateSourceState(
+                  { sourceQuery: event.target.value, selectedSourceId: null },
+                  { preserveSearch: true },
+                ),
+                onKeyDown: handleSearchKeyDown,
+                ref: node => {
+                  searchInputNode = node;
+                  restoreSourceInteraction();
+                },
               }),
               AppState.sourceQuery
                 ? createElement('button', {
                     type: 'button',
                     className: 'source-search-clear',
-                    onClick: () => updateState({ sourceQuery: '' }),
+                    onClick: () => updateSourceState(
+                      { sourceQuery: '', selectedSourceId: null },
+                      { preserveSearch: true },
+                    ),
                     'aria-label': 'Clear source search',
                   }, 'CLEAR')
                 : createElement('kbd', null, '/')
@@ -445,7 +620,7 @@ export function SourcesView() {
                   key: option.id,
                   type: 'button',
                   className: AppState.sourceFilter === option.id ? 'active' : '',
-                  onClick: () => updateState({
+                  onClick: () => updateSourceState({
                     sourceFilter: option.id,
                     selectedSourceId: null,
                   }),
@@ -455,28 +630,14 @@ export function SourcesView() {
                   createElement('small', null, String(counts[option.id]).padStart(2, '0'))
                 ))
               ),
-              createElement('label', { className: 'source-sort' },
-                createElement('span', null, 'ORDER'),
-                createElement('select', {
-                  value: AppState.sourceSort,
-                  onChange: event => updateState({
-                    sourceSort: event.target.value,
-                    selectedSourceId: null,
-                  }),
-                },
-                  ...SOURCE_INDEX_SORTS.map(option => createElement('option', {
-                    key: option.id,
-                    value: option.id,
-                  }, option.label))
-                )
-              )
+              createElement(SourceSortControl, {})
             )
           ),
           createElement('div', { className: 'source-index-status', 'aria-live': 'polite' },
             createElement('span', null,
               `${results.length} OF ${sources.length} ${sources.length === 1 ? 'RECORD' : 'RECORDS'}`
             ),
-            createElement('span', null, 'USE ↑↓ TO SCAN · ENTER TO INSPECT')
+            createElement('span', null, 'ARROWS SELECT · ENTER INSPECTS')
           ),
           createElement('div', { className: 'source-index-workspace' },
             createElement('section', {
@@ -498,9 +659,10 @@ export function SourcesView() {
                     createElement('p', null, 'Try a broader term or clear the active filter.'),
                     createElement('button', {
                       type: 'button',
-                      onClick: () => updateState({
+                      onClick: () => updateSourceState({
                         sourceQuery: '',
                         sourceFilter: 'all',
+                        selectedSourceId: null,
                       }),
                     }, 'RESET INDEX')
                   )
