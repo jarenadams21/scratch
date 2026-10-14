@@ -2,7 +2,39 @@ import { createElement } from '../engine/main.js';
 import {
   createSource, deleteSource, isLoggedIn, updateSource, uploadSourcePdf,
 } from '../lib/api.js';
+import { formatFileSize, formatShortDate } from '../lib/format.js';
+import {
+  indexedSources,
+  linkedEntriesForSource,
+  SOURCE_INDEX_FILTERS,
+  SOURCE_INDEX_SORTS,
+  sourceDomain,
+  sourceFilterCounts,
+  sourceRecordCodes,
+  sourceUsageMap,
+} from '../lib/source-index.js';
 import { AppState, updateState } from '../lib/state.js';
+
+let searchInputNode = null;
+let shortcutsInstalled = false;
+
+function installSourceShortcuts() {
+  if (shortcutsInstalled || typeof document === 'undefined') return;
+  shortcutsInstalled = true;
+  document.addEventListener('keydown', event => {
+    if (AppState.currentView !== 'sources') return;
+    const target = event.target;
+    const isTyping = target?.matches?.('input, textarea, select')
+      || target?.isContentEditable;
+    if (event.key === '/' && !isTyping) {
+      event.preventDefault();
+      searchInputNode?.focus();
+    } else if (event.key === 'Escape' && target === searchInputNode && AppState.sourceQuery) {
+      event.preventDefault();
+      updateState({ sourceQuery: '' });
+    }
+  });
+}
 
 function sourceUsageCount(id) {
   return (AppState.entries || []).filter(entry => (entry.sourceIds || []).includes(id)).length;
@@ -12,42 +44,138 @@ function sourceByline(source) {
   return [source.creator, source.publication, source.publishedAt].filter(Boolean).join(' · ');
 }
 
-function SourceCard({ source, isAdmin }) {
-  const uses = sourceUsageCount(source.id);
-  return createElement('article', { className: 'source-card' },
-    createElement('div', { className: 'source-card-topline' },
+function openSourceEditor(source) {
+  updateState({
+    sourceEditorOpen: true,
+    sourceEditingId: source.id,
+    sourceDraftType: source.type,
+  });
+}
+
+function selectLinkedEntry(entry) {
+  updateState({
+    currentView: 'archive',
+    selectedEntry: entry,
+    archiveMode: entry.status === 'draft' ? 'drafts' : 'published',
+    archiveShelfId: null,
+  });
+}
+
+function SourceIndexRow({ source, code, uses, selected }) {
+  const byline = sourceByline(source);
+  const moveFocus = event => {
+    if (!['ArrowDown', 'ArrowUp', 'Home', 'End'].includes(event.key)) return;
+    event.preventDefault();
+    const list = event.currentTarget.closest('ol');
+    const buttons = [...(list?.querySelectorAll('.source-index-row') || [])];
+    const current = buttons.indexOf(event.currentTarget);
+    if (current < 0) return;
+    const next = event.key === 'Home'
+      ? 0
+      : event.key === 'End'
+        ? buttons.length - 1
+        : event.key === 'ArrowDown'
+          ? Math.min(current + 1, buttons.length - 1)
+          : Math.max(current - 1, 0);
+    buttons[next]?.focus();
+  };
+  return createElement('li', { className: selected ? 'source-index-item selected' : 'source-index-item' },
+    createElement('button', {
+      type: 'button',
+      className: 'source-index-row',
+      onClick: () => updateState({ selectedSourceId: source.id }),
+      onKeyDown: moveFocus,
+      'aria-current': selected ? 'true' : 'false',
+      'aria-label': `${source.title}, ${source.type === 'pdf' ? 'PDF' : 'website'}, cited by ${uses} ${uses === 1 ? 'piece' : 'pieces'}`,
+    },
+      createElement('span', { className: 'source-index-code' }, code),
+      createElement('span', { className: 'source-index-main' },
+        createElement('strong', null, source.title),
+        byline
+          ? createElement('span', { className: 'source-index-byline' }, byline)
+          : createElement('span', { className: 'source-index-byline' }, sourceDomain(source))
+      ),
       createElement('span', { className: `source-kind source-kind-${source.type}` },
         source.type === 'pdf' ? 'PDF' : 'WEB'
       ),
-      createElement('span', { className: 'source-usage' },
-        `${uses} ${uses === 1 ? 'PIECE' : 'PIECES'}`
-      )
-    ),
-    createElement('h2', null, source.title),
-    sourceByline(source)
-      ? createElement('p', { className: 'source-byline' }, sourceByline(source))
-      : null,
-    source.description
-      ? createElement('p', { className: 'source-description' }, source.description)
-      : null,
-    createElement('footer', { className: 'source-card-actions' },
-      createElement('a', {
-        href: source.url,
-        target: '_blank',
-        rel: 'noopener noreferrer',
-        className: 'source-open',
-      }, source.type === 'pdf' ? 'VIEW PDF ↗' : 'VISIT SOURCE ↗'),
+      createElement('span', { className: 'source-index-uses' },
+        String(uses).padStart(2, '0')
+      ),
+      createElement('span', { className: 'source-index-arrow', 'aria-hidden': 'true' }, '→')
+    )
+  );
+}
+
+function SourceRecordDetail({ source, code, linkedEntries, isAdmin }) {
+  if (!source) return createElement('aside', { className: 'source-record-detail empty' },
+    createElement('span', { className: 'source-record-empty-mark', 'aria-hidden': 'true' }, '⌁'),
+    createElement('p', null, 'Select a record to inspect its source note and linked writing.')
+  );
+
+  const domain = sourceDomain(source);
+  const facts = [
+    ['FORMAT', source.type === 'pdf' ? 'PDF DOCUMENT' : 'WEBSITE'],
+    source.creator ? ['CREATOR', source.creator] : null,
+    source.publication ? ['PUBLICATION', source.publication] : null,
+    source.publishedAt ? ['PUBLISHED', source.publishedAt] : null,
+    domain ? [source.type === 'pdf' ? 'FILE' : 'DOMAIN', domain] : null,
+    source.fileSize ? ['SIZE', formatFileSize(source.fileSize)] : null,
+    source.createdAt ? ['ADDED', formatShortDate(source.createdAt)] : null,
+  ].filter(Boolean);
+
+  return createElement('aside', {
+    className: 'source-record-detail',
+    'aria-label': `Selected source: ${source.title}`,
+  },
+    createElement('header', { className: 'source-record-header' },
+      createElement('div', { className: 'source-record-labels' },
+        createElement('span', { className: 'source-record-code' }, code),
+        createElement('span', { className: `source-kind source-kind-${source.type}` },
+          source.type === 'pdf' ? 'PDF' : 'WEB'
+        )
+      ),
       isAdmin
         ? createElement('button', {
             type: 'button',
-            className: 'source-edit',
-            onClick: () => updateState({
-              sourceEditorOpen: true,
-              sourceEditingId: source.id,
-              sourceDraftType: source.type,
-            }),
-          }, 'EDIT')
+            className: 'source-record-edit',
+            onClick: () => openSourceEditor(source),
+          }, 'EDIT RECORD')
         : null
+    ),
+    createElement('h2', null, source.title),
+    source.description
+      ? createElement('p', { className: 'source-record-description' }, source.description)
+      : null,
+    createElement('dl', { className: 'source-record-facts' },
+      ...facts.flatMap(([label, value]) => [
+        createElement('dt', { key: `${label}-term` }, label),
+        createElement('dd', { key: `${label}-value` }, value),
+      ])
+    ),
+    createElement('a', {
+      href: source.url,
+      target: '_blank',
+      rel: 'noopener noreferrer',
+      className: 'source-record-open',
+    }, source.type === 'pdf' ? 'OPEN DOCUMENT ↗' : 'VISIT ORIGINAL ↗'),
+    createElement('section', { className: 'source-linked-writing' },
+      createElement('div', { className: 'source-linked-heading' },
+        createElement('span', null, 'LINKED WRITING'),
+        createElement('strong', null, String(linkedEntries.length).padStart(2, '0'))
+      ),
+      linkedEntries.length
+        ? createElement('ol', null,
+            ...linkedEntries.map(entry => createElement('li', { key: entry.entryId },
+              createElement('button', {
+                type: 'button',
+                onClick: () => selectLinkedEntry(entry),
+              },
+                createElement('span', null, entry.title || 'Untitled'),
+                createElement('span', { 'aria-hidden': 'true' }, '→')
+              )
+            ))
+          )
+        : createElement('p', null, 'Retained in the index; not yet cited by a transmission.')
     )
   );
 }
@@ -100,6 +228,7 @@ function SourceEditor() {
         : [...sources, saved];
       updateState({
         sources: next.sort((a, b) => a.title.localeCompare(b.title)),
+        selectedSourceId: saved.id,
         sourceEditorOpen: false,
         sourceEditingId: null,
       });
@@ -128,6 +257,7 @@ function SourceEditor() {
         entries: (AppState.entries || []).map(unlink),
         selectedEntry: unlink(AppState.selectedEntry),
         editingEntry: unlink(AppState.editingEntry),
+        selectedSourceId: null,
         sourceEditorOpen: false,
         sourceEditingId: null,
       });
@@ -238,12 +368,33 @@ function SourceEditor() {
 
 export function SourcesView() {
   const sources = AppState.sources || [];
+  const entries = AppState.entries || [];
   const isAdmin = isLoggedIn();
+  const usage = sourceUsageMap(entries);
+  const codes = sourceRecordCodes(sources);
+  const counts = sourceFilterCounts(sources, usage);
+  const results = indexedSources({
+    sources,
+    entries,
+    query: AppState.sourceQuery,
+    filter: AppState.sourceFilter,
+    sort: AppState.sourceSort,
+  });
+  const selected = results.find(source => source.id === AppState.selectedSourceId)
+    || results[0]
+    || null;
+  const linkedEntries = selected ? linkedEntriesForSource(selected.id, entries) : [];
+
+  installSourceShortcuts();
+
   return createElement('div', { className: 'sources-view' },
     createElement('header', { className: 'sources-header' },
       createElement('div', null,
         createElement('span', { className: 'sources-kicker' }, 'RESEARCH INDEX'),
-        createElement('h1', null, 'SOURCE LIBRARY')
+        createElement('h1', null, 'SOURCE LIBRARY'),
+        createElement('p', null,
+          `${sources.length} ${sources.length === 1 ? 'record' : 'records'} · ${counts.cited} cited`
+        )
       ),
       isAdmin
         ? createElement('div', { className: 'sources-create-actions' },
@@ -263,10 +414,104 @@ export function SourcesView() {
         : null
     ),
     sources.length
-      ? createElement('div', { className: 'source-grid' },
-          ...sources.map(source => createElement(SourceCard, {
-            key: source.id, source, isAdmin,
-          }))
+      ? createElement('main', { className: 'source-index-shell' },
+          createElement('div', { className: 'source-index-tools' },
+            createElement('label', { className: 'source-search' },
+              createElement('span', { className: 'source-search-mark', 'aria-hidden': 'true' }, '/'),
+              createElement('input', {
+                type: 'search',
+                value: AppState.sourceQuery,
+                'aria-label': 'Search source records',
+                placeholder: 'Search title, creator, publication, domain, or linked writing',
+                onInput: event => updateState({ sourceQuery: event.target.value }),
+                ref: node => { searchInputNode = node; },
+              }),
+              AppState.sourceQuery
+                ? createElement('button', {
+                    type: 'button',
+                    className: 'source-search-clear',
+                    onClick: () => updateState({ sourceQuery: '' }),
+                    'aria-label': 'Clear source search',
+                  }, 'CLEAR')
+                : createElement('kbd', null, '/')
+            ),
+            createElement('div', { className: 'source-index-controls' },
+              createElement('div', {
+                className: 'source-filter-tabs',
+                role: 'group',
+                'aria-label': 'Filter source records',
+              },
+                ...SOURCE_INDEX_FILTERS.map(option => createElement('button', {
+                  key: option.id,
+                  type: 'button',
+                  className: AppState.sourceFilter === option.id ? 'active' : '',
+                  onClick: () => updateState({
+                    sourceFilter: option.id,
+                    selectedSourceId: null,
+                  }),
+                  'aria-pressed': AppState.sourceFilter === option.id ? 'true' : 'false',
+                },
+                  createElement('span', null, option.label.toUpperCase()),
+                  createElement('small', null, String(counts[option.id]).padStart(2, '0'))
+                ))
+              ),
+              createElement('label', { className: 'source-sort' },
+                createElement('span', null, 'ORDER'),
+                createElement('select', {
+                  value: AppState.sourceSort,
+                  onChange: event => updateState({
+                    sourceSort: event.target.value,
+                    selectedSourceId: null,
+                  }),
+                },
+                  ...SOURCE_INDEX_SORTS.map(option => createElement('option', {
+                    key: option.id,
+                    value: option.id,
+                  }, option.label))
+                )
+              )
+            )
+          ),
+          createElement('div', { className: 'source-index-status', 'aria-live': 'polite' },
+            createElement('span', null,
+              `${results.length} OF ${sources.length} ${sources.length === 1 ? 'RECORD' : 'RECORDS'}`
+            ),
+            createElement('span', null, 'USE ↑↓ TO SCAN · ENTER TO INSPECT')
+          ),
+          createElement('div', { className: 'source-index-workspace' },
+            createElement('section', {
+              className: 'source-index-ledger',
+              'aria-label': 'Source records',
+            },
+              results.length
+                ? createElement('ol', null,
+                    ...results.map(source => createElement(SourceIndexRow, {
+                      key: source.id,
+                      source,
+                      code: codes.get(source.id),
+                      uses: usage.get(source.id) || 0,
+                      selected: selected?.id === source.id,
+                    }))
+                  )
+                : createElement('div', { className: 'source-index-no-results' },
+                    createElement('strong', null, 'NO MATCHING RECORDS'),
+                    createElement('p', null, 'Try a broader term or clear the active filter.'),
+                    createElement('button', {
+                      type: 'button',
+                      onClick: () => updateState({
+                        sourceQuery: '',
+                        sourceFilter: 'all',
+                      }),
+                    }, 'RESET INDEX')
+                  )
+            ),
+            createElement(SourceRecordDetail, {
+              source: selected,
+              code: selected ? codes.get(selected.id) : null,
+              linkedEntries,
+              isAdmin,
+            })
+          )
         )
       : createElement('div', { className: 'sources-empty' },
           isAdmin ? 'NO SOURCES YET · ADD A WEBSITE OR PDF' : 'NO SOURCES HAVE BEEN PUBLISHED'
