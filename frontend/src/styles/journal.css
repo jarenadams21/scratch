@@ -8468,9 +8468,13 @@ html.appearance-settling .harbinger * {
 /* Fixed editorial artboard: direct manipulation without layout-mode controls. */
 .canvas-document {
   width: min(100%, 980px);
-  margin: 18px auto;
+  margin: 0 auto;
   display: grid;
   gap: 18px;
+}
+
+.canvas-document.is-editable {
+  margin: 18px auto;
 }
 
 .canvas-page {
@@ -8505,9 +8509,13 @@ html.appearance-settling .harbinger * {
   overflow: hidden;
   color: var(--reading-ink);
   background: transparent;
-  border: 1px solid var(--rule);
+  border: 0;
   container-type: inline-size;
   font-size: max(calc(6px * var(--type-scale)), calc(1.65cqw * var(--type-scale)));
+}
+
+.canvas-artboard-shell.is-editable .canvas-artboard {
+  border: 1px solid var(--rule);
 }
 
 .canvas-object {
@@ -8655,7 +8663,7 @@ html.appearance-settling .harbinger * {
 }
 
 @media (max-width: 640px) {
-  .canvas-document {
+  .canvas-document.is-editable {
     width: calc(100vw - 24px);
     margin-inline: calc(50% - 50vw + 12px);
   }

@@ -179,6 +179,9 @@ test('shared image insertion requires accessible metadata and renders structured
   assert.match(markdown, /openLightbox\(/);
   assert.match(editionsCss, /\.canvas-artboard\s*\{[\s\S]*?aspect-ratio: 5 \/ 7/);
   assert.match(editionsCss, /\.canvas-artboard\s*\{[\s\S]*?background: transparent/);
+  assert.match(editionsCss, /\.canvas-artboard\s*\{[\s\S]*?border: 0/);
+  assert.match(editionsCss, /\.canvas-artboard-shell\.is-editable \.canvas-artboard\s*\{[\s\S]*?border: 1px solid var\(--rule\)/);
+  assert.match(editionsCss, /\.canvas-document\.is-editable\s*\{[\s\S]*?margin: 18px auto/);
   assert.match(editionsCss, /\.canvas-object\s*\{[\s\S]*?position: absolute/);
 });
 
