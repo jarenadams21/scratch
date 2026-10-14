@@ -68,6 +68,7 @@ function installShortcuts() {
       updateState({
         editionEditorOpen: false,
         editionEditingId: null,
+        editionDraft: null,
         editionDraftEntryIds: [],
         editionDraftBlocks: [],
       });
@@ -252,6 +253,21 @@ function newBlockId(type) {
   return `${type}-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
 }
 
+function draftForEdition(edition) {
+  return {
+    number: String(edition?.number || ''),
+    title: String(edition?.title || ''),
+    subtitle: String(edition?.subtitle || ''),
+    description: String(edition?.description || ''),
+    visibility: edition?.visibility === 'public' ? 'public' : 'draft',
+  };
+}
+
+function changeDraftField(field, value) {
+  if (!AppState.editionDraft) AppState.editionDraft = draftForEdition(null);
+  AppState.editionDraft[field] = value;
+}
+
 function changeDraftBlocks(next) {
   const supported = next.filter(block => block.type === 'entry' || block.type === 'source');
   updateState({
@@ -262,6 +278,8 @@ function changeDraftBlocks(next) {
 
 function EditionManager() {
   const editing = (AppState.editions || []).find(item => item.id === AppState.editionEditingId) || null;
+  const draft = AppState.editionDraft || draftForEdition(editing);
+  if (!AppState.editionDraft) AppState.editionDraft = draft;
   const blocks = (AppState.editionDraftBlocks || [])
     .filter(block => block.type === 'entry' || block.type === 'source');
   const selectedEntryIds = blocks.filter(block => block.type === 'entry').map(block => block.entryId);
@@ -280,6 +298,7 @@ function EditionManager() {
   const close = () => updateState({
     editionEditorOpen: false,
     editionEditingId: null,
+    editionDraft: null,
     editionDraftEntryIds: [],
     editionDraftBlocks: [],
   });
@@ -303,13 +322,12 @@ function EditionManager() {
   const removeBlock = id => changeDraftBlocks(blocks.filter(block => block.id !== id));
   const save = async event => {
     event.preventDefault();
-    const data = new FormData(event.currentTarget);
     const value = {
-      number: String(data.get('number') || ''),
-      title: String(data.get('title') || ''),
-      subtitle: String(data.get('subtitle') || ''),
-      description: String(data.get('description') || ''),
-      visibility: data.get('published') ? 'public' : 'draft',
+      number: draft.number,
+      title: draft.title,
+      subtitle: draft.subtitle,
+      description: draft.description,
+      visibility: draft.visibility,
       blocks,
       entryIds: blocks.filter(block => block.type === 'entry').map(block => block.entryId),
     };
@@ -372,25 +390,51 @@ function EditionManager() {
       createElement('div', { className: 'edition-manager-fields' },
         createElement('label', null,
           createElement('span', null, 'EDITION NUMBER / LABEL'),
-          createElement('input', { name: 'number', maxLength: 24, defaultValue: editing?.number || '' })
+          createElement('input', {
+            name: 'number',
+            maxLength: 24,
+            value: draft.number,
+            onInput: event => changeDraftField('number', event.target.value),
+          })
         ),
         createElement('label', null,
           createElement('span', null, 'TITLE'),
-          createElement('input', { name: 'title', maxLength: 160, required: true, defaultValue: editing?.title || '' })
+          createElement('input', {
+            name: 'title',
+            maxLength: 160,
+            required: true,
+            value: draft.title,
+            onInput: event => changeDraftField('title', event.target.value),
+          })
         ),
         createElement('label', null,
           createElement('span', null, 'SUBTITLE'),
-          createElement('input', { name: 'subtitle', maxLength: 240, defaultValue: editing?.subtitle || '' })
+          createElement('input', {
+            name: 'subtitle',
+            maxLength: 240,
+            value: draft.subtitle,
+            onInput: event => changeDraftField('subtitle', event.target.value),
+          })
         ),
         createElement('label', { className: 'edition-manager-description' },
           createElement('span', null, 'EDITORIAL NOTE'),
-          createElement('textarea', { name: 'description', maxLength: 1200, rows: 4, defaultValue: editing?.description || '' })
+          createElement('textarea', {
+            name: 'description',
+            maxLength: 1200,
+            rows: 4,
+            value: draft.description,
+            onInput: event => changeDraftField('description', event.target.value),
+          })
         ),
         createElement('label', { className: 'edition-publish-toggle' },
           createElement('input', {
             type: 'checkbox',
             name: 'published',
-            defaultChecked: editing?.visibility === 'public',
+            checked: draft.visibility === 'public',
+            onChange: event => changeDraftField(
+              'visibility',
+              event.target.checked ? 'public' : 'draft',
+            ),
           }),
           createElement('span', null, 'PUBLISH THIS EDITION')
         )
@@ -548,6 +592,7 @@ export function EditionsView({ isAdmin = false }) {
     updateState({
       editionEditorOpen: true,
       editionEditingId: edition?.id || null,
+      editionDraft: draftForEdition(edition),
       editionDraftEntryIds: [...(edition?.entryIds || [])],
       editionDraftBlocks: edition ? blocksForEdition(edition).map(block => ({ ...block })) : [],
     });

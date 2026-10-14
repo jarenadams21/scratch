@@ -68,6 +68,11 @@ test('long papers open in an accessible focused reader with return continuity', 
 
 test('owner manager stays focused on selecting and ordering compositions', () => {
   assert.match(editionsView, /editionDraftBlocks/);
+  assert.match(editionsView, /editionDraft: draftForEdition\(edition\)/);
+  assert.match(editionsView, /function changeDraftField/);
+  assert.match(editionsView, /AppState\.editionDraft\[field\] = value/);
+  assert.match(editionsView, /value: draft\.title/);
+  assert.match(editionsView, /visibility: draft\.visibility/);
   assert.match(editionsView, /Move .* earlier/);
   assert.match(editionsView, /Move .* later/);
   assert.match(editionsView, /PUBLISH THIS EDITION/);
