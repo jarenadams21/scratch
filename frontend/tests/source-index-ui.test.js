@@ -18,13 +18,19 @@ test('source search preserves focus, caret, and scroll through reconciliation', 
   assert.match(sourceView, /preserveSearch: true/);
 });
 
-test('source rows use arrow navigation to select and retain focus', () => {
-  assert.match(sourceView, /selectedSourceId: nextId/);
-  assert.match(sourceView, /focusRowId: nextId/);
+test('source rows navigate synchronously without reconciling the application', () => {
+  assert.match(sourceView, /function selectSourceRow/);
+  assert.match(sourceView, /AppState\.selectedSourceId = id/);
+  assert.match(sourceView, /selectSourceRow\(nextId, \{ focus: true \}\)/);
+  assert.match(sourceView, /scrollIntoView\?\.\(\{ block: 'nearest' \}\)/);
   assert.match(sourceView, /onKeyDown: handleSearchKeyDown/);
   assert.match(sourceView, /!isInteractive/);
   assert.match(sourceView, /\.tab\.active/);
-  assert.match(sourceView, /ARROWS SELECT · ENTER MAGNIFIES/);
+  assert.match(sourceView, /ARROWS SELECT · CLICK OR ENTER MAGNIFIES/);
+});
+
+test('clicking a source row opens its ephemeral inspection layer', () => {
+  assert.match(sourceView, /onClick: \(\) => openSourceInspection\(source\.id\)/);
 });
 
 test('source inspection is an ephemeral accessible layer', () => {

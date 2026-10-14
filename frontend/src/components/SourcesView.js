@@ -68,6 +68,22 @@ function updateSourceState(patch, {
   updateState(patch);
 }
 
+function selectSourceRow(id, { focus = false } = {}) {
+  if (!id) return;
+  AppState.selectedSourceId = id;
+  const rows = [...(sourceScrollNode?.querySelectorAll('.source-index-row') || [])];
+  let selectedRow = null;
+  for (const row of rows) {
+    const selected = row.dataset.sourceId === id;
+    row.closest('.source-index-item')?.classList.toggle('selected', selected);
+    row.setAttribute('aria-current', selected ? 'true' : 'false');
+    if (selected) selectedRow = row;
+  }
+  if (!selectedRow) return;
+  if (focus) selectedRow.focus({ preventScroll: true });
+  selectedRow.scrollIntoView?.({ block: 'nearest' });
+}
+
 function installSourceShortcuts() {
   if (shortcutsInstalled || typeof document === 'undefined') return;
   shortcutsInstalled = true;
@@ -114,7 +130,7 @@ function installSourceShortcuts() {
           : (current < 0 ? 0 : current);
       const nextId = rows[next].dataset.sourceId;
       if (event.key === 'Enter') openSourceInspection(nextId);
-      else updateSourceState({ selectedSourceId: nextId }, { focusRowId: nextId });
+      else selectSourceRow(nextId, { focus: true });
     }
   });
   document.addEventListener('pointerdown', event => {
@@ -189,16 +205,14 @@ function SourceIndexRow({ source, code, uses, selected }) {
           ? Math.min(current + 1, buttons.length - 1)
           : Math.max(current - 1, 0);
     const nextId = buttons[next]?.dataset.sourceId;
-    if (nextId) {
-      updateSourceState({ selectedSourceId: nextId }, { focusRowId: nextId });
-    }
+    if (nextId) selectSourceRow(nextId, { focus: true });
   };
   return createElement('li', { className: selected ? 'source-index-item selected' : 'source-index-item' },
     createElement('button', {
       type: 'button',
       className: 'source-index-row',
       'data-source-id': source.id,
-      onClick: () => updateSourceState({ selectedSourceId: source.id }),
+      onClick: () => openSourceInspection(source.id),
       onKeyDown: event => {
         if (event.key === 'Enter') {
           event.preventDefault();
@@ -642,7 +656,7 @@ export function SourcesView() {
         : (current < 0 ? 0 : current);
     const nextId = results[next].id;
     if (event.key === 'Enter') openSourceInspection(nextId);
-    else updateSourceState({ selectedSourceId: nextId }, { focusRowId: nextId });
+    else selectSourceRow(nextId);
   };
 
   installSourceShortcuts();
@@ -747,7 +761,7 @@ export function SourcesView() {
             createElement('span', null,
               `${results.length} OF ${sources.length} ${sources.length === 1 ? 'RECORD' : 'RECORDS'}`
             ),
-            createElement('span', null, 'ARROWS SELECT · ENTER MAGNIFIES')
+            createElement('span', null, 'ARROWS SELECT · CLICK OR ENTER MAGNIFIES')
           ),
           createElement('div', { className: 'source-index-workspace' },
             createElement('section', {
