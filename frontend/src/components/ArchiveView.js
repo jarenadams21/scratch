@@ -27,6 +27,12 @@ function shelfFor(entry) {
   return (AppState.shelves || []).find(shelf => shelf.id === entry?.shelfId) || null;
 }
 
+function shelfAppearsInArchive(shelfId) {
+  if (!shelfId) return true;
+  const shelf = (AppState.shelves || []).find(item => item.id === shelfId);
+  return !shelf || shelf.archiveVisibility !== 'editions';
+}
+
 function VisibilityTag({ visibility }) {
   const isAdmins = visibility === 'admins';
   return createElement('span', {
@@ -214,7 +220,8 @@ function ReadingPane({ entry, onDeleted, onVisibilityChanged }) {
 }
 
 function ArchiveFilters({ isAdmin }) {
-  const shelves = AppState.shelves || [];
+  const shelves = (AppState.shelves || [])
+    .filter(shelf => shelf.archiveVisibility !== 'editions');
   const setMode = (mode, shelfId = null) => updateState({
     archiveMode: mode,
     archiveShelfId: shelfId,
@@ -252,7 +259,9 @@ export function ArchiveView({ entries, onDeleted }) {
   let visible = (entries || []).filter(entry => {
     const status = entry.status || 'published';
     if (AppState.archiveMode === 'drafts') return isAdmin && status === 'draft' && (!entry.author || entry.author === me);
-    return status === 'published' && (!AppState.archiveShelfId || entry.shelfId === AppState.archiveShelfId);
+    return status === 'published'
+      && shelfAppearsInArchive(entry.shelfId)
+      && (!AppState.archiveShelfId || entry.shelfId === AppState.archiveShelfId);
   });
   const featured = (!AppState.selectedEntry && AppState.archiveMode !== 'drafts' && visible.length) ? visible[0] : null;
   if (featured) visible = visible.slice(1);

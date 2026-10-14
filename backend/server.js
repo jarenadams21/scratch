@@ -123,7 +123,13 @@ async function handleMessage(message, userId) {
 
     case 'create_shelf':
       if (!userId) throw new Error('Unauthorized');
-      return await createShelf(userId, content.name, content.color, content.description);
+      return await createShelf(
+        userId,
+        content.name,
+        content.color,
+        content.description,
+        content.archiveVisibility,
+      );
 
     case 'update_shelf':
       if (!userId) throw new Error('Unauthorized');

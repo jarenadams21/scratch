@@ -73,10 +73,13 @@ export function getShelvesMessage() {
   };
 }
 
-export function createShelfMessage(name, color, description = '') {
+export function createShelfMessage(name, color, description = '', archiveVisibility = 'archive') {
   return {
     command: "create_shelf",
-    payload: { content: { name, color, description }, num: REGISTERED_NUM_MAP["create_shelf"] }
+    payload: {
+      content: { name, color, description, archiveVisibility },
+      num: REGISTERED_NUM_MAP["create_shelf"]
+    }
   };
 }
 

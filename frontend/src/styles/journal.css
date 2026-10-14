@@ -5379,6 +5379,12 @@ textarea {
   letter-spacing: 1px;
 }
 
+.shelf-manager-item-scope {
+  color: var(--reading-muted);
+  font-size: calc(7px * var(--type-scale));
+  letter-spacing: 1.2px;
+}
+
 .shelf-manager-item-description {
   display: -webkit-box;
   overflow: hidden;
@@ -5432,6 +5438,59 @@ textarea {
 .shelf-manager-color-field {
   grid-template-columns: 48px 1fr;
   align-items: center;
+}
+
+.shelf-manager-scope {
+  display: grid;
+  gap: 8px;
+  margin: 0;
+  border: 0;
+  padding: 0;
+}
+
+.shelf-manager-scope legend {
+  margin-bottom: 7px;
+  color: var(--reading-muted);
+  font-size: calc(8px * var(--type-scale));
+  letter-spacing: 2px;
+}
+
+.shelf-manager-scope label {
+  display: grid;
+  border: 1px solid var(--rule);
+  grid-template-columns: auto minmax(0, 1fr);
+  align-items: start;
+  gap: 10px;
+  padding: 10px 11px;
+  cursor: pointer;
+}
+
+.shelf-manager-scope label:has(input:checked) {
+  border-color: var(--accent);
+  background: var(--accent-wash);
+  box-shadow: inset 3px 0 0 var(--accent);
+}
+
+.shelf-manager-scope input {
+  margin-top: 2px;
+  accent-color: var(--accent);
+}
+
+.shelf-manager-scope span {
+  display: grid;
+  gap: 4px;
+}
+
+.shelf-manager-scope strong {
+  color: var(--reading-ink);
+  font-size: calc(9px * var(--type-scale));
+  letter-spacing: 1px;
+}
+
+.shelf-manager-scope small {
+  color: var(--reading-muted);
+  font-size: calc(8px * var(--type-scale));
+  line-height: 1.5;
 }
 
 .shelf-manager-color-field > span {

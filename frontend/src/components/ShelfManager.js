@@ -36,6 +36,7 @@ export function ShelfManager() {
     const name = formNode?.elements.name.value.trim();
     const description = formNode?.elements.description.value.trim();
     const color = formNode?.elements.color.value;
+    const archiveVisibility = formNode?.elements.archiveVisibility.value;
     if (!name) {
       setStatus('A shelf name is required', 'error');
       return;
@@ -44,14 +45,20 @@ export function ShelfManager() {
     setStatus(editing ? 'Updating shelf…' : 'Creating shelf…', 'saving');
     try {
       const saved = editing
-        ? await updateShelf(editing.id, { name, description, color })
-        : await createShelf(name, color, description);
+        ? await updateShelf(editing.id, { name, description, color, archiveVisibility })
+        : await createShelf(name, color, description, archiveVisibility);
       const nextShelves = editing
         ? shelves.map(shelf => shelf.id === saved.id ? saved : shelf)
         : [...shelves, saved];
       updateState({
         shelves: sortedShelves(nextShelves),
         shelfEditingId: saved.id,
+        archiveShelfId: archiveVisibility === 'editions' && AppState.archiveShelfId === saved.id
+          ? null
+          : AppState.archiveShelfId,
+        selectedEntry: archiveVisibility === 'editions' && AppState.selectedEntry?.shelfId === saved.id
+          ? null
+          : AppState.selectedEntry,
       });
     } catch (err) {
       setStatus('Could not save shelf: ' + err.message, 'error');
@@ -124,6 +131,9 @@ export function ShelfManager() {
             createElement('span', { className: 'shelf-manager-item-count' },
               `${entryCount(shelf.id)} ${entryCount(shelf.id) === 1 ? 'ENTRY' : 'ENTRIES'}`
             ),
+            createElement('span', { className: 'shelf-manager-item-scope' },
+              shelf.archiveVisibility === 'editions' ? 'EDITIONS ONLY' : 'ARCHIVE + EDITIONS'
+            ),
             shelf.description
               ? createElement('span', { className: 'shelf-manager-item-description' }, shelf.description)
               : null
@@ -164,6 +174,33 @@ export function ShelfManager() {
               defaultValue: editing?.color || '#c85232',
             }),
             createElement('strong', null, editing?.color?.toUpperCase() || 'SELECT')
+          ),
+          createElement('fieldset', { className: 'shelf-manager-scope' },
+            createElement('legend', null, 'PUBLIC PLACEMENT'),
+            createElement('label', null,
+              createElement('input', {
+                type: 'radio',
+                name: 'archiveVisibility',
+                value: 'archive',
+                defaultChecked: editing?.archiveVisibility !== 'editions',
+              }),
+              createElement('span', null,
+                createElement('strong', null, 'ARCHIVE + EDITIONS'),
+                createElement('small', null, 'Show published pieces in the main Archive and allow Edition curation.')
+              )
+            ),
+            createElement('label', null,
+              createElement('input', {
+                type: 'radio',
+                name: 'archiveVisibility',
+                value: 'editions',
+                defaultChecked: editing?.archiveVisibility === 'editions',
+              }),
+              createElement('span', null,
+                createElement('strong', null, 'EDITIONS ONLY'),
+                createElement('small', null, 'Hide this shelf from the Archive; pieces appear publicly only through curated Editions.')
+              )
+            )
           ),
           createElement('p', {
             className: 'shelf-manager-status',

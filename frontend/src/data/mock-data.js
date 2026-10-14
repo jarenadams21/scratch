@@ -99,12 +99,14 @@ let mockShelves = [
     name: 'Serious Papers',
     color: '#c85232',
     description: 'Research, essays, and application-ready work.',
+    archiveVisibility: 'archive',
   },
   {
     id: 'miscellaneous',
     name: 'Miscellaneous',
     color: '#547f9e',
     description: 'Notes, observations, and informal writing.',
+    archiveVisibility: 'editions',
   },
 ];
 let mockAppearance = { theme: 'dark', palette: 'ember' };
@@ -312,12 +314,13 @@ export const mockDB = {
 
   getShelves: () => Promise.resolve(mockShelves.map(shelf => ({ ...shelf }))),
 
-  createShelf: (name, color, description = '') => {
+  createShelf: (name, color, description = '', archiveVisibility = 'archive') => {
     const shelf = {
       id: `shelf-${Date.now()}`,
       name,
       color,
       description,
+      archiveVisibility,
       createdAt: new Date().toISOString(),
     };
     mockShelves.push(shelf);

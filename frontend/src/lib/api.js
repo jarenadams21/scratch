@@ -101,7 +101,12 @@ const devVisitor = {
     return mockDB.updateOrganization(c.postId, c.timestamp, c.shelfId, c.sourceIds);
   },
   get_shelves:        () => mockDB.getShelves(),
-  create_shelf:       (msg) => mockDB.createShelf(msg.payload.content.name, msg.payload.content.color, msg.payload.content.description),
+  create_shelf:       (msg) => mockDB.createShelf(
+    msg.payload.content.name,
+    msg.payload.content.color,
+    msg.payload.content.description,
+    msg.payload.content.archiveVisibility,
+  ),
   update_shelf:       (msg) => mockDB.updateShelf(msg.payload.content.id, msg.payload.content.patch),
   delete_shelf:       (msg) => mockDB.deleteShelf(msg.payload.content.id),
   get_appearance:     () => mockDB.getAppearance(),
@@ -238,8 +243,8 @@ export async function getShelves() {
   return sendMessage(getShelvesMessage(), false);
 }
 
-export async function createShelf(name, color, description = '') {
-  return sendMessage(createShelfMessage(name, color, description));
+export async function createShelf(name, color, description = '', archiveVisibility = 'archive') {
+  return sendMessage(createShelfMessage(name, color, description, archiveVisibility));
 }
 
 export async function updateShelf(id, patch) {

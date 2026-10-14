@@ -31,6 +31,7 @@ const MAX_ABOUT_SECTIONS = 12;
 const EDITION_VISIBILITIES = Object.freeze(['draft', 'public']);
 const MAX_EDITION_ENTRIES = 80;
 const MAX_EDITION_BLOCKS = 120;
+const SHELF_ARCHIVE_VISIBILITIES = Object.freeze(['archive', 'editions']);
 
 function cleanShelfName(value) {
   if (typeof value !== 'string') throw new Error('Invalid shelf name');
@@ -59,6 +60,14 @@ function cleanDescription(value) {
   return description;
 }
 
+function cleanShelfArchiveVisibility(value) {
+  const visibility = value || 'archive';
+  if (!SHELF_ARCHIVE_VISIBILITIES.includes(visibility)) {
+    throw new Error(`Invalid shelf archive visibility (must be one of: ${SHELF_ARCHIVE_VISIBILITIES.join(', ')})`);
+  }
+  return visibility;
+}
+
 export async function getShelves() {
   const result = await db.send(new QueryCommand({
     TableName: config.DYNAMODB_TABLE,
@@ -70,12 +79,13 @@ export async function getShelves() {
     .sort((a, b) => a.name.localeCompare(b.name));
 }
 
-export async function createShelf(userId, name, color, description = '') {
+export async function createShelf(userId, name, color, description = '', archiveVisibility = 'archive') {
   const shelf = {
     id: `${Date.now()}-${Math.random().toString(36).slice(2, 9)}`,
     name: cleanShelfName(name),
     color: cleanColor(color),
     description: cleanDescription(description),
+    archiveVisibility: cleanShelfArchiveVisibility(archiveVisibility),
     author: userId,
     createdAt: new Date().toISOString(),
     updatedAt: new Date().toISOString(),
@@ -103,6 +113,9 @@ export async function updateShelf(id, patch) {
   const description = patch.description == null
     ? cleanDescription(current.description)
     : cleanDescription(patch.description);
+  const archiveVisibility = patch.archiveVisibility == null
+    ? cleanShelfArchiveVisibility(current.archiveVisibility)
+    : cleanShelfArchiveVisibility(patch.archiveVisibility);
   const shelves = await getShelves();
   if (shelves.some(item => item.id !== id && item.name.toLowerCase() === name.toLowerCase())) {
     throw new Error('Invalid shelf name (already exists)');
@@ -111,17 +124,18 @@ export async function updateShelf(id, patch) {
   await db.send(new UpdateCommand({
     TableName: config.DYNAMODB_TABLE,
     Key: { pk: SITE_PK, sk: `SHELF#${id}` },
-    UpdateExpression: 'SET #name = :name, color = :color, description = :description, updatedAt = :updatedAt',
+    UpdateExpression: 'SET #name = :name, color = :color, description = :description, archiveVisibility = :archiveVisibility, updatedAt = :updatedAt',
     ExpressionAttributeNames: { '#name': 'name' },
     ExpressionAttributeValues: {
       ':name': name,
       ':color': color,
       ':description': description,
+      ':archiveVisibility': archiveVisibility,
       ':updatedAt': updatedAt,
     },
   }));
   const { pk, sk, ...shelf } = current;
-  return { ...shelf, name, color, description, updatedAt };
+  return { ...shelf, name, color, description, archiveVisibility, updatedAt };
 }
 
 export async function deleteShelf(id) {

@@ -42,6 +42,14 @@ const canvasArtboard = readFileSync(
   new URL('../src/components/CanvasArtboard.js', import.meta.url),
   'utf8',
 );
+const archiveView = readFileSync(
+  new URL('../src/components/ArchiveView.js', import.meta.url),
+  'utf8',
+);
+const shelfManager = readFileSync(
+  new URL('../src/components/ShelfManager.js', import.meta.url),
+  'utf8',
+);
 
 test('Editions is a first-class public navigation destination', () => {
   assert.match(appView, /switchView\('editions'\)/);
@@ -65,6 +73,15 @@ test('Edition selection uses a scalable custom archival menu', () => {
   assert.match(editionsView, /scrollIntoView/);
   assert.doesNotMatch(editionsView, /createElement\('select'/);
   assert.match(editionsCss, /max-height: min\(390px, 60vh\)/);
+});
+
+test('shelves can reserve published writing for curated Editions', () => {
+  assert.match(shelfManager, /name: 'archiveVisibility'/);
+  assert.match(shelfManager, /ARCHIVE \+ EDITIONS/);
+  assert.match(shelfManager, /EDITIONS ONLY/);
+  assert.match(archiveView, /function shelfAppearsInArchive/);
+  assert.match(archiveView, /shelf\.archiveVisibility !== 'editions'/);
+  assert.doesNotMatch(editionsView, /archiveVisibility !== 'editions'/);
 });
 
 test('long papers open in an accessible focused reader with return continuity', () => {
