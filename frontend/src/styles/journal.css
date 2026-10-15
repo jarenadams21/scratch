@@ -5162,6 +5162,7 @@ textarea {
 .catalog-card-active .catalog-card-descriptor {
   width: 100%;
   max-width: 720px;
+  justify-self: center;
 }
 
 .catalog-card-active .catalog-card-body {
@@ -5169,8 +5170,8 @@ textarea {
   overflow: visible;
   visibility: visible;
   opacity: 1;
-  padding-top: 0;
-  padding-bottom: 54px;
+  padding-top: clamp(30px, 4vw, 48px);
+  padding-bottom: clamp(44px, 6vw, 64px);
   transition:
     max-height 420ms cubic-bezier(.22, .7, .22, 1),
     opacity 260ms ease 100ms,
@@ -5180,6 +5181,7 @@ textarea {
 
 .catalog-card-content {
   max-width: 720px;
+  margin-inline: auto;
   color: var(--catalog-ink);
   font-family: Georgia, 'Times New Roman', serif;
   font-size: calc(clamp(16px, 1.5vw, 19px) * var(--type-scale));
@@ -5207,11 +5209,17 @@ textarea {
   font-size: 1.1em;
 }
 
-.catalog-card-content p:has(> a:only-child) {
-  margin: 1.5em 0;
+.catalog-card-content p:is(:has(> a:only-child), :has(> br):has(> a)) {
+  display: grid;
+  gap: 10px;
+  margin: 0;
 }
 
-.catalog-card-content p:has(> a:only-child) a {
+.catalog-card-content p:has(> br):has(> a) > br {
+  display: none;
+}
+
+.catalog-card-content p:is(:has(> a:only-child), :has(> br):has(> a)) > a {
   display: flex;
   min-height: 48px;
   align-items: center;
@@ -5227,14 +5235,14 @@ textarea {
   text-decoration: none;
 }
 
-.catalog-card-content p:has(> a:only-child) a::after {
+.catalog-card-content p:is(:has(> a:only-child), :has(> br):has(> a)) > a::after {
   flex: 0 0 auto;
   color: var(--accent);
   content: "→";
 }
 
-.catalog-card-content p:has(> a:only-child) a:hover,
-.catalog-card-content p:has(> a:only-child) a:focus-visible {
+.catalog-card-content p:is(:has(> a:only-child), :has(> br):has(> a)) > a:hover,
+.catalog-card-content p:is(:has(> a:only-child), :has(> br):has(> a)) > a:focus-visible {
   background: var(--accent-wash);
   padding-right: 10px;
   padding-left: 10px;
@@ -5254,7 +5262,7 @@ textarea {
   display: block;
   width: 100%;
   max-width: 720px;
-  margin-top: 32px;
+  margin: 40px auto 0;
   border: 0;
   border-top: 1px solid var(--catalog-rule);
   background: transparent;

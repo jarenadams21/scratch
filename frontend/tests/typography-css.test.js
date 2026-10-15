@@ -30,3 +30,17 @@ test('text sizing does not change reader width or About alignment', async () => 
   assert.match(css, /--reader-measure:\s*720px;/);
   assert.match(css, /\.catalog-card-active\s+\.catalog-card-title,[\s\S]*?max-width:\s*720px;/);
 });
+
+test('active About cards center their content and space link directories as rows', async () => {
+  const css = await readFile(cssPath, 'utf8');
+  assert.match(
+    css,
+    /\.catalog-card-active \.catalog-card-body\s*\{[\s\S]*?padding-top:\s*clamp\(30px,\s*4vw,\s*48px\);/,
+  );
+  assert.match(css, /\.catalog-card-content\s*\{[\s\S]*?margin-inline:\s*auto;/);
+  assert.match(
+    css,
+    /\.catalog-card-content p:is\(:has\(> a:only-child\), :has\(> br\):has\(> a\)\)\s*\{[\s\S]*?display:\s*grid;[\s\S]*?gap:\s*10px;/,
+  );
+  assert.match(css, /\.catalog-return\s*\{[\s\S]*?margin:\s*40px auto 0;/);
+});
