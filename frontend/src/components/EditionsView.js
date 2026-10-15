@@ -153,7 +153,7 @@ function PaperReader({ entry, edition, sequence }) {
       createElement('header', { className: 'edition-reader-header' },
         createElement('div', null,
           createElement('div', { className: 'edition-section-label' },
-            `EDITION ${edition.number || ''} / FOLIO ${String(index + 1).padStart(2, '0')}`
+            `ISSUE ${edition.number || ''} / FOLIO ${String(index + 1).padStart(2, '0')}`
           ),
           createElement('h1', { id: 'edition-reader-title' }, entry.title || 'Untitled'),
           createElement('div', { className: 'edition-reader-meta' },
@@ -180,7 +180,7 @@ function PaperReader({ entry, edition, sequence }) {
       sourceList(entry),
       createElement('footer', { className: 'edition-reader-footer' },
         createElement('span', null, 'END OF DOCUMENT'),
-        createElement('button', { type: 'button', onClick: closeReader }, 'RETURN TO EDITION')
+        createElement('button', { type: 'button', onClick: closeReader }, 'RETURN TO ISSUE')
       )
     )
   );
@@ -240,7 +240,7 @@ function EditionCover({ edition, index, entries, sourceCount, isAdmin, onEdit })
   return createElement('header', { className: 'edition-cover' },
     createElement('div', { className: 'edition-cover-index' },
       createElement('div', { className: 'edition-cover-register' },
-        createElement('span', null, `EDITION ${editionNumber(edition, index)}`),
+        createElement('span', null, `ISSUE ${editionNumber(edition, index)}`),
         createElement('span', null, formatCompactDate(edition.createdAt))
       ),
       isAdmin
@@ -396,14 +396,14 @@ function EditionManager() {
     },
       createElement('header', null,
         createElement('div', null,
-          createElement('div', { className: 'edition-section-label' }, editing ? 'EDIT SEQUENCE' : 'NEW SEQUENCE'),
-          createElement('h2', { id: 'edition-manager-title' }, editing ? editing.title : 'Create an Edition')
+          createElement('div', { className: 'edition-section-label' }, editing ? 'MAGAZINE EDITOR' : 'NEW ISSUE'),
+          createElement('h2', { id: 'edition-manager-title' }, editing ? editing.title : 'Create an Issue')
         ),
-        createElement('button', { type: 'button', onClick: close, 'aria-label': 'Close edition manager' }, 'CLOSE')
+        createElement('button', { type: 'button', onClick: close, 'aria-label': 'Close zine editor' }, 'CLOSE')
       ),
       createElement('div', { className: 'edition-manager-fields' },
         createElement('label', null,
-          createElement('span', null, 'EDITION NUMBER / LABEL'),
+          createElement('span', null, 'ISSUE NUMBER / LABEL'),
           createElement('input', {
             name: 'number',
             maxLength: 24,
@@ -450,7 +450,7 @@ function EditionManager() {
               event.target.checked ? 'public' : 'draft',
             ),
           }),
-          createElement('span', null, 'PUBLISH THIS EDITION')
+          createElement('span', null, 'PUBLISH THIS ISSUE')
         )
       ),
       createElement('section', { className: 'edition-sequence-builder' },
@@ -496,7 +496,7 @@ function EditionManager() {
                   createElement('button', {
                     type: 'button',
                     onClick: () => removeBlock(block.id),
-                    'aria-label': `Remove ${label} from edition`,
+                    'aria-label': `Remove ${label} from issue`,
                     title: 'Remove block',
                   }, 'DEL')
                 )
@@ -542,11 +542,11 @@ function EditionManager() {
       ),
       createElement('footer', null,
         editing
-          ? createElement('button', { type: 'button', className: 'edition-delete', onClick: remove }, 'DELETE EDITION')
+          ? createElement('button', { type: 'button', className: 'edition-delete', onClick: remove }, 'DELETE ISSUE')
           : createElement('span', null),
         createElement('div', null,
           createElement('button', { type: 'button', onClick: close }, 'CANCEL'),
-          createElement('button', { type: 'submit', className: 'edition-save' }, editing ? 'SAVE EDITION' : 'CREATE EDITION')
+          createElement('button', { type: 'submit', className: 'edition-save' }, editing ? 'SAVE ISSUE' : 'CREATE ISSUE')
         )
       )
     )
@@ -622,7 +622,7 @@ function EditionSelector({ editions, selected }) {
     editionSelectorOpen: false,
   });
 
-  return createElement('nav', { className: 'edition-selector', 'aria-label': 'Choose an edition' },
+  return createElement('nav', { className: 'edition-selector', 'aria-label': 'Choose an issue' },
     createElement('button', {
       type: 'button',
       className: 'edition-selector-toggle',
@@ -633,8 +633,8 @@ function EditionSelector({ editions, selected }) {
       ref: node => { editionSelectorToggleNode = node; },
     },
       createElement('span', { className: 'edition-selector-register' },
-        createElement('small', null, 'CURRENT EDITION'),
-        createElement('strong', null, `EDITION ${editionNumber(selected, selectedIndex)}`)
+        createElement('small', null, 'CURRENT ISSUE'),
+        createElement('strong', null, `ISSUE ${editionNumber(selected, selectedIndex)}`)
       ),
       createElement('span', { className: 'edition-selector-title' }, selected?.title || 'Untitled'),
       createElement('span', { className: 'edition-selector-count' },
@@ -646,7 +646,7 @@ function EditionSelector({ editions, selected }) {
       ? createElement('div', {
           className: 'edition-selector-menu',
           role: 'listbox',
-          'aria-label': 'Available editions',
+          'aria-label': 'Available issues',
         },
           ...editions.map((edition, index) => {
             const active = edition.id === selected?.id;
@@ -663,7 +663,7 @@ function EditionSelector({ editions, selected }) {
                 editionNumber(edition, index)
               ),
               createElement('span', { className: 'edition-selector-option-copy' },
-                createElement('small', null, 'EDITION'),
+                createElement('small', null, `ISSUE ${editionNumber(edition, index)}`),
                 createElement('strong', null, edition.title || 'Untitled')
               ),
               createElement('span', { className: 'edition-selector-option-meta' },
@@ -714,7 +714,7 @@ export function EditionsView({ isAdmin = false }) {
   },
     createElement('div', { className: 'editions-shell' },
       createElement('header', { className: 'editions-index-header' },
-        createElement('h1', null, 'EDITIONS'),
+        createElement('h1', null, 'ZINES'),
         isAdmin
           ? createElement('button', { type: 'button', onClick: () => openManager(null) }, '+ NEW')
           : null
@@ -726,10 +726,10 @@ export function EditionsView({ isAdmin = false }) {
         ? createElement('div', { className: 'editions-empty' }, 'LOADING ISSUE INDEX…')
         : !selected
           ? createElement('div', { className: 'editions-empty' },
-              createElement('strong', null, 'NO EDITIONS PUBLISHED'),
-              createElement('p', null, 'The Archive remains available while the first sequence is assembled.'),
+              createElement('strong', null, 'NO ISSUES PUBLISHED'),
+              createElement('p', null, 'The Archive remains available while the first zine issue is assembled.'),
               isAdmin
-                ? createElement('button', { type: 'button', onClick: () => openManager(null) }, 'CREATE THE FIRST EDITION')
+                ? createElement('button', { type: 'button', onClick: () => openManager(null) }, 'CREATE THE FIRST ISSUE')
                 : null
             )
           : createElement('main', { className: 'edition-publication' },
@@ -752,10 +752,10 @@ export function EditionsView({ isAdmin = false }) {
                     }))
                   )
                 : createElement('div', { className: 'editions-empty edition-empty-sequence' },
-                    'THIS EDITION HAS NO AVAILABLE PIECES.'
+                    'THIS ISSUE HAS NO AVAILABLE PIECES.'
                   ),
               createElement('footer', { className: 'edition-colophon' },
-                createElement('span', null, `END / EDITION ${editionNumber(selected, selectedIndex)}`),
+                createElement('span', null, `END / ISSUE ${editionNumber(selected, selectedIndex)}`),
                 createElement('span', null, selected.updatedAt ? `REV ${formatCompactDate(selected.updatedAt)}` : '')
               )
             )

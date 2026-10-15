@@ -1,20 +1,57 @@
 const STORAGE_KEY = 'harbinger-appearance-v1';
 const LEGACY_PALETTE_ALIASES = Object.freeze({
   blue: 'summer-sea',
+  moss: 'rrl-olive',
+  'rrl-purple': 'tony-plum',
 });
 let transitionTimer = null;
 
 export const THEMES = Object.freeze(['light', 'dark']);
 export const PALETTE_OPTIONS = Object.freeze([
-  Object.freeze({ id: 'ember', name: 'Rustic Orange', hex: '#E27452', check: '#18100D' }),
-  Object.freeze({ id: 'moss', name: 'Sage Green', hex: '#88B795', check: '#101712' }),
-  Object.freeze({ id: 'mainsail', name: 'Mainsail White', hex: '#E8DDC7', check: '#17130E' }),
-  Object.freeze({ id: 'summer-sea', name: 'Summer Sea', hex: '#8190B2', check: '#11141C' }),
-  Object.freeze({ id: 'sailor-red', name: 'Sailor Red', hex: '#973B36', check: '#FFF8F5' }),
-  Object.freeze({ id: 'night-sky', name: 'Night Sky', hex: '#0A0B3A', check: '#F8F7EF' }),
-  Object.freeze({ id: 'rrl-purple', name: 'RRL Purple', hex: '#5A405E', check: '#FFF8FC' }),
-  Object.freeze({ id: 'maize', name: 'Maize Yellow', hex: '#D5AE4F', check: '#181307' }),
-  Object.freeze({ id: 'hammond-khaki', name: 'Hammond Khaki', hex: '#A88F68', check: '#171108' }),
+  Object.freeze({
+    id: 'ember', name: 'Rustic Orange', hex: '#E27452', check: '#18100D',
+    profile: 'kiln brick · oxidized steel',
+  }),
+  Object.freeze({
+    id: 'rrl-olive', name: 'RRL Olive', hex: '#68684F', check: '#F2EFE8',
+    profile: 'washed herringbone · field canvas',
+  }),
+  Object.freeze({
+    id: 'mainsail', name: 'Mainsail White', hex: '#E8DDC7', check: '#17130E',
+    profile: 'sailcloth · salt air · tarred rigging',
+  }),
+  Object.freeze({
+    id: 'summer-sea', name: 'Summer Sea', hex: '#8190B2', check: '#11141C',
+    profile: 'Massachusetts haze · weathered blue',
+  }),
+  Object.freeze({
+    id: 'sailor-red', name: 'Sailor Red', hex: '#973B36', check: '#FFF8F5',
+    profile: 'buoy paint · cranberry barn',
+  }),
+  Object.freeze({
+    id: 'night-sky', name: 'Night Sky', hex: '#0A0B3A', check: '#F8F7EF',
+    profile: 'Atlantic midnight · harbor lights',
+  }),
+  Object.freeze({
+    id: 'tony-plum', name: 'Tony Plum', hex: '#27253D', check: '#F2EFE8',
+    profile: 'blackened indigo · muted aubergine',
+  }),
+  Object.freeze({
+    id: 'scarlette-pink', name: 'Scarlette Pink', hex: '#C38F98', check: '#2A1A1E',
+    profile: 'faded Oxford · rose wool sweater · blush nylon',
+  }),
+  Object.freeze({
+    id: 'industrial-charcoal', name: 'industrial charcoal', hex: '#30312E', check: '#F2EFE8',
+    profile: 'carbon cloth · machined graphite',
+  }),
+  Object.freeze({
+    id: 'maize', name: 'Maize Yellow', hex: '#D5AE4F', check: '#181307',
+    profile: 'archival manila · dry field',
+  }),
+  Object.freeze({
+    id: 'hammond-khaki', name: 'Hammond Khaki', hex: '#A88F68', check: '#171108',
+    profile: 'workwear canvas · old paper',
+  }),
 ]);
 export const PALETTES = Object.freeze(PALETTE_OPTIONS.map(option => option.id));
 export const DEFAULT_APPEARANCE = Object.freeze({ theme: 'dark', palette: 'ember' });
@@ -45,6 +82,9 @@ export function applyAppearance(value, persistLocal = true) {
   }
   root.dataset.theme = appearance.theme;
   root.dataset.palette = appearance.palette;
+  const themeColor = getComputedStyle(document.body || root).backgroundColor;
+  const themeColorMeta = document.querySelector('meta[name="theme-color"]');
+  if (themeColor && themeColorMeta) themeColorMeta.setAttribute('content', themeColor);
   if (persistLocal) {
     try {
       localStorage.setItem(STORAGE_KEY, JSON.stringify(appearance));

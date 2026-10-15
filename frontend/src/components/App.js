@@ -39,9 +39,9 @@ const readingSizeNodes = new Map();
 let readingSizeToggleNode = null;
 let focusReadingSizeOnOpen = false;
 
-function paletteOverlayPosition(node, estimatedHeight = 52) {
+function paletteOverlayPosition(node, estimatedHeight = 76) {
   const rect = node.getBoundingClientRect();
-  const halfWidth = 74;
+  const halfWidth = 122;
   const left = Math.min(
     window.innerWidth - halfWidth - 8,
     Math.max(halfWidth + 8, rect.left + (rect.width / 2)),
@@ -77,6 +77,7 @@ function showPaletteLabel(option, node, mode = 'preview', replaceSelected = fals
       palette: option.id,
       name: option.name,
       hex: option.hex,
+      profile: option.profile,
       mode,
       visible: true,
       ...position,
@@ -453,7 +454,7 @@ export function App() {
   navTabs.push(createElement('button', {
     onClick: () => switchView('editions'),
     className: AppState.currentView === 'editions' ? 'tab active' : 'tab',
-  }, 'EDITIONS'));
+  }, 'ZINES'));
   navTabs.push(createElement('button', {
     onClick: () => switchView('sources'),
     className: AppState.currentView === 'sources' ? 'tab active' : 'tab',
@@ -556,7 +557,7 @@ export function App() {
                 onFocus: event => handlePaletteFocus(option, event.currentTarget),
                 onBlur: () => handlePaletteBlur(option),
                 onKeyDown: event => handlePaletteKeyDown(event, index),
-                'aria-label': option.name,
+                'aria-label': `${option.name}: ${option.profile}`,
                 'aria-checked': selected ? 'true' : 'false',
                 ...(described ? { 'aria-describedby': 'palette-label' } : {}),
                 ref: node => { paletteNodes.set(option.id, node); },
@@ -645,9 +646,10 @@ export function App() {
           style: `left:${AppState.paletteLabel.left}px;top:${AppState.paletteLabel.top}px;`,
         },
           createElement('strong', null, AppState.paletteLabel.name),
-          createElement('span', null,
+          createElement('span', { className: 'palette-label-code' },
             AppState.paletteLabel.mode === 'selected' ? 'SELECTED' : AppState.paletteLabel.hex
-          )
+          ),
+          createElement('span', { className: 'palette-label-profile' }, AppState.paletteLabel.profile)
         )
       : null
   );

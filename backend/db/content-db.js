@@ -16,16 +16,22 @@ const DEFAULT_APPEARANCE = Object.freeze({ theme: 'dark', palette: 'ember' });
 const THEMES = Object.freeze(['light', 'dark']);
 const PALETTES = Object.freeze([
   'ember',
-  'moss',
+  'rrl-olive',
   'mainsail',
   'summer-sea',
   'sailor-red',
   'night-sky',
-  'rrl-purple',
+  'tony-plum',
+  'scarlette-pink',
+  'industrial-charcoal',
   'maize',
   'hammond-khaki',
 ]);
-const PALETTE_ALIASES = Object.freeze({ blue: 'summer-sea' });
+const PALETTE_ALIASES = Object.freeze({
+  blue: 'summer-sea',
+  moss: 'rrl-olive',
+  'rrl-purple': 'tony-plum',
+});
 const EMPTY_ABOUT = Object.freeze({ title: '', content: '', sections: [], updatedAt: null });
 const MAX_ABOUT_SECTIONS = 12;
 const EDITION_VISIBILITIES = Object.freeze(['draft', 'public']);

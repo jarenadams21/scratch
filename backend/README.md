@@ -77,7 +77,7 @@ Message format:
 - `delete_post` - Delete post (val: 14, requires auth)
 - `update_post_organization` - Update only `shelfId` and `sourceIds` on an existing published entry (requires auth)
 - `get_shelves` / `create_shelf` / `update_shelf` / `delete_shelf` - Full shelf CRUD; deletion uncategorizes assigned entries
-- `get_appearance` / `set_appearance` - Read or save light/dark mode with a curated accent palette (`ember`, `moss`, `mainsail`, `summer-sea`, `sailor-red`, `night-sky`, `rrl-purple`, `maize`, or `hammond-khaki`). Legacy `blue` values normalize to `summer-sea`.
+- `get_appearance` / `set_appearance` - Read or save light/dark mode with a curated palette (`ember`, `rrl-olive`, `mainsail`, `summer-sea`, `sailor-red`, `night-sky`, `tony-plum`, `scarlette-pink`, `industrial-charcoal`, `maize`, or `hammond-khaki`). Legacy `blue`, `moss`, and `rrl-purple` values normalize to their current equivalents.
 - `get_about` / `set_about` - Public read and authenticated write for the site-wide About catalog. Each ordered section stores `id`, `title`, `descriptor`, `classification`, and Markdown `content`. Legacy single-document content is exposed as one card, and saves retain synthesized Markdown for older clients.
 - `get_sources` / `create_source` / `update_source` / `delete_source`
 - `request_source_upload_url` - Create a presigned PDF upload URL (requires auth)

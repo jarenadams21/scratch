@@ -132,7 +132,7 @@ export function ShelfManager() {
               `${entryCount(shelf.id)} ${entryCount(shelf.id) === 1 ? 'ENTRY' : 'ENTRIES'}`
             ),
             createElement('span', { className: 'shelf-manager-item-scope' },
-              shelf.archiveVisibility === 'editions' ? 'EDITIONS ONLY' : 'ARCHIVE + EDITIONS'
+              shelf.archiveVisibility === 'editions' ? 'ZINES ONLY' : 'ARCHIVE + ZINES'
             ),
             shelf.description
               ? createElement('span', { className: 'shelf-manager-item-description' }, shelf.description)
@@ -186,8 +186,8 @@ export function ShelfManager() {
                   defaultChecked: editing?.archiveVisibility !== 'editions',
                 }),
                 createElement('span', null,
-                  createElement('strong', null, 'ARCHIVE + EDITIONS'),
-                  createElement('small', null, 'Show published pieces in the main Archive and allow Edition curation.')
+                  createElement('strong', null, 'ARCHIVE + ZINES'),
+                  createElement('small', null, 'Show published pieces in the main Archive and allow Zine curation.')
                 )
               ),
               createElement('label', null,
@@ -198,8 +198,8 @@ export function ShelfManager() {
                   defaultChecked: editing?.archiveVisibility === 'editions',
                 }),
                 createElement('span', null,
-                  createElement('strong', null, 'EDITIONS ONLY'),
-                  createElement('small', null, 'Hide this shelf from the Archive; pieces appear publicly only through curated Editions.')
+                  createElement('strong', null, 'ZINES ONLY'),
+                  createElement('small', null, 'Hide this shelf from the Archive; pieces appear publicly only through curated Zine issues.')
                 )
               )
             ),

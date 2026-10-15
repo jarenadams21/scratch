@@ -166,7 +166,7 @@ export function ImageInsertDialog() {
         ),
       ),
       createElement('footer', null,
-        createElement('p', null, 'Insert first, then drag and resize the image directly in Preview or the Edition canvas.'),
+        createElement('p', null, 'Insert first, then drag and resize the image directly in Preview or the Zine canvas.'),
         createElement('div', null,
           createElement('button', { type: 'button', onClick: closeImageInsert }, 'CANCEL'),
           createElement('button', { type: 'submit' }, 'UPLOAD & INSERT')

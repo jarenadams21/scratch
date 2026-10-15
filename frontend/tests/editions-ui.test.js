@@ -55,20 +55,20 @@ const server = readFileSync(
   'utf8',
 );
 
-test('Editions is a first-class public navigation destination', () => {
+test('Zines is a first-class public navigation destination', () => {
   assert.match(appView, /switchView\('editions'\)/);
-  assert.match(appView, /'EDITIONS'/);
+  assert.match(appView, /'ZINES'/);
   assert.match(appView, /createElement\(EditionsView, \{ isAdmin \}\)/);
 });
 
-test('Edition navigation keeps owner controls in two quiet rows', () => {
+test('Zine navigation keeps owner controls in two quiet rows', () => {
   assert.doesNotMatch(editionsView, /SEQUENCED WRITING/);
   assert.doesNotMatch(editionsView, /edition-admin-bar/);
   assert.match(editionsView, /className: 'edition-cover-admin'/);
   assert.match(editionsView, /\}, 'EDIT'\)/);
 });
 
-test('Edition selection uses a scalable custom archival menu', () => {
+test('Issue selection uses a scalable custom archival menu', () => {
   assert.match(editionsView, /function EditionSelector/);
   assert.match(editionsView, /role: 'listbox'/);
   assert.match(editionsView, /role: 'option'/);
@@ -82,10 +82,10 @@ test('Edition selection uses a scalable custom archival menu', () => {
   assert.match(editionsCss, /max-height: min\(390px, 60vh\)/);
 });
 
-test('shelves can reserve published writing for curated Editions', () => {
+test('shelves can reserve published writing for curated Zines', () => {
   assert.match(shelfManager, /name: 'archiveVisibility'/);
-  assert.match(shelfManager, /ARCHIVE \+ EDITIONS/);
-  assert.match(shelfManager, /EDITIONS ONLY/);
+  assert.match(shelfManager, /ARCHIVE \+ ZINES/);
+  assert.match(shelfManager, /ZINES ONLY/);
   assert.match(archiveView, /function shelfAppearsInArchive/);
   assert.match(archiveView, /shelf\.archiveVisibility !== 'editions'/);
   assert.doesNotMatch(editionsView, /archiveVisibility !== 'editions'/);
@@ -112,7 +112,7 @@ test('owner manager stays focused on selecting and ordering compositions', () =>
   assert.match(editionsView, /visibility: draft\.visibility/);
   assert.match(editionsView, /Move .* earlier/);
   assert.match(editionsView, /Move .* later/);
-  assert.match(editionsView, /PUBLISH THIS EDITION/);
+  assert.match(editionsView, /PUBLISH THIS ISSUE/);
   assert.match(editionsView, /READING ORDER/);
   assert.match(editionsView, /SELECT PIECES OR SOURCES BELOW/);
   assert.match(editionsView, /toggleSource/);
@@ -185,7 +185,7 @@ test('shared image insertion requires accessible metadata and renders structured
   assert.match(editionsCss, /\.canvas-object\s*\{[\s\S]*?position: absolute/);
 });
 
-test('Edition typography follows the global reading scale', () => {
+test('Zine typography follows the global reading scale', () => {
   const start = editionsCss.indexOf('/* ─── Editions');
   const end = editionsCss.indexOf('/* ─── Viewport-safe navigation', start);
   const editionCss = editionsCss.slice(start, end);
